@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>irenabio-app SMOKE TEST</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="wrap">
+    <div class="banner">SMOKE TEST. Временная страница для проверки связи с Supabase Auth. Будет удалена.</div>
+
+    <h1>Проверка Supabase Auth</h1>
+
+    <label>Email
+      <input id="email" type="email" autocomplete="off" placeholder="test@example.com">
+    </label>
+    <label>Пароль
+      <input id="password" type="password" autocomplete="off" placeholder="минимум 6 символов">
+    </label>
+
+    <div class="row">
+      <button id="btn-signup" type="button">signUp</button>
+      <button id="btn-signin" type="button">signInWithPassword</button>
+      <button id="btn-session" type="button">getSession</button>
+      <button id="btn-signout" type="button">signOut</button>
+    </div>
+
+    <h2>Лог</h2>
+    <pre id="log">готов.</pre>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
