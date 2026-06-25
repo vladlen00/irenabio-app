@@ -3,34 +3,102 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>irenabio-app SMOKE TEST</title>
+  <title>Женский биохакинг с Иреной Пол - оформление</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main class="wrap">
-    <div class="banner">SMOKE TEST. Временная страница для проверки связи с Supabase Auth. Будет удалена.</div>
-
-    <h1>Проверка Supabase Auth</h1>
-
-    <label>Email
-      <input id="email" type="email" autocomplete="off" placeholder="test@example.com">
-    </label>
-    <label>Пароль
-      <input id="password" type="password" autocomplete="off" placeholder="минимум 6 символов">
-    </label>
-
-    <div class="row">
-      <button id="btn-signup" type="button">signUp</button>
-      <button id="btn-signin" type="button">signInWithPassword</button>
-      <button id="btn-session" type="button">getSession</button>
-      <button id="btn-signout" type="button">signOut</button>
+  <header class="site-header">
+    <div class="wrap brand">
+      <span class="brand-mark">И</span>
+      <span class="brand-name">Женский биохакинг с Иреной Пол</span>
     </div>
+  </header>
 
-    <h2>Лог</h2>
-    <pre id="log">готов.</pre>
+  <main class="wrap checkout">
+    <!-- ЭКРАН 1: чекаут -->
+    <section id="view-checkout">
+      <h1>Оформление подписки</h1>
+      <p class="lead">Доступ к приложению и материалам: трекеры, дневник, медитации, дыхательные практики, обучающие материалы и подкасты.</p>
+
+      <form id="checkout-form" novalidate>
+        <fieldset class="plans" id="plans">
+          <legend class="sr-only">Выберите тариф</legend>
+
+          <label class="plan" data-plan="1m">
+            <input type="radio" name="plan" value="1m">
+            <span class="plan-body">
+              <span class="plan-period">1 месяц</span>
+              <span class="plan-price">11 <span>EUR</span></span>
+              <span class="plan-note">≈ 11 EUR в месяц</span>
+            </span>
+          </label>
+
+          <label class="plan" data-plan="6m">
+            <input type="radio" name="plan" value="6m" checked>
+            <span class="plan-tag">выгодно</span>
+            <span class="plan-body">
+              <span class="plan-period">6 месяцев</span>
+              <span class="plan-price">55 <span>EUR</span></span>
+              <span class="plan-note">≈ 9 EUR в месяц</span>
+            </span>
+          </label>
+
+          <label class="plan" data-plan="12m">
+            <input type="radio" name="plan" value="12m">
+            <span class="plan-body">
+              <span class="plan-period">12 месяцев</span>
+              <span class="plan-price">99 <span>EUR</span></span>
+              <span class="plan-note">≈ 8 EUR в месяц</span>
+            </span>
+          </label>
+        </fieldset>
+
+        <label class="field" for="email">
+          <span class="field-label">Ваша почта</span>
+          <input id="email" type="email" inputmode="email" autocomplete="email"
+                 placeholder="ваша@почта.com" autocapitalize="off" spellcheck="false">
+        </label>
+        <p class="field-error" id="email-error" hidden></p>
+
+        <button id="btn-pay" class="btn btn-primary" type="submit" data-method="wayforpay">
+          Оформить подписку
+        </button>
+
+        <p class="alt-pay">
+          <a href="#" id="alt-pay-link" data-method="lava" role="button">
+            Карта не проходит? Другой способ оплаты
+          </a>
+        </p>
+
+        <p class="form-error" id="form-error" hidden></p>
+      </form>
+
+      <p class="reassure">Нажимая кнопку, вы создаёте аккаунт по почте. Оплата на следующем шаге.</p>
+    </section>
+
+    <!-- ЭКРАН 2: заглушка после создания person -->
+    <section id="view-pending" hidden>
+      <div class="pending-card">
+        <div class="pending-check">✓</div>
+        <h1>Отлично, аккаунт создан</h1>
+        <p class="pending-plan" id="pending-plan"></p>
+        <p>Оплата подключается. Скоро здесь появится кнопка оплаты, и вы сразу получите доступ.</p>
+        <p class="muted" id="pending-email"></p>
+        <button class="btn btn-ghost" type="button" id="btn-back">Изменить тариф</button>
+      </div>
+    </section>
   </main>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <footer class="site-footer">
+    <div class="wrap">
+      <p class="legal-links">
+        <a href="https://irenabio.com/offer.html" target="_blank" rel="noopener">Оферта</a>
+        <a href="https://irenabio.com/refund.html" target="_blank" rel="noopener">Возврат</a>
+      </p>
+      <p class="seller"><strong>ФОП Полякова Ірина Миколаївна</strong>. Цены в EUR, списание в UAH по курсу банка.</p>
+    </div>
+  </footer>
+
   <script src="app.js"></script>
 </body>
 </html>

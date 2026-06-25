@@ -1,93 +1,168 @@
-// irenabio-app SMOKE TEST (шаг 1а).
-// Цель: доказать, что фронт говорит с Supabase Auth. Не пользовательский поток.
-// Будет удалён и заменён реальным чекаутом Варианта А на шаге 1б.
+// irenabio-app: экран чекаута (шаг 1б, часть 2а).
+// Вариант А: выбор тарифа -> email -> register-person (person создаётся тихо) -> заглушка оплаты.
+// Реальной оплаты пока НЕТ. supabase-js не нужен: register-person дёргаем обычным fetch.
 
-const SUPABASE_URL = "https://kjzxrpwqyyjcykwbqskn.supabase.co";
-// Публичный publishable-ключ. Безопасен для фронта. service_role на клиент не кладём.
-const SUPABASE_KEY = "sb_publishable_pOloEHMZ5QjMhnbfhygqmA_CQPSP1hU";
-// Запасной вариант (legacy anon JWT), если CDN-версия не понимает publishable-формат:
-// const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtqenhycHdxeXlqY3lrd2Jxc2tuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3MDg1NjUsImV4cCI6MjA5MDI4NDU2NX0.oQxkb6DGFBkmHH3w0SBkrDvGWw6nUOgN8sZt3M0FOgA";
+const REGISTER_URL = "https://kjzxrpwqyyjcykwbqskn.supabase.co/functions/v1/register-person";
 
-const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const PLANS = {
+  "1m":  { months: 1,  eur: 11, label: "1 месяц" },
+  "6m":  { months: 6,  eur: 55, label: "6 месяцев" },
+  "12m": { months: 12, eur: 99, label: "12 месяцев" },
+};
 
-const logEl = document.getElementById("log");
+// Состояние. plan и method переживут шаг оплаты (plan дублируем в URL).
+const state = {
+  plan: "6m",
+  method: "wayforpay", // wayforpay | lava - на след. шаге определит экран оплаты
+};
 
-function stamp() {
-  const d = new Date();
-  return d.toLocaleTimeString();
+const els = {
+  form: document.getElementById("checkout-form"),
+  plans: document.getElementById("plans"),
+  email: document.getElementById("email"),
+  emailError: document.getElementById("email-error"),
+  formError: document.getElementById("form-error"),
+  btnPay: document.getElementById("btn-pay"),
+  altLink: document.getElementById("alt-pay-link"),
+  viewCheckout: document.getElementById("view-checkout"),
+  viewPending: document.getElementById("view-pending"),
+  pendingPlan: document.getElementById("pending-plan"),
+  pendingEmail: document.getElementById("pending-email"),
+  btnBack: document.getElementById("btn-back"),
+};
+
+// --- URL <-> state (тариф переживает перезагрузку, пригодится шагу оплаты) ---
+function readPlanFromUrl() {
+  const p = new URLSearchParams(location.search).get("plan");
+  if (p && PLANS[p]) {
+    state.plan = p;
+    const radio = els.plans.querySelector(`input[value="${p}"]`);
+    if (radio) radio.checked = true;
+  }
+}
+function writePlanToUrl() {
+  const url = new URL(location.href);
+  url.searchParams.set("plan", state.plan);
+  history.replaceState(null, "", url);
 }
 
-function log(line, cls) {
-  const span = cls ? `<span class="${cls}">${line}</span>` : line;
-  logEl.innerHTML = `[${stamp()}] ${span}\n` + logEl.innerHTML;
+// --- подсветка выбранной карточки (дубль к :has для старых WebView) ---
+function paintSelected() {
+  els.plans.querySelectorAll(".plan").forEach((label) => {
+    const input = label.querySelector("input");
+    label.classList.toggle("selected", input.checked);
+  });
 }
 
-function readInputs() {
-  return {
-    email: document.getElementById("email").value.trim(),
-    password: document.getElementById("password").value,
-  };
+// --- email ---
+function normalizeEmail(raw) {
+  return String(raw || "").trim().toLowerCase();
+}
+function emailValid(email) {
+  return email.length >= 6 && email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-function describeSession(session) {
-  if (!session) return "сессии нет";
-  return `сессия есть, user.id=${session.user.id}`;
+// --- сообщения об ошибке ---
+function showEmailError(msg) {
+  els.emailError.textContent = msg || "";
+  els.emailError.hidden = !msg;
+}
+function showFormError(msg) {
+  els.formError.textContent = msg || "";
+  els.formError.hidden = !msg;
+}
+function clearErrors() {
+  showEmailError("");
+  showFormError("");
 }
 
-function reportError(err) {
-  // Сетевые сбои у аудитории в заблокированных регионах лечит VPN.
-  const msg = String(err && err.message ? err.message : err);
-  const looksNetwork = /fetch|network|failed to fetch/i.test(msg);
-  log(`ОШИБКА: ${msg}`, "err");
-  if (looksNetwork) {
-    log("Похоже на сетевую ошибку. Включите VPN и попробуйте снова.", "err");
+// --- экраны ---
+function goPending(email) {
+  const plan = PLANS[state.plan];
+  els.pendingPlan.textContent = `Тариф: ${plan.label}, ${plan.eur} EUR`;
+  els.pendingEmail.textContent = email;
+  els.viewCheckout.hidden = true;
+  els.viewPending.hidden = false;
+  window.scrollTo(0, 0);
+}
+function goCheckout() {
+  els.viewPending.hidden = true;
+  els.viewCheckout.hidden = false;
+}
+
+// --- индикатор загрузки на кнопке ---
+function setLoading(on) {
+  els.btnPay.disabled = on;
+  els.altLink.classList.toggle("disabled", on);
+  els.btnPay.textContent = on ? "Создаём аккаунт..." : "Оформить подписку";
+}
+
+// --- основной поток: создать person, затем заглушка оплаты ---
+async function submit(method) {
+  clearErrors();
+  state.method = method;
+
+  const email = normalizeEmail(els.email.value);
+  if (!emailValid(email)) {
+    showEmailError("Проверьте адрес почты. Пример: ваша@почта.com");
+    els.email.focus();
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const res = await fetch(REGISTER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+
+    if (res.status === 429) {
+      showFormError("Слишком много попыток. Подождите минуту и попробуйте снова.");
+      return;
+    }
+
+    let data = {};
+    try { data = await res.json(); } catch { data = {}; }
+
+    if (res.ok && data.ok) {
+      goPending(email);
+      return;
+    }
+    if (res.status === 400 || data.error === "invalid_email") {
+      showEmailError("Проверьте адрес почты. Пример: ваша@почта.com");
+      return;
+    }
+    showFormError("Что-то пошло не так. Попробуйте ещё раз через минуту.");
+  } catch (err) {
+    // Сетевой сбой у аудитории в заблокированных регионах лечит VPN.
+    showFormError("Не получилось связаться с сервером. Включите VPN и попробуйте снова.");
+  } finally {
+    setLoading(false);
   }
 }
 
-document.getElementById("btn-signup").addEventListener("click", async () => {
-  const { email, password } = readInputs();
-  log(`signUp: ${email} ...`);
-  try {
-    const { data, error } = await client.auth.signUp({ email, password });
-    if (error) return reportError(error);
-    log(`signUp OK. ${describeSession(data.session)}`, "ok");
-  } catch (err) {
-    reportError(err);
+// --- слушатели ---
+els.plans.addEventListener("change", (e) => {
+  if (e.target.name === "plan" && PLANS[e.target.value]) {
+    state.plan = e.target.value;
+    writePlanToUrl();
+    paintSelected();
   }
 });
-
-document.getElementById("btn-signin").addEventListener("click", async () => {
-  const { email, password } = readInputs();
-  log(`signInWithPassword: ${email} ...`);
-  try {
-    const { data, error } = await client.auth.signInWithPassword({ email, password });
-    if (error) return reportError(error);
-    log(`signIn OK. ${describeSession(data.session)}`, "ok");
-  } catch (err) {
-    reportError(err);
-  }
+els.form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  submit(els.btnPay.dataset.method); // wayforpay
 });
-
-document.getElementById("btn-session").addEventListener("click", async () => {
-  log("getSession ...");
-  try {
-    const { data, error } = await client.auth.getSession();
-    if (error) return reportError(error);
-    log(`getSession: ${describeSession(data.session)}`, "ok");
-  } catch (err) {
-    reportError(err);
-  }
+els.altLink.addEventListener("click", (e) => {
+  e.preventDefault();
+  if (els.altLink.classList.contains("disabled")) return;
+  submit(els.altLink.dataset.method); // lava
 });
+els.email.addEventListener("input", () => showEmailError(""));
+els.btnBack.addEventListener("click", goCheckout);
 
-document.getElementById("btn-signout").addEventListener("click", async () => {
-  log("signOut ...");
-  try {
-    const { error } = await client.auth.signOut();
-    if (error) return reportError(error);
-    log("signOut OK. сессия очищена.", "ok");
-  } catch (err) {
-    reportError(err);
-  }
-});
-
-log("клиент Supabase инициализирован. готов к проверке.");
+// --- старт ---
+readPlanFromUrl();
+writePlanToUrl();
+paintSelected();
