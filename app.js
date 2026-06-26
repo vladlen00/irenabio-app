@@ -395,11 +395,25 @@ els.btnRetry.addEventListener("click", async () => {
   else showPwError("Сессия истекла. Обновите страницу и войдите снова.");
 });
 
+// TEST-TARIFF: тариф "test" доступен ТОЛЬКО через ?plan=test, в списке тарифов не показан.
+// Прячем боевые карточки, показываем заметку. state.plan='test' уходит в create-checkout.
+// Удалить после теста (этот блок + #test-note в index.html + строку test в create-checkout).
+const TEST_PLAN = "test";
+function applyTestPlanIfRequested() {
+  if (new URLSearchParams(location.search).get("plan") !== TEST_PLAN) return false;
+  state.plan = TEST_PLAN;
+  els.plans.hidden = true;
+  const note = document.getElementById("test-note");
+  if (note) note.hidden = false;
+  writePlanToUrl();
+  return true;
+}
+
 // --- старт: ветвление чекаут / возврат после оплаты ---
 const startParams = new URLSearchParams(location.search);
 if (startParams.get("paid") === "1" && startParams.get("order")) {
   enterPaymentReturn(startParams.get("order"));
-} else {
+} else if (!applyTestPlanIfRequested()) {
   readPlanFromUrl();
   writePlanToUrl();
   paintSelected();

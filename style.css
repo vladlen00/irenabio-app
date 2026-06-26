@@ -109,6 +109,9 @@ a:hover { text-decoration: underline; }
 .pending-plan { font-weight: 700; color: var(--text) !important; }
 .pending-card .muted { color: var(--muted); font-size: 13px; }
 
+/* TEST-TARIFF: заметка тестового тарифа (удалить после теста) */
+.test-note { text-align: center; color: var(--accent-deep); font-size: 13px; font-weight: 600; margin: 0 0 18px; }
+
 /* Экран пароля после оплаты */
 #view-password .login-line { margin: 4px 0 16px; }
 #view-password .login-line strong { color: var(--text); }
