@@ -1,7 +1,11 @@
-// irenabio-app: экран чекаута (шаг 1б, часть 2а).
-// Вариант А: выбор тарифа -> email -> register-person (person создаётся тихо) -> заглушка оплаты.
-// Реальной оплаты пока НЕТ. supabase-js не нужен: register-person дёргаем обычным fetch.
+// irenabio-app: экран чекаута.
+// WayForPay (основная кнопка): create-checkout -> {ok:true, invoiceUrl} -> редирект
+//   на страницу оплаты WayForPay. person создаётся внутри create-checkout на сервере,
+//   поэтому отдельный register-person для этого пути не нужен.
+// Lava (ссылка "другой способ"): пока заглушка register-person -> экран "аккаунт создан".
+// supabase-js не нужен: всё обычным fetch.
 
+const CREATE_CHECKOUT_URL = "https://kjzxrpwqyyjcykwbqskn.supabase.co/functions/v1/create-checkout";
 const REGISTER_URL = "https://kjzxrpwqyyjcykwbqskn.supabase.co/functions/v1/register-person";
 
 const PLANS = {
@@ -13,7 +17,7 @@ const PLANS = {
 // Состояние. plan и method переживут шаг оплаты (plan дублируем в URL).
 const state = {
   plan: "6m",
-  method: "wayforpay", // wayforpay | lava - на след. шаге определит экран оплаты
+  method: "wayforpay", // wayforpay | lava
 };
 
 const els = {
@@ -75,6 +79,10 @@ function clearErrors() {
   showEmailError("");
   showFormError("");
 }
+const EMAIL_HINT = "Проверьте адрес почты. Пример: ваша@почта.com";
+const RATE_MSG = "Слишком много попыток. Подождите минуту и попробуйте снова.";
+// Сетевой сбой у аудитории в заблокированных регионах лечит VPN.
+const NET_MSG = "Не получилось связаться с сервером. Включите VPN и попробуйте снова.";
 
 // --- экраны ---
 function goPending(email) {
@@ -90,26 +98,68 @@ function goCheckout() {
   els.viewCheckout.hidden = false;
 }
 
-// --- индикатор загрузки на кнопке ---
-function setLoading(on) {
+// --- индикатор загрузки на кнопке (защита от двойных кликов/заказов) ---
+function setLoading(on, label) {
   els.btnPay.disabled = on;
   els.altLink.classList.toggle("disabled", on);
-  els.btnPay.textContent = on ? "Создаём аккаунт..." : "Оформить подписку";
+  els.btnPay.textContent = on ? (label || "Загрузка...") : "Оформить подписку";
 }
 
-// --- основной поток: создать person, затем заглушка оплаты ---
+// --- общий вход: валидация почты, затем ветка способа оплаты ---
 async function submit(method) {
   clearErrors();
   state.method = method;
 
   const email = normalizeEmail(els.email.value);
   if (!emailValid(email)) {
-    showEmailError("Проверьте адрес почты. Пример: ваша@почта.com");
+    showEmailError(EMAIL_HINT);
     els.email.focus();
     return;
   }
 
-  setLoading(true);
+  if (method === "wayforpay") {
+    await payWayforpay(email);
+  } else {
+    await registerStub(email); // lava - пока заглушка
+  }
+}
+
+// --- WayForPay: создаём заказ на сервере и уводим на страницу оплаты ---
+async function payWayforpay(email) {
+  setLoading(true, "Открываем оплату...");
+  try {
+    const res = await fetch(CREATE_CHECKOUT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, plan: state.plan, method: "wayforpay" }),
+    });
+
+    let data = {};
+    try { data = await res.json(); } catch { data = {}; }
+
+    if (res.ok && data.ok && data.invoiceUrl) {
+      // Успех: уходим на оплату. Кнопку НЕ разблокируем - страница сейчас сменится.
+      window.location.href = data.invoiceUrl;
+      return;
+    }
+
+    if (res.status === 429) {
+      showFormError(RATE_MSG);
+    } else if (res.status === 400 || data.error === "invalid_email") {
+      showEmailError(EMAIL_HINT);
+    } else {
+      showFormError("Не удалось открыть оплату. Попробуйте ещё раз.");
+    }
+    setLoading(false);
+  } catch (err) {
+    showFormError(NET_MSG);
+    setLoading(false);
+  }
+}
+
+// --- Lava (пока заглушка): тихо создаём person, показываем экран ожидания оплаты ---
+async function registerStub(email) {
+  setLoading(true, "Создаём аккаунт...");
   try {
     const res = await fetch(REGISTER_URL, {
       method: "POST",
@@ -118,7 +168,7 @@ async function submit(method) {
     });
 
     if (res.status === 429) {
-      showFormError("Слишком много попыток. Подождите минуту и попробуйте снова.");
+      showFormError(RATE_MSG);
       return;
     }
 
@@ -130,13 +180,12 @@ async function submit(method) {
       return;
     }
     if (res.status === 400 || data.error === "invalid_email") {
-      showEmailError("Проверьте адрес почты. Пример: ваша@почта.com");
+      showEmailError(EMAIL_HINT);
       return;
     }
     showFormError("Что-то пошло не так. Попробуйте ещё раз через минуту.");
   } catch (err) {
-    // Сетевой сбой у аудитории в заблокированных регионах лечит VPN.
-    showFormError("Не получилось связаться с сервером. Включите VPN и попробуйте снова.");
+    showFormError(NET_MSG);
   } finally {
     setLoading(false);
   }
