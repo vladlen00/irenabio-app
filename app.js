@@ -220,7 +220,7 @@ function showPwError(msg) { els.pwError.textContent = msg || ""; els.pwError.hid
 function pwLoading(on, label) {
   els.btnEnter.disabled = on;
   els.password.disabled = on;
-  els.btnEnter.textContent = on ? (label || "Минутку...") : "Войти в подписку";
+  els.btnEnter.textContent = on ? (label || "Минутку...") : "Открыть доступ";
 }
 
 // Вход на возврате с оплаты: показать экран пароля, подставить email по оплаченному заказу.
