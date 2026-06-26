@@ -109,6 +109,24 @@ a:hover { text-decoration: underline; }
 .pending-plan { font-weight: 700; color: var(--text) !important; }
 .pending-card .muted { color: var(--muted); font-size: 13px; }
 
+/* Экран пароля после оплаты */
+#view-password .login-line { margin: 4px 0 16px; }
+#view-password .login-line strong { color: var(--text); }
+.pw-field { position: relative; margin: 0 0 4px; }
+#password {
+  width: 100%; padding: 13px 76px 13px 14px; font-size: 16px; color: var(--text);
+  background: var(--surface); border: 1.5px solid var(--border); border-radius: 13px;
+}
+#password:focus { outline: none; border-color: var(--accent); }
+.pw-eye {
+  position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
+  border: none; background: transparent; color: var(--accent-deep);
+  font-size: 13px; font-weight: 600; cursor: pointer; padding: 6px 8px;
+}
+#view-password .field-error { text-align: left; }
+#view-password .btn-ghost { margin-top: 12px; }
+#access-until { color: var(--text); font-weight: 600; }
+
 .site-footer { margin-top: 26px; border-top: 1px solid var(--border); background: var(--surface); padding: 22px 0 30px; }
 .legal-links { margin: 0 0 10px; text-align: center; }
 .legal-links a { margin: 0 10px; font-size: 14px; }

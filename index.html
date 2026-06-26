@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Женский биохакинг с Иреной Пол - оформление</title>
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
   <header class="site-header">
@@ -76,7 +76,7 @@
       <p class="reassure">Нажимая кнопку, вы создаёте аккаунт по почте. Оплата на следующем шаге.</p>
     </section>
 
-    <!-- ЭКРАН 2: заглушка после создания person -->
+    <!-- ЭКРАН 2: заглушка после создания person (ветка Lava) -->
     <section id="view-pending" hidden>
       <div class="pending-card">
         <div class="pending-check">✓</div>
@@ -85,6 +85,41 @@
         <p>Оплата подключается. Скоро здесь появится кнопка оплаты, и вы сразу получите доступ.</p>
         <p class="muted" id="pending-email"></p>
         <button class="btn btn-ghost" type="button" id="btn-back">Изменить тариф</button>
+      </div>
+    </section>
+
+    <!-- ЭКРАН 3: пароль после оплаты (вход по ?paid=1&order=) -->
+    <section id="view-password" hidden>
+      <div class="pending-card">
+        <div class="pending-check">✓</div>
+        <h1>Оплата прошла</h1>
+        <p>Придумайте пароль, чтобы входить в подписку.</p>
+
+        <div id="pw-form" hidden>
+          <p class="muted login-line">Ваш логин: <strong id="pw-email"></strong></p>
+          <div class="pw-field">
+            <input id="password" type="password" inputmode="text" autocomplete="new-password"
+                   placeholder="Пароль, минимум 8 символов" minlength="8"
+                   autocapitalize="off" spellcheck="false">
+            <button type="button" id="pw-eye" class="pw-eye" aria-label="Показать пароль">показать</button>
+          </div>
+          <p class="field-error" id="pw-error" hidden></p>
+          <button id="btn-enter" class="btn btn-primary" type="button">Войти в подписку</button>
+          <button id="btn-retry" class="btn btn-ghost" type="button" hidden>Повторить</button>
+          <p class="reassure">Сохраните логин и пароль - по ним вход в подписку.</p>
+        </div>
+
+        <p class="form-error" id="pw-resolve-error" hidden></p>
+      </div>
+    </section>
+
+    <!-- ЭКРАН 4: заглушка "Доступ открыт" (полноценное приложение - отдельным блоком позже) -->
+    <section id="view-access" hidden>
+      <div class="pending-card">
+        <div class="pending-check">✓</div>
+        <h1>Доступ открыт</h1>
+        <p>Подписка активна. Здесь скоро откроется приложение.</p>
+        <p class="muted">Подписка действует до <span id="access-until"></span></p>
       </div>
     </section>
   </main>
@@ -99,6 +134,8 @@
     </div>
   </footer>
 
-  <script src="app.js?v=3"></script>
+  <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

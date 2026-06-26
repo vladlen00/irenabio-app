@@ -1,12 +1,18 @@
-// irenabio-app: экран чекаута.
-// WayForPay (основная кнопка): create-checkout -> {ok:true, invoiceUrl} -> редирект
-//   на страницу оплаты WayForPay. person создаётся внутри create-checkout на сервере,
-//   поэтому отдельный register-person для этого пути не нужен.
+// irenabio-app: чекаут + возврат после оплаты (экран пароля) + заглушка доступа.
+// WayForPay (основная кнопка): create-checkout -> {ok:true, invoiceUrl} -> редирект на оплату.
+//   person создаётся внутри create-checkout, отдельный register-person не нужен.
 // Lava (ссылка "другой способ"): пока заглушка register-person -> экран "аккаунт создан".
-// supabase-js не нужен: всё обычным fetch.
+// Возврат с оплаты (?paid=1&order=): resolve-paid-order -> пароль -> signUp/signIn ->
+//   attach-web-identity -> verify-access-web (с ретраями) -> "Доступ открыт".
+// Чекаут на чистом fetch; supabase-js (CDN) только для auth-экранов (пароль+гейт).
 
-const CREATE_CHECKOUT_URL = "https://kjzxrpwqyyjcykwbqskn.supabase.co/functions/v1/create-checkout";
-const REGISTER_URL = "https://kjzxrpwqyyjcykwbqskn.supabase.co/functions/v1/register-person";
+const SUPABASE_URL = "https://kjzxrpwqyyjcykwbqskn.supabase.co";
+const PUBLISHABLE_KEY = "sb_publishable_pOloEHMZ5QjMhnbfhygqmA_CQPSP1hU";
+const CREATE_CHECKOUT_URL = SUPABASE_URL + "/functions/v1/create-checkout";
+const REGISTER_URL = SUPABASE_URL + "/functions/v1/register-person";
+const RESOLVE_ORDER_URL = SUPABASE_URL + "/functions/v1/resolve-paid-order";
+const ATTACH_IDENTITY_URL = SUPABASE_URL + "/functions/v1/attach-web-identity";
+const VERIFY_ACCESS_URL = SUPABASE_URL + "/functions/v1/verify-access-web";
 
 const PLANS = {
   "1m":  { months: 1,  eur: 11, label: "1 месяц" },
@@ -33,7 +39,24 @@ const els = {
   pendingPlan: document.getElementById("pending-plan"),
   pendingEmail: document.getElementById("pending-email"),
   btnBack: document.getElementById("btn-back"),
+  // экран пароля после оплаты
+  viewPassword: document.getElementById("view-password"),
+  viewAccess: document.getElementById("view-access"),
+  pwForm: document.getElementById("pw-form"),
+  pwEmail: document.getElementById("pw-email"),
+  password: document.getElementById("password"),
+  pwEye: document.getElementById("pw-eye"),
+  pwError: document.getElementById("pw-error"),
+  pwResolveError: document.getElementById("pw-resolve-error"),
+  btnEnter: document.getElementById("btn-enter"),
+  btnRetry: document.getElementById("btn-retry"),
+  accessUntil: document.getElementById("access-until"),
 };
+
+// supabase-js клиент (только auth-экраны). Гард: если CDN не загрузился, чекаут не ломаем.
+const sb = (window.supabase && window.supabase.createClient)
+  ? window.supabase.createClient(SUPABASE_URL, PUBLISHABLE_KEY)
+  : null;
 
 // --- URL <-> state (тариф переживает перезагрузку, пригодится шагу оплаты) ---
 function readPlanFromUrl() {
@@ -191,6 +214,149 @@ async function registerStub(email) {
   }
 }
 
+// ===================== ВОЗВРАТ ПОСЛЕ ОПЛАТЫ: ЭКРАН ПАРОЛЯ =====================
+function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+function showPwError(msg) { els.pwError.textContent = msg || ""; els.pwError.hidden = !msg; }
+function pwLoading(on, label) {
+  els.btnEnter.disabled = on;
+  els.password.disabled = on;
+  els.btnEnter.textContent = on ? (label || "Минутку...") : "Войти в подписку";
+}
+
+// Вход на возврате с оплаты: показать экран пароля, подставить email по оплаченному заказу.
+async function enterPaymentReturn(order) {
+  state.order = order;
+  els.viewCheckout.hidden = true;
+  els.viewPending.hidden = true;
+  els.viewPassword.hidden = false;
+  window.scrollTo(0, 0);
+
+  if (!sb) {
+    els.pwForm.hidden = true;
+    els.pwResolveError.textContent = "Не удалось загрузить вход. Обновите страницу.";
+    els.pwResolveError.hidden = false;
+    return;
+  }
+  try {
+    const res = await fetch(RESOLVE_ORDER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderReference: order }),
+    });
+    let data = {};
+    try { data = await res.json(); } catch { data = {}; }
+    if (res.ok && data.ok && data.email) {
+      state.email = data.email;
+      els.pwEmail.textContent = data.email;
+      els.pwForm.hidden = false;
+      els.pwResolveError.hidden = true;
+    } else {
+      els.pwForm.hidden = true;
+      els.pwResolveError.textContent = "Не видим оплату по этой ссылке. Если деньги списались - напишите в поддержку, мы откроем доступ.";
+      els.pwResolveError.hidden = false;
+    }
+  } catch {
+    els.pwForm.hidden = true;
+    els.pwResolveError.textContent = "Не получилось проверить оплату. Включите VPN и обновите страницу.";
+    els.pwResolveError.hidden = false;
+  }
+}
+
+// Confirm email OFF -> signUp сразу даёт сессию. Существующий email -> нет сессии ->
+// пробуем signIn тем же паролем (идемпотентно, покрывает двойной клик и повторный возврат).
+async function signUpOrSignIn(email, password) {
+  const up = await sb.auth.signUp({ email, password });
+  if (up.data && up.data.session) return { session: up.data.session };
+  const inn = await sb.auth.signInWithPassword({ email, password });
+  if (inn.data && inn.data.session) return { session: inn.data.session };
+  return { error: true };
+}
+
+async function onEnter() {
+  showPwError("");
+  els.btnRetry.hidden = true;
+  const password = els.password.value || "";
+  if (password.length < 8) {
+    showPwError("Пароль минимум 8 символов.");
+    els.password.focus();
+    return;
+  }
+  pwLoading(true, "Входим...");
+  try {
+    const r = await signUpOrSignIn(state.email, password);
+    if (r.error || !r.session) {
+      showPwError("Аккаунт с этой почтой уже есть. Проверьте пароль - или напишите в поддержку, поможем войти.");
+      pwLoading(false);
+      return;
+    }
+    await attachAndVerify(r.session.access_token);
+  } catch {
+    showPwError(NET_MSG);
+    pwLoading(false);
+  }
+}
+
+// Склейка identity (идемпотентна) + проверка доступа с ретраями (гонка с вебхуком).
+async function attachAndVerify(accessToken) {
+  pwLoading(true, "Открываем доступ...");
+  // 1) привязка supabase-логина к оплатившему person
+  try {
+    const a = await fetch(ATTACH_IDENTITY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + accessToken },
+      body: JSON.stringify({ orderReference: state.order }),
+    });
+    if (!a.ok) {
+      showPwError("Не удалось открыть доступ. Нажмите «Повторить».");
+      els.btnRetry.hidden = false;
+      pwLoading(false);
+      return;
+    }
+  } catch {
+    showPwError(NET_MSG);
+    els.btnRetry.hidden = false;
+    pwLoading(false);
+    return;
+  }
+  // 2) проверка доступа: 3 попытки по ~2с (вебхук мог ещё не активировать подписку)
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const v = await fetch(VERIFY_ACCESS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + accessToken },
+      });
+      if (v.ok) {
+        let data = {};
+        try { data = await v.json(); } catch { data = {}; }
+        if (data.access) { showAccess(data.valid_until); return; }
+      } else if (v.status === 401) {
+        showPwError("Сессия не подтвердилась. Обновите страницу и войдите снова.");
+        pwLoading(false);
+        return;
+      }
+      // 403 -> доступ ещё не выдан, ждём и ретраим
+    } catch {
+      // сетевой сбой -> тоже подождём и ретраим
+    }
+    if (attempt < 3) await sleep(2000);
+  }
+  showPwError("Оплата обрабатывается. Обновите через минуту - доступ откроется. Если нет - напишите в поддержку.");
+  els.btnRetry.hidden = false;
+  pwLoading(false);
+}
+
+function showAccess(validUntil) {
+  els.viewPassword.hidden = true;
+  els.viewAccess.hidden = false;
+  if (validUntil) {
+    const d = new Date(validUntil);
+    if (!isNaN(d.getTime())) {
+      els.accessUntil.textContent = d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+    }
+  }
+  window.scrollTo(0, 0);
+}
+
 // --- слушатели ---
 els.plans.addEventListener("change", (e) => {
   if (e.target.name === "plan" && PLANS[e.target.value]) {
@@ -211,7 +377,30 @@ els.altLink.addEventListener("click", (e) => {
 els.email.addEventListener("input", () => showEmailError(""));
 els.btnBack.addEventListener("click", goCheckout);
 
-// --- старт ---
-readPlanFromUrl();
-writePlanToUrl();
-paintSelected();
+// слушатели экрана пароля
+els.btnEnter.addEventListener("click", onEnter);
+els.password.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); onEnter(); } });
+els.password.addEventListener("input", () => showPwError(""));
+els.pwEye.addEventListener("click", () => {
+  const masked = els.password.type === "password";
+  els.password.type = masked ? "text" : "password";
+  els.pwEye.textContent = masked ? "скрыть" : "показать";
+});
+els.btnRetry.addEventListener("click", async () => {
+  showPwError("");
+  els.btnRetry.hidden = true;
+  if (!sb) return;
+  const { data } = await sb.auth.getSession();
+  if (data && data.session) await attachAndVerify(data.session.access_token);
+  else showPwError("Сессия истекла. Обновите страницу и войдите снова.");
+});
+
+// --- старт: ветвление чекаут / возврат после оплаты ---
+const startParams = new URLSearchParams(location.search);
+if (startParams.get("paid") === "1" && startParams.get("order")) {
+  enterPaymentReturn(startParams.get("order"));
+} else {
+  readPlanFromUrl();
+  writePlanToUrl();
+  paintSelected();
+}
