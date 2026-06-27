@@ -303,7 +303,7 @@ async function onEnter() {
   try {
     const r = await signUpOrSignIn(state.email, password);
     if (r.error || !r.session) {
-      showPwError("Аккаунт с этой почтой уже есть. Проверьте пароль - или напишите в поддержку, поможем войти.");
+      showPwError("Аккаунт с этой почтой уже есть. Введите пароль от него.");
       pwLoading(false);
       return;
     }
