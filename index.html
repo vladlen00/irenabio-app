@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Женский биохакинг с Иреной Пол - оформление</title>
-  <link rel="stylesheet" href="style.css?v=6">
+  <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
   <header class="site-header">
@@ -105,10 +105,14 @@
                    autocapitalize="off" spellcheck="false">
             <button type="button" id="pw-eye" class="pw-eye" aria-label="Показать пароль">показать</button>
           </div>
+          <div class="pw-field">
+            <input id="password2" type="password" inputmode="text" autocomplete="new-password"
+                   placeholder="Повторите пароль" autocapitalize="off" spellcheck="false">
+          </div>
           <p class="field-error" id="pw-error" hidden></p>
-          <button id="btn-enter" class="btn btn-primary" type="button">Открыть доступ</button>
+          <button id="btn-enter" class="btn btn-primary" type="button" disabled>Открыть доступ</button>
           <button id="btn-retry" class="btn btn-ghost" type="button" hidden>Повторить</button>
-          <p class="reassure">Сохраните логин и пароль - по ним вход в подписку.</p>
+          <p class="reassure">Сохраните логин и пароль - восстановление пока недоступно.</p>
         </div>
 
         <p class="form-error" id="pw-resolve-error" hidden></p>
@@ -128,16 +132,19 @@
 
   <footer class="site-footer">
     <div class="wrap">
-      <p class="legal-links">
-        <a href="https://irenabio.com/offer.html" target="_blank" rel="noopener">Оферта</a>
-        <a href="https://irenabio.com/refund.html" target="_blank" rel="noopener">Возврат</a>
-      </p>
+      <details class="legal">
+        <summary>Условия</summary>
+        <span class="legal-docs">
+          <a href="https://irenabio.com/offer.html" target="_blank" rel="noopener">Публичная оферта</a>
+          <a href="https://irenabio.com/refund.html" target="_blank" rel="noopener">Условия возврата</a>
+        </span>
+      </details>
       <p class="seller"><strong>ФОП Полякова Ірина Миколаївна</strong>. Цены в EUR, списание в UAH по курсу банка.</p>
     </div>
   </footer>
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

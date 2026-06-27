@@ -45,6 +45,7 @@ const els = {
   pwForm: document.getElementById("pw-form"),
   pwEmail: document.getElementById("pw-email"),
   password: document.getElementById("password"),
+  password2: document.getElementById("password2"),
   pwEye: document.getElementById("pw-eye"),
   pwError: document.getElementById("pw-error"),
   pwResolveError: document.getElementById("pw-resolve-error"),
@@ -220,7 +221,18 @@ function showPwError(msg) { els.pwError.textContent = msg || ""; els.pwError.hid
 function pwLoading(on, label) {
   els.btnEnter.disabled = on;
   els.password.disabled = on;
+  els.password2.disabled = on;
   els.btnEnter.textContent = on ? (label || "Минутку...") : "Открыть доступ";
+}
+
+// Гейт кнопки: активна только когда первый пароль >=8 и второй точно совпадает.
+function validatePw() {
+  const p1 = els.password.value || "";
+  const p2 = els.password2.value || "";
+  const ok = p1.length >= 8 && p2.length > 0 && p1 === p2;
+  els.btnEnter.disabled = !ok;
+  showPwError(p2.length > 0 && p1 !== p2 ? "Пароли не совпадают." : "");
+  return ok;
 }
 
 // Вход на возврате с оплаты: показать экран пароля, подставить email по оплаченному заказу.
@@ -276,9 +288,15 @@ async function onEnter() {
   showPwError("");
   els.btnRetry.hidden = true;
   const password = els.password.value || "";
+  const password2 = els.password2.value || "";
   if (password.length < 8) {
     showPwError("Пароль минимум 8 символов.");
     els.password.focus();
+    return;
+  }
+  if (password !== password2) {
+    showPwError("Пароли не совпадают.");
+    els.password2.focus();
     return;
   }
   pwLoading(true, "Входим...");
@@ -380,7 +398,9 @@ els.btnBack.addEventListener("click", goCheckout);
 // слушатели экрана пароля
 els.btnEnter.addEventListener("click", onEnter);
 els.password.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); onEnter(); } });
-els.password.addEventListener("input", () => showPwError(""));
+els.password2.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); onEnter(); } });
+els.password.addEventListener("input", validatePw);
+els.password2.addEventListener("input", validatePw);
 els.pwEye.addEventListener("click", () => {
   const masked = els.password.type === "password";
   els.password.type = masked ? "text" : "password";

@@ -115,12 +115,13 @@ a:hover { text-decoration: underline; }
 /* Экран пароля после оплаты */
 #view-password .login-line { margin: 4px 0 16px; }
 #view-password .login-line strong { color: var(--text); }
-.pw-field { position: relative; margin: 0 0 4px; }
-#password {
-  width: 100%; padding: 13px 76px 13px 14px; font-size: 16px; color: var(--text);
+.pw-field { position: relative; margin: 0 0 10px; }
+#password, #password2 {
+  width: 100%; padding: 13px 14px; font-size: 16px; color: var(--text);
   background: var(--surface); border: 1.5px solid var(--border); border-radius: 13px;
 }
-#password:focus { outline: none; border-color: var(--accent); }
+#password { padding-right: 76px; }  /* место под кнопку "показать" */
+#password:focus, #password2:focus { outline: none; border-color: var(--accent); }
 .pw-eye {
   position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
   border: none; background: transparent; color: var(--accent-deep);
@@ -131,8 +132,14 @@ a:hover { text-decoration: underline; }
 #access-until { color: var(--text); font-weight: 600; }
 
 .site-footer { margin-top: 26px; border-top: 1px solid var(--border); background: var(--surface); padding: 22px 0 30px; }
-.legal-links { margin: 0 0 10px; text-align: center; }
-.legal-links a { margin: 0 10px; font-size: 14px; }
+.legal { text-align: center; margin: 0 0 10px; }
+.legal summary {
+  display: inline-block; list-style: none; cursor: pointer;
+  color: var(--muted); font-size: 12px; border-bottom: 1px dashed var(--border);
+}
+.legal summary::-webkit-details-marker { display: none; }
+.legal-docs { display: block; margin-top: 8px; }
+.legal-docs a { margin: 0 8px; font-size: 12px; color: var(--muted); }
 .seller { color: var(--muted); font-size: 13px; line-height: 1.7; margin: 0; text-align: center; }
 .seller strong { color: var(--text); font-weight: 600; }
 
