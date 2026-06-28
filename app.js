@@ -22,10 +22,17 @@ const SUPPORT = {
 };
 // Кликабельные контакты поддержки (HTML, вставлять через innerHTML).
 // color:inherit - чтобы ссылки совпадали с цветом окружающего текста (в т.ч. красной ошибки).
+// Отдельные хелперы под email/telegram - чтобы вставлять кастомный текст между ними.
+const SUPPORT_LINK_STYLE = 'style="color:inherit;text-decoration:underline"';
+function supportEmailHtml() {
+  return '<a href="mailto:' + SUPPORT.email + '" ' + SUPPORT_LINK_STYLE + '>' + SUPPORT.email + '</a>';
+}
+function supportTgHtml() {
+  return '<a href="https://t.me/' + SUPPORT.tg + '" target="_blank" rel="noopener" ' + SUPPORT_LINK_STYLE + '>@' + SUPPORT.tg + '</a>';
+}
+// Оба контакта через "или" - для общих экранов.
 function supportContactsHtml() {
-  const st = 'style="color:inherit;text-decoration:underline"';
-  return '<a href="mailto:' + SUPPORT.email + '" ' + st + '>' + SUPPORT.email + '</a> или ' +
-         '<a href="https://t.me/' + SUPPORT.tg + '" target="_blank" rel="noopener" ' + st + '>@' + SUPPORT.tg + '</a>';
+  return supportEmailHtml() + ' или ' + supportTgHtml();
 }
 
 const PLANS = {
@@ -292,7 +299,7 @@ async function enterPaymentReturn(order) {
     } else {
       // Битая/мусорная/устаревшая ссылка -> без галки и без "Оплата прошла", честная ошибка.
       els.pwSuccess.hidden = true;
-      els.pwResolveError.innerHTML = "Ссылка недействительна или устарела. Если вы оплачивали и доступ не открылся - напишите в поддержку: " + supportContactsHtml() + ", проверим.";
+      els.pwResolveError.innerHTML = "Ссылка недействительна или устарела. Если вы оплачивали и доступ не открылся - напишите нам на почту " + supportEmailHtml() + " или для более быстрого ответа в телеграм " + supportTgHtml() + ", проверим и поможем.";
       els.pwResolveError.hidden = false;
     }
   } catch {
