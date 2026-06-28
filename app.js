@@ -14,6 +14,20 @@ const RESOLVE_ORDER_URL = SUPABASE_URL + "/functions/v1/resolve-paid-order";
 const ATTACH_IDENTITY_URL = SUPABASE_URL + "/functions/v1/attach-web-identity";
 const VERIFY_ACCESS_URL = SUPABASE_URL + "/functions/v1/verify-access-web";
 
+// Контакты поддержки - ЕДИНЫЙ источник. Переиспользовать на будущих экранах
+// (оплата не прошла, продление, вопросы по подписке). Меняешь тут - меняется везде.
+const SUPPORT = {
+  email: "support@irenabio.com",
+  tg: "biohack_support", // https://t.me/biohack_support
+};
+// Кликабельные контакты поддержки (HTML, вставлять через innerHTML).
+// color:inherit - чтобы ссылки совпадали с цветом окружающего текста (в т.ч. красной ошибки).
+function supportContactsHtml() {
+  const st = 'style="color:inherit;text-decoration:underline"';
+  return '<a href="mailto:' + SUPPORT.email + '" ' + st + '>' + SUPPORT.email + '</a> или ' +
+         '<a href="https://t.me/' + SUPPORT.tg + '" target="_blank" rel="noopener" ' + st + '>@' + SUPPORT.tg + '</a>';
+}
+
 const PLANS = {
   "1m":  { months: 1,  eur: 11, label: "1 месяц" },
   "6m":  { months: 6,  eur: 55, label: "6 месяцев" },
@@ -278,7 +292,7 @@ async function enterPaymentReturn(order) {
     } else {
       // Битая/мусорная/устаревшая ссылка -> без галки и без "Оплата прошла", честная ошибка.
       els.pwSuccess.hidden = true;
-      els.pwResolveError.textContent = "Ссылка недействительна или устарела. Если вы оплачивали и доступ не открылся - напишите в поддержку, проверим.";
+      els.pwResolveError.innerHTML = "Ссылка недействительна или устарела. Если вы оплачивали и доступ не открылся - напишите в поддержку: " + supportContactsHtml() + ", проверим.";
       els.pwResolveError.hidden = false;
     }
   } catch {
