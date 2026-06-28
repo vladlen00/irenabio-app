@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Женский биохакинг с Иреной Пол - оформление</title>
-  <link rel="stylesheet" href="style.css?v=9">
+  <link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
   <header class="site-header">
@@ -93,28 +93,35 @@
     <!-- ЭКРАН 3: пароль после оплаты (вход по ?paid=1&order=) -->
     <section id="view-password" hidden>
       <div class="pending-card">
-        <div class="pending-check">✓</div>
-        <h1>Оплата прошла</h1>
-        <p>Придумайте пароль, чтобы входить в приложение.</p>
+        <!-- нейтральное состояние, пока resolve-paid-order проверяет заказ -->
+        <p id="pw-loading" class="muted">Проверяем оплату...</p>
 
-        <div id="pw-form" hidden>
-          <p class="muted login-line">Ваш логин: <strong id="pw-email"></strong></p>
-          <div class="pw-field">
-            <input id="password" type="password" inputmode="text" autocomplete="new-password"
-                   placeholder="Пароль, минимум 8 символов" minlength="8"
-                   autocapitalize="off" spellcheck="false">
-            <button type="button" id="pw-eye" class="pw-eye" aria-label="Показать пароль">показать</button>
+        <!-- УСПЕХ: показываем галку и "Оплата прошла" ТОЛЬКО после успешного resolve (заказ найден) -->
+        <div id="pw-success" hidden>
+          <div class="pending-check">✓</div>
+          <h1>Оплата прошла</h1>
+          <p>Придумайте пароль, чтобы входить в приложение.</p>
+
+          <div id="pw-form" hidden>
+            <p class="muted login-line">Ваш логин: <strong id="pw-email"></strong></p>
+            <div class="pw-field">
+              <input id="password" type="password" inputmode="text" autocomplete="new-password"
+                     placeholder="Пароль, минимум 8 символов" minlength="8"
+                     autocapitalize="off" spellcheck="false">
+              <button type="button" id="pw-eye" class="pw-eye" aria-label="Показать пароль">показать</button>
+            </div>
+            <div class="pw-field">
+              <input id="password2" type="password" inputmode="text" autocomplete="new-password"
+                     placeholder="Повторите пароль" autocapitalize="off" spellcheck="false">
+            </div>
+            <p class="field-error" id="pw-error" hidden></p>
+            <button id="btn-enter" class="btn btn-primary" type="button" disabled>Открыть доступ</button>
+            <button id="btn-retry" class="btn btn-ghost" type="button" hidden>Повторить</button>
+            <p class="reassure">Сохраните логин и пароль - восстановление пока недоступно.</p>
           </div>
-          <div class="pw-field">
-            <input id="password2" type="password" inputmode="text" autocomplete="new-password"
-                   placeholder="Повторите пароль" autocapitalize="off" spellcheck="false">
-          </div>
-          <p class="field-error" id="pw-error" hidden></p>
-          <button id="btn-enter" class="btn btn-primary" type="button" disabled>Открыть доступ</button>
-          <button id="btn-retry" class="btn btn-ghost" type="button" hidden>Повторить</button>
-          <p class="reassure">Сохраните логин и пароль - восстановление пока недоступно.</p>
         </div>
 
+        <!-- ОШИБКА: битая/устаревшая ссылка или сбой проверки. Без зелёного успеха. -->
         <p class="form-error" id="pw-resolve-error" hidden></p>
       </div>
     </section>
@@ -145,6 +152,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=9"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>

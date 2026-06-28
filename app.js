@@ -48,6 +48,8 @@ const els = {
   password2: document.getElementById("password2"),
   pwEye: document.getElementById("pw-eye"),
   pwError: document.getElementById("pw-error"),
+  pwLoading: document.getElementById("pw-loading"),
+  pwSuccess: document.getElementById("pw-success"),
   pwResolveError: document.getElementById("pw-resolve-error"),
   btnEnter: document.getElementById("btn-enter"),
   btnRetry: document.getElementById("btn-retry"),
@@ -243,8 +245,16 @@ async function enterPaymentReturn(order) {
   els.viewPassword.hidden = false;
   window.scrollTo(0, 0);
 
+  // Стартовое НЕЙТРАЛЬНОЕ состояние: ни галки/успеха, ни ошибки, пока resolve не решит.
+  // Галку "Оплата прошла" показываем ТОЛЬКО после успешного resolve (иначе битая ссылка врёт успехом).
+  els.pwLoading.hidden = false;
+  els.pwSuccess.hidden = true;
+  els.pwForm.hidden = true;
+  els.pwResolveError.hidden = true;
+
   if (!sb) {
-    els.pwForm.hidden = true;
+    els.pwLoading.hidden = true;
+    els.pwSuccess.hidden = true;
     els.pwResolveError.textContent = "Не удалось загрузить вход. Обновите страницу.";
     els.pwResolveError.hidden = false;
     return;
@@ -257,18 +267,23 @@ async function enterPaymentReturn(order) {
     });
     let data = {};
     try { data = await res.json(); } catch { data = {}; }
+    els.pwLoading.hidden = true;
     if (res.ok && data.ok && data.email) {
+      // Заказ найден -> ТОЛЬКО теперь показываем "Оплата прошла" + форму пароля.
       state.email = data.email;
       els.pwEmail.textContent = data.email;
+      els.pwSuccess.hidden = false;
       els.pwForm.hidden = false;
       els.pwResolveError.hidden = true;
     } else {
-      els.pwForm.hidden = true;
-      els.pwResolveError.textContent = "Не видим оплату по этой ссылке. Если вы оплачивали и доступ не открылся - напишите в поддержку, проверим.";
+      // Битая/мусорная/устаревшая ссылка -> без галки и без "Оплата прошла", честная ошибка.
+      els.pwSuccess.hidden = true;
+      els.pwResolveError.textContent = "Ссылка недействительна или устарела. Если вы оплачивали и доступ не открылся - напишите в поддержку, проверим.";
       els.pwResolveError.hidden = false;
     }
   } catch {
-    els.pwForm.hidden = true;
+    els.pwLoading.hidden = true;
+    els.pwSuccess.hidden = true;
     els.pwResolveError.textContent = "Не получилось проверить оплату. Включите VPN и обновите страницу.";
     els.pwResolveError.hidden = false;
   }
