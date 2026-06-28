@@ -264,7 +264,7 @@ async function enterPaymentReturn(order) {
       els.pwResolveError.hidden = true;
     } else {
       els.pwForm.hidden = true;
-      els.pwResolveError.textContent = "Не видим оплату по этой ссылке. Если деньги списались - напишите в поддержку, мы откроем доступ.";
+      els.pwResolveError.textContent = "Не видим оплату по этой ссылке. Если вы оплачивали и доступ не открылся - напишите в поддержку, проверим.";
       els.pwResolveError.hidden = false;
     }
   } catch {
