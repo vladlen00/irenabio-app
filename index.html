@@ -4,7 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Женский биохакинг с Иреной Пол - оформление</title>
-  <link rel="stylesheet" href="style.css?v=12">
+  <link rel="stylesheet" href="style.css?v=13">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css" rel="stylesheet">
 </head>
 <body>
   <header class="site-header">
@@ -15,6 +19,53 @@
   </header>
 
   <main class="wrap checkout">
+    <!-- ЭКРАН 0: ДОМ (контент-платформа). Показывается при активной сессии + подписке (get-home). -->
+    <section id="view-home" hidden>
+      <p id="home-loading" class="home-loading">Загрузка…</p>
+      <div id="home-content" class="home" hidden>
+        <div class="home-hero">
+          <div class="home-topbar">
+            <div class="home-chip"><i class="ti ti-sparkles"></i><span id="home-greeting">ДОБРОЕ УТРО</span></div>
+            <div class="home-menu-btn" id="home-menu" role="button" aria-label="Меню"><i class="ti ti-layout-grid"></i></div>
+          </div>
+          <div id="home-herobox"></div>
+        </div>
+        <div class="home-body">
+          <div class="card home-sprint" id="home-sprint-card">
+            <div class="home-sprint-top">
+              <div class="home-sprint-title" id="home-sprint-title"></div>
+              <div class="home-sprint-badge" id="home-sprint-badge"></div>
+            </div>
+            <div class="home-progress"><div class="home-progress-bar" id="home-progress-bar"></div></div>
+            <div class="home-alldays" id="home-alldays" role="button"><span>смотреть все дни</span><i class="ti ti-chevron-right"></i></div>
+          </div>
+
+          <div class="home-tools-h">Твои инструменты</div>
+          <div class="home-tools">
+            <div class="t5"><i class="ti ti-barbell"></i><div class="t5n">Тренировки</div><div class="t5s">и упражнения</div></div>
+            <div class="t5"><i class="ti ti-sparkles"></i><div class="t5n">Подружка</div><div class="t5s">AI-помощник</div></div>
+            <div class="t5"><i class="ti ti-flower"></i><div class="t5n">Расслабление</div><div class="t5s">медитации, дыхание</div></div>
+            <div class="t5"><i class="ti ti-chart-line"></i><div class="t5n">Трекеры</div><div class="t5s">здоровье и цикл</div></div>
+            <div class="t5"><i class="ti ti-bookmarks"></i><div class="t5n">Справочники</div><div class="t5s">добавки, анализы</div></div>
+            <div class="t5 t5-archive"><i class="ti ti-layout-grid"></i><div class="t5n">Все спринты</div><div class="t5s">архив</div></div>
+          </div>
+
+          <div class="card home-sub" id="home-sub-card" role="button">
+            <div class="home-sub-left">
+              <i class="ti ti-crown"></i>
+              <div><div class="home-sub-title">Подписка активна</div><div class="home-sub-until" id="home-sub-until"></div></div>
+            </div>
+            <i class="ti ti-chevron-right home-sub-arrow"></i>
+          </div>
+
+          <div class="home-support">
+            <button type="button" id="home-support-btn"><i class="ti ti-help-circle"></i> Поддержка</button>
+            <div class="home-support-contacts" id="home-support-contacts" hidden></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ЭКРАН 1: чекаут -->
     <section id="view-checkout">
       <h1>Оформление подписки</h1>
@@ -152,6 +203,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=12"></script>
+  <script src="app.js?v=13"></script>
 </body>
 </html>

@@ -146,3 +146,76 @@ a:hover { text-decoration: underline; }
 @media (min-width: 600px) {
   .checkout h1 { font-size: 30px; }
 }
+
+/* ===================== ЭКРАН ДОМ (контент-платформа) ===================== */
+/* Всё скоупом под #view-home/.home, чтобы НЕ затронуть чекаут/пароль.
+   Шрифт Manrope + токены/градиент по DESIGN_SPEC.md и mockups.html. */
+.home-loading { text-align: center; color: var(--muted); font-size: 14px; padding: 48px 0; }
+.home {
+  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #3d2b2b;
+}
+
+/* Шапка на радиальном градиенте (Вариант A) */
+.home-hero {
+  padding: 18px 18px 22px;
+  border-radius: 24px;
+  background: radial-gradient(120% 80% at 70% 0%, #e7c3b8 0%, #d9a7a0 40%, #f3ddd4 80%, #faf3ee 100%);
+}
+.home-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
+.home-chip { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.55); padding: 6px 13px; border-radius: 20px; }
+.home-chip i { font-size: 14px; color: #7a4a4a; }
+.home-chip span { font-size: 11px; font-weight: 600; color: #7a4a4a; letter-spacing: 0.5px; }
+.home-menu-btn { width: 36px; height: 36px; border-radius: 11px; background: rgba(255,255,255,0.55); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.home-menu-btn i { font-size: 17px; color: #7a4a4a; }
+
+/* Адаптивная верхняя карточка (новичок/вернувшийся) */
+.home-kicker { font-size: 11px; font-weight: 600; color: #8a5555; letter-spacing: 1.5px; margin-bottom: 7px; text-transform: uppercase; }
+.home-headline { font-size: 26px; font-weight: 800; line-height: 1.1; margin-bottom: 6px; overflow-wrap: break-word; word-wrap: break-word; }
+.home-headline.long { font-size: 23px; }              /* длинный заголовок -> мельче, 2 строки, БЕЗ многоточия */
+.home-subhead { font-size: 13px; color: #7a4a4a; margin-bottom: 14px; line-height: 1.4; overflow-wrap: break-word; }
+.home-cta { display: inline-flex; align-items: center; gap: 8px; background: #fff; padding: 10px 20px; border-radius: 24px; cursor: pointer; }
+.home-cta-ic { width: 24px; height: 24px; border-radius: 50%; background: #c98a8a; display: flex; align-items: center; justify-content: center; }
+.home-cta-ic i { font-size: 13px; color: #fff; }
+.home-cta > span:last-child { font-size: 13px; font-weight: 600; color: #3d2b2b; }
+
+.home-body { padding: 16px 0 24px; }
+.home .card { background: #fff; border: 0.5px solid #efe3dd; border-radius: 16px; }
+
+/* Карточка спринта с прогрессом */
+.home-sprint { padding: 14px 16px; margin-bottom: 14px; }
+.home-sprint-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 9px; }
+.home-sprint-title { font-size: 15px; font-weight: 700; overflow-wrap: break-word; }
+.home-sprint-badge { font-size: 11px; font-weight: 600; color: #b06f72; background: #f3e3df; padding: 2px 9px; border-radius: 11px; white-space: nowrap; }
+.home-progress { height: 6px; background: #efe3dd; border-radius: 3px; overflow: hidden; }
+.home-progress-bar { height: 100%; width: 2%; background: linear-gradient(90deg, #d9a7a0, #c98a8a); border-radius: 3px; }
+.home-alldays { display: flex; align-items: center; justify-content: flex-end; gap: 3px; margin-top: 9px; cursor: pointer; }
+.home-alldays span { font-size: 12px; font-weight: 500; color: #b06f72; }
+.home-alldays i { font-size: 14px; color: #b06f72; }
+
+/* Твои инструменты (6 плиток-заглушек) */
+.home-tools-h { font-size: 16px; font-weight: 700; margin: 0 2px 11px; }
+.home-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.home .t5 { background: #fff; border: 0.5px solid #efe3dd; border-radius: 14px; padding: 14px 10px; display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; text-align: center; }
+.home .t5 i { font-size: 23px; color: #c98a8a; }
+.home .t5n { font-size: 13px; font-weight: 600; color: #3d2b2b; }
+.home .t5s { font-size: 11px; color: #9b8278; line-height: 1.2; }
+.home .t5-archive { background: linear-gradient(135deg, #f3ddd4, #e7c3b8); border-color: #e0b3aa; }
+.home .t5-archive i { color: #a85e5e; }
+.home .t5-archive .t5n { color: #8a4a4a; }
+.home .t5-archive .t5s { color: #9c6a5e; }
+
+/* Статус подписки */
+.home-sub { padding: 14px 16px; margin-top: 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+.home-sub-left { display: flex; align-items: center; gap: 10px; }
+.home-sub-left > i { font-size: 18px; color: #b06f72; }
+.home-sub-title { font-size: 13px; font-weight: 600; }
+.home-sub-until { font-size: 12px; color: #9b8278; }
+.home-sub-arrow { font-size: 17px; color: #b06f72; }
+
+/* Поддержка */
+.home-support { text-align: center; margin-top: 13px; }
+.home-support button { border: none; background: transparent; font-family: inherit; font-size: 12px; color: #9b8278; cursor: pointer; }
+.home-support button i { font-size: 13px; vertical-align: -2px; }
+.home-support-contacts { margin-top: 8px; font-size: 12px; color: #9b8278; }
+.home-support-contacts a { color: #b06f72; }

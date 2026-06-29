@@ -13,6 +13,8 @@ const REGISTER_URL = SUPABASE_URL + "/functions/v1/register-person";
 const RESOLVE_ORDER_URL = SUPABASE_URL + "/functions/v1/resolve-paid-order";
 const ATTACH_IDENTITY_URL = SUPABASE_URL + "/functions/v1/attach-web-identity";
 const VERIFY_ACCESS_URL = SUPABASE_URL + "/functions/v1/verify-access-web";
+const GET_HOME_URL = SUPABASE_URL + "/functions/v1/get-home";
+const PROJECT_REF = "kjzxrpwqyyjcykwbqskn";
 
 // Контакты поддержки - ЕДИНЫЙ источник. Переиспользовать на будущих экранах
 // (оплата не прошла, продление, вопросы по подписке). Меняешь тут - меняется везде.
@@ -56,6 +58,7 @@ const els = {
   btnPay: document.getElementById("btn-pay"),
   altLink: document.getElementById("alt-pay-link"),
   viewCheckout: document.getElementById("view-checkout"),
+  viewHome: document.getElementById("view-home"),
   viewPending: document.getElementById("view-pending"),
   pendingPlan: document.getElementById("pending-plan"),
   pendingEmail: document.getElementById("pending-email"),
@@ -465,12 +468,160 @@ function applyTestPlanIfRequested() {
   return true;
 }
 
-// --- старт: ветвление чекаут / возврат после оплаты ---
+// ===================== ДОМ (контент-платформа) + РОУТИНГ =====================
+// Развилка ДОБАВЛЕНА перед чекаутом. Оплатная ветка (чекаут/пароль/возврат) НЕ изменена.
+const siteHeader = document.querySelector(".site-header");
+const siteFooter = document.querySelector(".site-footer");
+const homeEls = {
+  loading: document.getElementById("home-loading"),
+  content: document.getElementById("home-content"),
+  herobox: document.getElementById("home-herobox"),
+  sprintTitle: document.getElementById("home-sprint-title"),
+  sprintBadge: document.getElementById("home-sprint-badge"),
+  progressBar: document.getElementById("home-progress-bar"),
+  subUntil: document.getElementById("home-sub-until"),
+  supportBtn: document.getElementById("home-support-btn"),
+  supportContacts: document.getElementById("home-support-contacts"),
+};
+
+function escapeHtml(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+function fmtDateRu(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+}
+// Адаптивный заголовок: длинный (>18 символов) -> мельче (23px) и переносится в 2 строки, БЕЗ многоточия.
+function setHeadline(el, text) {
+  if (!el) return;
+  el.textContent = text;
+  el.classList.toggle("long", (text || "").length > 18);
+}
+
+function showCheckout() {
+  if (siteHeader) siteHeader.hidden = false;
+  if (siteFooter) siteFooter.hidden = false;
+  if (els.viewHome) els.viewHome.hidden = true;
+  els.viewCheckout.hidden = false;
+  // существующая инициализация чекаута (ровно как было на старте) — оплатная ветка не тронута
+  if (!applyTestPlanIfRequested()) {
+    readPlanFromUrl();
+    writePlanToUrl();
+    paintSelected();
+  }
+}
+function showHomeShell() {
+  if (siteHeader) siteHeader.hidden = true;
+  if (siteFooter) siteFooter.hidden = true;
+  els.viewCheckout.hidden = true;
+  els.viewHome.hidden = false;
+  homeEls.loading.hidden = false;
+  homeEls.content.hidden = true;
+}
+
+// Рендер дома из ответа get-home (реальные данные)
+function renderHome(data) {
+  const sprint = data.sprint || null;
+  const days = Array.isArray(data.days) ? data.days.slice().sort((a, b) => a.day_number - b.day_number) : [];
+  const completed = new Set((data.progress && data.progress.completed_day_ids) || []);
+  const completedVisible = days.filter((d) => completed.has(d.id)).length;
+  const nextDay = days.find((d) => !completed.has(d.id)) || null;
+  const sprintTitle = sprint ? sprint.title : "";
+
+  // --- верхняя адаптивная карточка ---
+  if (!sprint || days.length === 0) {
+    homeEls.herobox.innerHTML =
+      '<div class="home-headline">Скоро здесь появятся дни</div>' +
+      '<div class="home-subhead">Контент готовится. Загляните чуть позже.</div>';
+  } else if (completedVisible === 0) {
+    // НОВИЧОК
+    homeEls.herobox.innerHTML =
+      '<div class="home-kicker">СПРИНТ: ' + escapeHtml(sprintTitle) + '</div>' +
+      '<div class="home-headline">Начните с первого дня</div>' +
+      '<div class="home-subhead">Проходите в своём темпе. Один день - один шаг к результату.</div>' +
+      '<div class="home-cta" data-day-id="' + escapeHtml(days[0].id) + '">' +
+        '<span class="home-cta-ic"><i class="ti ti-player-play"></i></span><span>День 1 - начать</span></div>';
+  } else if (nextDay) {
+    // ВЕРНУВШИЙСЯ
+    homeEls.herobox.innerHTML =
+      '<div class="home-kicker">ВЫ ОСТАНОВИЛИСЬ НА ДНЕ ' + (nextDay.day_number - 1) + '</div>' +
+      '<div class="home-headline" id="home-hl"></div>' +
+      '<div class="home-subhead">' + escapeHtml(nextDay.title) + '</div>' +
+      '<div class="home-cta" data-day-id="' + escapeHtml(nextDay.id) + '">' +
+        '<span class="home-cta-ic"><i class="ti ti-player-play"></i></span><span>Продолжить</span></div>';
+    setHeadline(document.getElementById("home-hl"), "Продолжить - день " + nextDay.day_number);
+  } else {
+    // все доступные дни пройдены
+    homeEls.herobox.innerHTML =
+      '<div class="home-kicker">СПРИНТ: ' + escapeHtml(sprintTitle) + '</div>' +
+      '<div class="home-headline">Вы прошли все доступные дни</div>' +
+      '<div class="home-subhead">Новые дни появятся по мере выхода. Возвращайтесь.</div>';
+  }
+
+  // --- карточка спринта ---
+  homeEls.sprintTitle.textContent = sprintTitle;
+  const denom = sprint && sprint.estimated_days ? sprint.estimated_days : (days.length || 0);
+  const tilde = sprint && sprint.status === "active" ? "~" : "";   // идёт -> "~N", archived -> точное
+  homeEls.sprintBadge.textContent = completedVisible + " из " + tilde + denom;
+  const pct = denom > 0 ? Math.max(2, Math.min(100, Math.round((completedVisible / denom) * 100))) : 2;
+  homeEls.progressBar.style.width = pct + "%";
+
+  // --- статус подписки ---
+  homeEls.subUntil.textContent = data.valid_until ? ("до " + fmtDateRu(data.valid_until)) : "";
+
+  homeEls.loading.hidden = true;
+  homeEls.content.hidden = false;
+  window.scrollTo(0, 0);
+}
+
+// Поддержка: раскрыть контакты (единый источник SUPPORT, как в ошибке битой ссылки)
+if (homeEls.supportBtn) {
+  homeEls.supportBtn.addEventListener("click", () => {
+    if (homeEls.supportContacts.hidden) {
+      homeEls.supportContacts.innerHTML = "Напишите нам: " + supportContactsHtml();
+      homeEls.supportContacts.hidden = false;
+    } else {
+      homeEls.supportContacts.hidden = true;
+    }
+  });
+}
+
+// Роутинг: сессия -> get-home -> ДОМ или ЧЕКАУТ. Нет сессии -> ЧЕКАУТ (как раньше, funnel не трогаем).
+async function routeHomeOrCheckout() {
+  // Синхронный пик сохранённой сессии -> прячем чекаут сразу, без мигания. Нет токена -> чекаут мгновенно.
+  let hasStored = false;
+  try { hasStored = !!localStorage.getItem("sb-" + PROJECT_REF + "-auth-token"); } catch (e) {}
+  if (!sb || !hasStored) { showCheckout(); return; }
+
+  showHomeShell(); // чекаут скрыт, показываем загрузку дома, пока проверяем доступ
+  try {
+    const { data } = await sb.auth.getSession();
+    const token = data && data.session ? data.session.access_token : null;
+    if (token) {
+      const res = await fetch(GET_HOME_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+      });
+      if (res.ok) {
+        let home = {};
+        try { home = await res.json(); } catch (e) { home = {}; }
+        if (home && home.access) { renderHome(home); return; }
+      }
+      // 403/любой не-ok -> подписки нет или кончилась -> чекаут (пусть оформит/продлит)
+    }
+  } catch (e) {
+    // сетевой сбой / битая сессия -> безопасный дефолт: чекаут
+  }
+  showCheckout();
+}
+
+// --- старт: ветвление возврат-после-оплаты / дом / чекаут ---
 const startParams = new URLSearchParams(location.search);
 if (startParams.get("paid") === "1" && startParams.get("order")) {
-  enterPaymentReturn(startParams.get("order"));
-} else if (!applyTestPlanIfRequested()) {
-  readPlanFromUrl();
-  writePlanToUrl();
-  paintSelected();
+  enterPaymentReturn(startParams.get("order"));   // оплатный возврат — без изменений
+} else {
+  routeHomeOrCheckout();                           // НОВОЕ: дом ИЛИ чекаут
 }
