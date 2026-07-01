@@ -6,7 +6,7 @@
 
 ## Деплой
 - `git push origin main` → GitHub Pages публикует за ~1 мин.
-- **ВСЕГДА бампать `?v=N`** у `app.js`/`style.css` в `index.html` (иначе кэш). Сейчас **?v=19**.
+- **ВСЕГДА бампать `?v=N`** у `app.js`/`style.css` в `index.html` (иначе кэш). Сейчас **?v=20**.
 - Проверка живости: `curl https://app.irenabio.com/?cb=RND | grep -oE 'app.js\?v=[0-9]+'`.
 
 ## ГОТОВО на проде (?v=19, проверено вживую)
