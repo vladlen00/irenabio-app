@@ -388,7 +388,7 @@ async function attachAndVerify(accessToken) {
       if (v.ok) {
         let data = {};
         try { data = await v.json(); } catch { data = {}; }
-        if (data.access) { showAccess(data.valid_until); return; }
+        if (data.access) { await routeHomeOrCheckout(); return; }  // после оплаты/пароля -> РЕАЛЬНЫЙ ДОМ, не заглушка
       } else if (v.status === 401) {
         showPwError("Сессия не подтвердилась. Обновите страницу и войдите снова.");
         pwLoading(false);
@@ -522,6 +522,9 @@ function showHomeShell() {
   if (siteHeader) siteHeader.hidden = true;
   if (siteFooter) siteFooter.hidden = true;
   els.viewCheckout.hidden = true;
+  els.viewPending.hidden = true;
+  els.viewPassword.hidden = true;   // приходим из платёжного возврата -> прячем экран пароля
+  els.viewAccess.hidden = true;     // старая заглушка "Доступ открыт" больше не показывается
   els.viewHome.hidden = false;
   homeEls.loading.hidden = false;
   homeEls.content.hidden = true;
