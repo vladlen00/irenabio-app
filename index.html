@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Женский биохакинг с Иреной Пол - оформление</title>
-  <link rel="stylesheet" href="style.css?v=14">
+  <link rel="stylesheet" href="style.css?v=16">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -19,6 +19,41 @@
   </header>
 
   <main class="wrap checkout">
+    <!-- ЭКРАН СТАРТ: выбор для незалогиненного (вход ИЛИ оформление). Виден по умолчанию. -->
+    <section id="view-start">
+      <div class="start-card">
+        <h1>Вход в приложение</h1>
+        <p class="lead">Женский биохакинг с Иреной Пол — тренировки, трекеры, подкасты и материалы.</p>
+        <button class="btn btn-primary" id="start-login" type="button">Войти</button>
+        <button class="btn btn-ghost" id="start-signup" type="button">Оформить подписку</button>
+      </div>
+    </section>
+
+    <!-- ЭКРАН ВХОД: существующий подписчик (signInWithPassword) -->
+    <section id="view-login" hidden>
+      <div class="login-card">
+        <h1>Вход</h1>
+        <label class="field" for="login-email">
+          <span class="field-label">Почта</span>
+          <input id="login-email" type="email" inputmode="email" autocomplete="email"
+                 placeholder="ваша@почта.com" autocapitalize="off" spellcheck="false">
+        </label>
+        <label class="field login-pw-label" for="login-password">
+          <span class="field-label">Пароль</span>
+          <div class="pw-field">
+            <input id="login-password" type="password" autocomplete="current-password"
+                   placeholder="Ваш пароль" autocapitalize="off" spellcheck="false">
+            <button type="button" id="login-eye" class="pw-eye" aria-label="Показать пароль">показать</button>
+          </div>
+        </label>
+        <p class="field-error" id="login-error" hidden></p>
+        <button class="btn btn-primary" id="btn-login" type="button">Войти</button>
+        <p class="alt-pay"><a href="#" id="login-to-signup" role="button">Нет аккаунта? Оформить подписку</a></p>
+        <p class="reassure">Восстановление пароля пока недоступно. Не удаётся войти - напишите в поддержку.</p>
+        <button class="btn btn-ghost" id="login-back" type="button">Назад</button>
+      </div>
+    </section>
+
     <!-- ЭКРАН 0: ДОМ (контент-платформа). Показывается при активной сессии + подписке (get-home). -->
     <section id="view-home" hidden>
       <p id="home-loading" class="home-loading">Загрузка…</p>
@@ -66,8 +101,48 @@
       </div>
     </section>
 
+    <!-- ЭКРАН СПРИНТ: список дней (из данных get-home) -->
+    <section id="view-sprint" hidden>
+      <div class="day">
+        <div class="day-hero">
+          <div class="day-topbar">
+            <div class="day-back" id="sprint-back" role="button" aria-label="Назад"><i class="ti ti-arrow-left"></i></div>
+            <span class="day-kicker" id="sprint-kicker">СПРИНТ</span>
+          </div>
+          <div class="day-title" id="sprint-title"></div>
+          <div class="sprint-sub" id="sprint-sub"></div>
+        </div>
+        <div class="day-body">
+          <div class="sprint-meta">
+            <div class="sprint-badge" id="sprint-badge"></div>
+            <div class="sprint-progress"><div class="sprint-progress-bar" id="sprint-bar"></div></div>
+          </div>
+          <div id="sprint-days"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ЭКРАН ДЕНЬ: контентный экран (блоки по order_index из get-day) -->
+    <section id="view-day" hidden>
+      <div class="day">
+        <div class="day-hero">
+          <div class="day-topbar">
+            <div class="day-back" id="day-back" role="button" aria-label="Назад"><i class="ti ti-arrow-left"></i></div>
+            <span class="day-kicker" id="day-kicker"></span>
+          </div>
+          <div class="day-title" id="day-title"></div>
+        </div>
+        <div class="day-body">
+          <p id="day-loading" class="day-loading">Загрузка…</p>
+          <div id="day-blocks"></div>
+          <button type="button" class="day-done" id="day-done" hidden><i class="ti ti-circle-check"></i> Отметить день пройденным</button>
+          <p class="day-error" id="day-error" hidden></p>
+        </div>
+      </div>
+    </section>
+
     <!-- ЭКРАН 1: чекаут -->
-    <section id="view-checkout">
+    <section id="view-checkout" hidden>
       <h1>Оформление подписки</h1>
       <p class="lead">Доступ к приложению и материалам: тренировки, трекеры, дневник, медитации, дыхательные практики, обучающие материалы и подкасты.</p>
       <!-- TEST-TARIFF: заметка тестового тарифа, видна только при ?plan=test. Удалить после теста. -->
@@ -203,6 +278,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=14"></script>
+  <script src="app.js?v=16"></script>
 </body>
 </html>
