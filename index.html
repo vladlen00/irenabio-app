@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Женский биохакинг с Иреной Пол - оформление</title>
-  <link rel="stylesheet" href="style.css?v=17">
+  <link rel="stylesheet" href="style.css?v=18">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -276,8 +276,23 @@
     </div>
   </footer>
 
+  <!-- ГЛОБАЛЬНЫЙ АУДИО-СЛОЙ: один <audio> вне секций (переживает переходы) + мини-плеер -->
+  <audio id="app-audio" preload="metadata"></audio>
+  <div id="mini-player" hidden>
+    <button type="button" class="mp-title" id="mp-title">
+      <span class="mp-kicker">СЕЙЧАС ИГРАЕТ</span>
+      <span id="mp-title-text"></span>
+    </button>
+    <div class="mp-ctrls">
+      <button type="button" class="mp-seek" id="mp-back" aria-label="Назад 15 секунд">−15</button>
+      <button type="button" class="mp-play" id="mp-play" aria-label="Воспроизвести/пауза"><i class="ti ti-player-play"></i></button>
+      <button type="button" class="mp-seek" id="mp-fwd" aria-label="Вперёд 15 секунд">+15</button>
+    </div>
+    <button type="button" class="mp-close" id="mp-close" aria-label="Закрыть"><i class="ti ti-x"></i></button>
+  </div>
+
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=17"></script>
+  <script src="app.js?v=18"></script>
 </body>
 </html>

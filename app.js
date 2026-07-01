@@ -712,6 +712,72 @@ async function routeHomeOrCheckout() {
 let homeData = null;
 let currentDayId = null;
 
+// ===================== ГЛОБАЛЬНЫЙ ПЛЕЕР (один <audio> над экранами + мини-плеер) =====================
+// track = {dayId, blockId, title, url, host, duration}. Блок дня и мини-плеер управляют ОДНИМ аудио.
+const player = (function () {
+  let audio = null, track = null;
+  const g = (id) => document.getElementById(id);
+  function fmt(x) { x = Math.max(0, Math.floor(Number(x) || 0)); const m = Math.floor(x / 60), s = x % 60; return m + ":" + String(s).padStart(2, "0"); }
+  function playTrack(t) {
+    if (!audio || !t || !t.url) return;
+    if (track && track.blockId === t.blockId) { toggle(); return; }
+    track = t; audio.src = t.url; audio.play().catch(() => {}); show(); renderAll();
+  }
+  function toggle() { if (!audio || !track) return; if (audio.paused) audio.play().catch(() => {}); else audio.pause(); }
+  function seek(d) { if (!audio || !track) return; const dur = isFinite(audio.duration) ? audio.duration : (track.duration || 1e9); audio.currentTime = Math.max(0, Math.min(dur, audio.currentTime + d)); }
+  function seekTo(ratio) { if (!audio || !track || !isFinite(audio.duration)) return; audio.currentTime = ratio * audio.duration; }
+  function dismiss() { if (!audio) return; audio.pause(); track = null; hide(); renderAll(); }
+  function show() { const m = g("mini-player"); if (m) { m.hidden = false; document.body.classList.add("has-mini"); } }
+  function hide() { const m = g("mini-player"); if (m) { m.hidden = true; document.body.classList.remove("has-mini"); } }
+  function renderMini() {
+    if (!track) { hide(); return; }
+    const tt = g("mp-title-text"); if (tt) tt.textContent = track.title || "Аудио";
+    const pb = g("mp-play"); const pi = pb && pb.querySelector("i"); if (pi) pi.className = audio.paused ? "ti ti-player-play" : "ti ti-player-pause";
+  }
+  function renderDayBlock() {
+    document.querySelectorAll("#day-blocks .blk-audio").forEach((card) => {
+      const isCur = track && card.getAttribute("data-block-id") === track.blockId;
+      const icon = card.querySelector(".audio-play i");
+      const fill = card.querySelector(".audio-bar-fill");
+      const cur = card.querySelector(".audio-cur");
+      const dur = card.querySelector(".audio-dur");
+      if (isCur) {
+        if (icon) icon.className = audio.paused ? "ti ti-player-play" : "ti ti-player-pause";
+        if (isFinite(audio.duration)) { if (fill) fill.style.width = (audio.currentTime / audio.duration * 100) + "%"; if (cur) cur.textContent = fmt(audio.currentTime); if (dur) dur.textContent = fmt(audio.duration); }
+      } else {
+        if (icon) icon.className = "ti ti-player-play";
+        if (fill) fill.style.width = "0%";
+        if (cur) cur.textContent = "0:00";
+      }
+    });
+  }
+  function renderAll() { renderMini(); renderDayBlock(); }
+  // force_host: подмена источника текущего трека с сохранением позиции (host сменился)
+  function swapCurrentUrl(blockId, newUrl, newHost) {
+    if (!audio || !track || track.blockId !== blockId || !newUrl || audio.src === newUrl) return;
+    const pos = audio.currentTime, wasPlaying = !audio.paused;
+    track.url = newUrl; track.host = newHost; audio.src = newUrl;
+    const once = () => { try { audio.currentTime = pos; } catch (e) {} if (wasPlaying) audio.play().catch(() => {}); audio.removeEventListener("loadedmetadata", once); };
+    audio.addEventListener("loadedmetadata", once);
+  }
+  function init() {
+    audio = g("app-audio"); if (!audio) return;
+    audio.addEventListener("play", renderAll);
+    audio.addEventListener("pause", renderAll);
+    audio.addEventListener("ended", renderAll);
+    audio.addEventListener("loadedmetadata", renderAll);
+    audio.addEventListener("timeupdate", renderDayBlock);
+    const bind = (id, fn) => { const e = g(id); if (e) e.addEventListener("click", (ev) => { ev.preventDefault(); fn(); }); };
+    bind("mp-play", toggle);
+    bind("mp-back", () => seek(-15));
+    bind("mp-fwd", () => seek(15));
+    bind("mp-close", dismiss);
+    bind("mp-title", () => { if (track) openDay(track.dayId); });
+  }
+  init();
+  return { playTrack, toggle, seek, seekTo, dismiss, renderAll, swapCurrentUrl, current: () => track };
+})();
+
 async function getToken() {
   if (!sb) return null;
   try { const { data } = await sb.auth.getSession(); return data && data.session ? data.session.access_token : null; }
@@ -739,15 +805,18 @@ function renderBlock(b) {
       const url = b.url ? escapeHtml(b.url) : "";
       const host = escapeHtml(b.host || "");
       const title = escapeHtml(b.title || "Подкаст дня");
-      const dur = b.duration_seconds ? fmtDur(b.duration_seconds) : "0:00";
-      return '<div class="card blk-audio">' +
-        '<div class="audio-main">' +
-        '<button type="button" class="audio-play" aria-label="Слушать"><i class="ti ti-player-play"></i></button>' +
-        '<div class="audio-meta"><div class="audio-title">' + title + '</div>' +
+      const durTxt = b.duration_seconds ? fmtDur(b.duration_seconds) : "0:00";
+      // Контроллер (без своего <audio>): играет ОДИН глобальный app-audio через player.
+      return '<div class="card blk-audio" data-block-id="' + escapeHtml(b.id) + '" data-url="' + url + '" data-host="' + host + '" data-title="' + title + '" data-duration="' + (b.duration_seconds || 0) + '">' +
+        '<div class="audio-title">' + title + '</div>' +
         '<div class="audio-progress-row"><span class="audio-cur">0:00</span>' +
         '<div class="audio-bar"><div class="audio-bar-fill"></div></div>' +
-        '<span class="audio-dur">' + dur + '</span></div></div></div>' +
-        '<audio preload="none"' + (url ? ' src="' + url + '"' : '') + '></audio>' +
+        '<span class="audio-dur">' + durTxt + '</span></div>' +
+        '<div class="audio-controls">' +
+        '<button type="button" class="audio-seek" data-seek="-15" aria-label="Назад 15 секунд">−15</button>' +
+        '<button type="button" class="audio-play" aria-label="Слушать"><i class="ti ti-player-play"></i></button>' +
+        '<button type="button" class="audio-seek" data-seek="15" aria-label="Вперёд 15 секунд">+15</button>' +
+        '</div>' +
         '<div class="audio-hosthint" data-host="' + host + '">Звук не грузится? Нажмите здесь</div>' +
         '</div>';
     }
@@ -779,22 +848,27 @@ function renderBlock(b) {
 // Оживляем блоки: аудиоплеер (play/пауза/прогресс/перемотка), строка force_host, "читать дальше".
 function wireBlocks(root) {
   root.querySelectorAll(".blk-audio").forEach((card) => {
-    const audio = card.querySelector("audio");
-    const btn = card.querySelector(".audio-play");
-    const icon = btn.querySelector("i");
-    const fill = card.querySelector(".audio-bar-fill");
+    const bid = card.getAttribute("data-block-id");
+    const url = card.getAttribute("data-url");
+    const host = card.getAttribute("data-host");
+    const title = card.getAttribute("data-title");
+    const duration = Number(card.getAttribute("data-duration")) || 0;
+    const trackOf = () => ({ dayId: currentDayId, blockId: bid, title, url, host, duration });
+    const playBtn = card.querySelector(".audio-play");
+    if (playBtn) playBtn.addEventListener("click", () => { if (url) player.playTrack(trackOf()); });
+    card.querySelectorAll(".audio-seek").forEach((sb) => sb.addEventListener("click", () => {
+      const d = Number(sb.getAttribute("data-seek")) || 0;
+      const cur = player.current();
+      if (cur && cur.blockId === bid) player.seek(d);
+      else if (url) { player.playTrack(trackOf()); player.seek(d); }
+    }));
     const bar = card.querySelector(".audio-bar");
-    const cur = card.querySelector(".audio-cur");
-    const durEl = card.querySelector(".audio-dur");
-    if (audio && audio.getAttribute("src")) {
-      btn.addEventListener("click", () => { if (audio.paused) audio.play(); else audio.pause(); });
-      audio.addEventListener("play", () => { icon.className = "ti ti-player-pause"; });
-      audio.addEventListener("pause", () => { icon.className = "ti ti-player-play"; });
-      audio.addEventListener("ended", () => { icon.className = "ti ti-player-play"; });
-      audio.addEventListener("loadedmetadata", () => { if (isFinite(audio.duration)) durEl.textContent = fmtDur(Math.round(audio.duration)); });
-      audio.addEventListener("timeupdate", () => { if (audio.duration) { fill.style.width = (audio.currentTime / audio.duration * 100) + "%"; cur.textContent = fmtDur(Math.floor(audio.currentTime)); } });
-      bar.addEventListener("click", (e) => { if (!audio.duration) return; const r = bar.getBoundingClientRect(); const p = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); audio.currentTime = p * audio.duration; });
-    }
+    if (bar) bar.addEventListener("click", (e) => {
+      const cur = player.current();
+      if (!(cur && cur.blockId === bid)) return;
+      const r = bar.getBoundingClientRect();
+      player.seekTo(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)));
+    });
     // force_host: неприметное ручное переключение хранилища (без слов про хостинги)
     const hint = card.querySelector(".audio-hosthint");
     if (hint) hint.addEventListener("click", () => {
@@ -822,6 +896,7 @@ function wireBlocks(root) {
       }
     });
   });
+  player.renderAll();   // отразить живое состояние глоб. аудио на перерисованных блоках
 }
 
 function setDoneState(btn, done) {
@@ -837,6 +912,12 @@ function renderDay(data) {
   const blocks = (data.blocks || []).slice().sort((a, b) => a.order_index - b.order_index);
   blocksEl.innerHTML = blocks.map(renderBlock).join("");
   wireBlocks(blocksEl);
+  // force_host: текущий трек из этого дня и сменилось хранилище -> подменить источник, сохранив позицию
+  const curTrk = player.current();
+  if (curTrk && curTrk.dayId === day.id) {
+    const el = blocksEl.querySelector('.blk-audio[data-block-id="' + curTrk.blockId + '"]');
+    if (el && el.getAttribute("data-host") !== curTrk.host) player.swapCurrentUrl(curTrk.blockId, el.getAttribute("data-url"), el.getAttribute("data-host"));
+  }
   const doneBtn = document.getElementById("day-done");
   const completed = new Set((homeData && homeData.progress && homeData.progress.completed_day_ids) || []);
   doneBtn.hidden = false;
