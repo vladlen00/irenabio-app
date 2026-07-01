@@ -358,7 +358,9 @@ a:hover { text-decoration: underline; }
 .mp-seek { border: none; background: #f3e3df; color: #b06f72; font-family: inherit; font-size: 11px; font-weight: 700; border-radius: 10px; padding: 8px 7px; min-width: 38px; cursor: pointer; }
 .mp-play { width: 40px; height: 40px; border-radius: 50%; background: #c98a8a; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; flex: 0 0 auto; }
 .mp-play i { color: #fff; font-size: 20px; }
-.mp-close { border: none; background: transparent; color: #9b8278; cursor: pointer; padding: 6px; flex: 0 0 auto; }
-.mp-close i { font-size: 18px; }
+/* крестик: полноценная мишень для касания (>=44px), не вжата в кромку */
+.mp-close { border: none; background: transparent; color: #9b8278; cursor: pointer; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; margin-left: 2px; -webkit-tap-highlight-color: rgba(176,111,114,0.15); }
+.mp-close i { font-size: 22px; pointer-events: none; }
+.mp-close:active { color: #b06f72; }
 /* чтобы мини-плеер не перекрывал нижний контент */
 body.has-mini { padding-bottom: 80px; }
