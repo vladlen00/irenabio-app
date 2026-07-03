@@ -797,7 +797,15 @@ function backToHome() {
 
 // --- утилиты рендера блоков ---
 function fmtDur(sec) { sec = Math.max(0, Math.floor(Number(sec) || 0)); const m = Math.floor(sec / 60), s = sec % 60; return m + ":" + String(s).padStart(2, "0"); }
-function nl2br(s) { return escapeHtml(s).replace(/\n/g, "<br>"); }
+// Мини-разметка контентных текстов: пустая строка = абзац, **жирный**, [текст](http/https-ссылка).
+// Работает ПОВЕРХ escapeHtml - HTML из БД никогда не исполняется; url уже экранирован (кавычки -> &quot;).
+function mdLite(s) {
+  const esc = escapeHtml(s).replace(/\r\n?/g, "\n");
+  const inline = (t) => t
+    .replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  return esc.split(/\n{2,}/).map((p) => "<p>" + inline(p).replace(/\n/g, "<br>") + "</p>").join("");
+}
 
 function renderBlock(b) {
   switch (b.block_type) {
@@ -821,25 +829,25 @@ function renderBlock(b) {
         '</div>';
     }
     case "text":
-      return '<div class="blk-text"><div class="blk-text-body">' + nl2br(b.content_text || "") + '</div>' +
+      return '<div class="blk-text"><div class="blk-text-body">' + mdLite(b.content_text || "") + '</div>' +
         '<button type="button" class="blk-text-more" hidden>Читать дальше</button></div>';
     case "image": {
       const url = b.url ? escapeHtml(b.url) : "";
-      const cap = b.content_text ? '<div class="blk-image-cap">' + nl2br(b.content_text) + '</div>' : "";
+      const cap = b.content_text ? '<div class="blk-image-cap">' + mdLite(b.content_text) + '</div>' : "";
       return '<div class="card blk-image">' + (url ? '<img src="' + url + '" alt="' + escapeHtml(b.title || "") + '" loading="lazy">' : "") + cap + '</div>';
     }
     case "video": {
       const raw = b.content_url || "";
       const src = /^https?:\/\//.test(raw) ? raw : ("https://kinescope.io/embed/" + encodeURIComponent(raw));
-      const title = escapeHtml(b.title || "Тренировка дня");
+      const title = b.title ? '<div class="blk-video-title">' + escapeHtml(b.title) + '</div>' : "";
       return '<div class="card blk-video"><div class="blk-video-frame">' +
         '<iframe src="' + escapeHtml(src) + '" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>' +
-        '<div class="blk-video-cap"><div class="blk-video-kick">Тренировка дня</div><div class="blk-video-title">' + title + '</div></div></div>';
+        '<div class="blk-video-cap"><div class="blk-video-kick">Тренировка дня</div>' + title + '</div></div>';
     }
     case "task":
       return '<div class="blk-task"><div class="blk-task-h"><i class="ti ti-pin"></i><span>ЗАДАНИЕ ДНЯ</span></div>' +
         (b.title ? '<div class="blk-task-title">' + escapeHtml(b.title) + '</div>' : "") +
-        '<div class="blk-task-text">' + nl2br(b.content_text || "") + '</div></div>';
+        '<div class="blk-task-text">' + mdLite(b.content_text || "") + '</div></div>';
     default:
       return "";
   }
