@@ -6,7 +6,7 @@
 
 ## Деплой
 - `git push origin main` → GitHub Pages публикует за ~1 мин.
-- **ВСЕГДА бампать `?v=N`** у `app.js`/`style.css` в `index.html` (иначе кэш). Сейчас **?v=20**.
+- **ВСЕГДА бампать `?v=N`** у `app.js`/`style.css` в `index.html` (иначе кэш). Сейчас **?v=21**.
 - Проверка живости: `curl https://app.irenabio.com/?cb=RND | grep -oE 'app.js\?v=[0-9]+'`.
 
 ## ГОТОВО на проде (?v=19, проверено вживую)
@@ -22,6 +22,16 @@
   пауза везде = один элемент; крестик × закрывает (пауза+сброс+скрытие, тап-таргет 44px).
 - **Ключ MinIO** лежит в service_role-таблице `public.app_config` (RLS deny-all), т.к. Edge Secrets из среды агента
   недоступны (нет CLI/PAT/дашборда/MCP-инструмента). `get-day` читает env→app_config.
+
+## Форматирование контентных текстов (с ?v=21, 2026-07-03)
+- `mdLite()` в app.js: пустая строка = абзац `<p>`, одиночный `\n` = `<br>`, `**жирный**`,
+  `[текст](http/https)` → `<a target="_blank" rel="noopener">`. Работает ПОВЕРХ escapeHtml (XSS нет).
+  Применяется ГЛОБАЛЬНО: text/task-блоки + подпись картинки, все дни вкл. старые.
+  КОПИЯ mdLite живёт в ir-ops/upload.html (предпросмотр) - менять СИНХРОННО.
+- Видео-блок без title больше не дублирует «Тренировка дня» (кикер остаётся, title только если задан).
+- Мягкое удаление дней: `days.archived_at` (миграция days_archived_at_soft_delete);
+  get-home фильтрует `archived_at=is.null`, get-day отвечает 404 на архивный день.
+  Управление - content-admin (archive_day/restore_day) из формы ir-ops/upload.html.
 
 ## Контракт get-day (фронт уже потребляет)
 audio/image-блок: `{order_index, block_type, title, content_text, duration_seconds, url(presigned), host('timeweb'|'minio')}`;
