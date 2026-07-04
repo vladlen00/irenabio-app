@@ -598,6 +598,59 @@ if (homeEls.supportBtn) {
   });
 }
 
+// ===================== ПЛИТКИ: мини-аппы (пилот - Тренировки/workout) =====================
+// Клик по плитке -> mint-app-token (сервер проверяет веб-подписку) -> открыть мини-апп на его
+// СОБСТВЕННОМ домене с токеном во фрагменте #. Плитку видит только залогиненный с подпиской
+// (дом показывается лишь после verify-access-web), поэтому mint обычно успешен.
+const MINT_APP_TOKEN_URL = SUPABASE_URL + "/functions/v1/mint-app-token";
+// ?v= - кэш-бост для веб-открытия, бампать при обновлении самого мини-аппа.
+const MINI_APPS = {
+  workout: { url: "https://vladlen00.github.io/workout/", v: "1" },
+};
+
+async function openMiniApp(appKey, tileEl) {
+  const app = MINI_APPS[appKey];
+  if (!app || !tileEl || tileEl.dataset.busy === "1") return;
+  const sub = tileEl.querySelector(".t5s");
+  const subText = sub ? sub.textContent : "";
+  const flash = (msg) => { if (sub) { sub.textContent = msg; setTimeout(() => { sub.textContent = subText; }, 3000); } };
+  tileEl.dataset.busy = "1";
+  tileEl.style.opacity = "0.55";
+  try {
+    const token = await getToken();
+    if (!token) { routeHomeOrCheckout(); return; }   // сессия потерялась -> перемаршрутизируем
+    const res = await fetch(MINT_APP_TOKEN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.ok && data.token) {
+      const frag = "#irena_token=" + encodeURIComponent(data.token) +
+                   "&exp=" + encodeURIComponent(data.expiresIn || 3600);
+      location.href = app.url + "?v=" + encodeURIComponent(app.v) + frag;  // уходим со страницы
+      return;
+    }
+    // подписка не подтвердилась (редко: истекла между загрузкой дома и кликом) или сбой сервера
+    flash("Не удалось открыть, обновите страницу");
+  } catch {
+    flash("Нет связи, проверьте интернет");
+  } finally {
+    tileEl.dataset.busy = "0";
+    tileEl.style.opacity = "";
+  }
+}
+
+// Делегирование на контейнере инструментов: активны только плитки с data-app (пока workout).
+(function wireMiniAppTiles() {
+  const tools = document.querySelector(".home-tools");
+  if (!tools) return;
+  tools.addEventListener("click", (e) => {
+    const tile = e.target.closest(".t5[data-app]");
+    if (!tile) return;
+    openMiniApp(tile.getAttribute("data-app"), tile);
+  });
+})();
+
 // ===================== ЭКРАНЫ СТАРТ / ВХОД =====================
 // Незалогиненного встречает СТАРТ (выбор: войти / оформить), а не сразу checkout.
 function hideEntryViews() {
