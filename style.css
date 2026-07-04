@@ -371,3 +371,21 @@ a:hover { text-decoration: underline; }
 .mp-close:active { color: #b06f72; }
 /* чтобы мини-плеер не перекрывал нижний контент */
 body.has-mini { padding-bottom: 80px; }
+
+/* ===== Лист выбора программы тренировок (bottom sheet) ===== */
+.sheet { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: flex-end; justify-content: center; }
+.sheet[hidden] { display: none; }
+.sheet-backdrop { position: absolute; inset: 0; background: rgba(61, 51, 51, 0.45); }
+.sheet-panel { position: relative; width: 100%; max-width: var(--maxw); background: var(--surface); border-radius: 20px 20px 0 0; padding: 18px 18px calc(18px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -10px 40px rgba(61, 51, 51, 0.20); animation: sheetUp 0.22s ease; }
+@keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.sheet-title { font-size: 16px; font-weight: 700; color: var(--text); }
+.sheet-close { border: none; background: transparent; color: var(--muted); cursor: pointer; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
+.sheet-close i { font-size: 20px; pointer-events: none; }
+.sheet-card { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 14px; margin-top: 10px; border: 1.5px solid var(--border); border-radius: 14px; background: var(--surface); cursor: pointer; font-family: inherit; color: var(--text); }
+.sheet-card:active { background: #fbf4f1; border-color: var(--accent); }
+.sheet-card > .ti:first-child { font-size: 22px; color: var(--accent-deep); flex: 0 0 auto; }
+.sheet-card-body { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.sheet-card-name { font-size: 15px; font-weight: 600; }
+.sheet-card-sub { font-size: 12px; color: var(--muted); }
+.sheet-card-arrow { font-size: 18px; color: var(--muted); flex: 0 0 auto; }

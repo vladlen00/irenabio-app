@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Женский биохакинг с Иреной Пол - оформление</title>
-  <link rel="stylesheet" href="style.css?v=21">
+  <link rel="stylesheet" href="style.css?v=25">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -77,7 +77,7 @@
 
           <div class="home-tools-h">Твои инструменты</div>
           <div class="home-tools">
-            <div class="t5" data-app="workout" role="button" style="cursor:pointer"><i class="ti ti-barbell"></i><div class="t5n">Тренировки</div><div class="t5s">и упражнения</div></div>
+            <div class="t5" data-group="trainings" role="button" style="cursor:pointer"><i class="ti ti-barbell"></i><div class="t5n">Тренировки</div><div class="t5s">и упражнения</div></div>
             <div class="t5"><i class="ti ti-sparkles"></i><div class="t5n">Подружка</div><div class="t5s">AI-помощник</div></div>
             <div class="t5"><i class="ti ti-flower"></i><div class="t5n">Расслабление</div><div class="t5s">медитации, дыхание</div></div>
             <div class="t5"><i class="ti ti-chart-line"></i><div class="t5n">Трекеры</div><div class="t5s">здоровье и цикл</div></div>
@@ -276,6 +276,27 @@
     </div>
   </footer>
 
+  <!-- ЛИСТ ВЫБОРА ПРОГРАММЫ (открывается плиткой "Тренировки"). Скрыт по умолчанию. -->
+  <div id="trainings-sheet" class="sheet" hidden>
+    <div class="sheet-backdrop" data-sheet-close></div>
+    <div class="sheet-panel" role="dialog" aria-label="Выбор программы">
+      <div class="sheet-head">
+        <div class="sheet-title">Выбери программу</div>
+        <button type="button" class="sheet-close" data-sheet-close aria-label="Закрыть"><i class="ti ti-x"></i></button>
+      </div>
+      <button type="button" class="sheet-card" data-app="workout">
+        <i class="ti ti-barbell"></i>
+        <span class="sheet-card-body"><span class="sheet-card-name">Женское тело</span><span class="sheet-card-sub">программа тренировок</span></span>
+        <i class="ti ti-chevron-right sheet-card-arrow"></i>
+      </button>
+      <button type="button" class="sheet-card" data-app="glutes">
+        <i class="ti ti-flame"></i>
+        <span class="sheet-card-body"><span class="sheet-card-name">Биохакинг ягодиц</span><span class="sheet-card-sub">курс</span></span>
+        <i class="ti ti-chevron-right sheet-card-arrow"></i>
+      </button>
+    </div>
+  </div>
+
   <!-- ГЛОБАЛЬНЫЙ АУДИО-СЛОЙ: один <audio> вне секций (переживает переходы) + мини-плеер -->
   <audio id="app-audio" preload="metadata"></audio>
   <div id="mini-player" hidden>
@@ -293,6 +314,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=24"></script>
+  <script src="app.js?v=25"></script>
 </body>
 </html>

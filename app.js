@@ -606,12 +606,13 @@ const MINT_APP_TOKEN_URL = SUPABASE_URL + "/functions/v1/mint-app-token";
 // ?v= - кэш-бост для веб-открытия, бампать при обновлении самого мини-аппа.
 const MINI_APPS = {
   workout: { url: "https://vladlen00.github.io/workout/", v: "3" },
+  glutes: { url: "https://vladlen00.github.io/glutes/", v: "1" },
 };
 
 async function openMiniApp(appKey, tileEl) {
   const app = MINI_APPS[appKey];
   if (!app || !tileEl || tileEl.dataset.busy === "1") return;
-  const sub = tileEl.querySelector(".t5s");
+  const sub = tileEl.querySelector(".t5s, .sheet-card-sub");
   const subText = sub ? sub.textContent : "";
   const flash = (msg) => { if (sub) { sub.textContent = msg; setTimeout(() => { sub.textContent = subText; }, 3000); } };
   tileEl.dataset.busy = "1";
@@ -640,15 +641,29 @@ async function openMiniApp(appKey, tileEl) {
   }
 }
 
-// Делегирование на контейнере инструментов: активны только плитки с data-app (пока workout).
+// Лист выбора программы (шторка). Плитка с data-group открывает шторку; карточки в ней
+// (data-app) минтят токен и открывают нужный мини-апп. Плитки с прямым data-app тоже работают.
+const trainingsSheet = document.getElementById("trainings-sheet");
+function openSheet() { if (trainingsSheet) trainingsSheet.hidden = false; }
+function closeSheet() { if (trainingsSheet) trainingsSheet.hidden = true; }
+
 (function wireMiniAppTiles() {
   const tools = document.querySelector(".home-tools");
-  if (!tools) return;
-  tools.addEventListener("click", (e) => {
-    const tile = e.target.closest(".t5[data-app]");
-    if (!tile) return;
-    openMiniApp(tile.getAttribute("data-app"), tile);
-  });
+  if (tools) {
+    tools.addEventListener("click", (e) => {
+      const grouped = e.target.closest('.t5[data-group="trainings"]');
+      if (grouped) { openSheet(); return; }
+      const tile = e.target.closest(".t5[data-app]");
+      if (tile) openMiniApp(tile.getAttribute("data-app"), tile);
+    });
+  }
+  if (trainingsSheet) {
+    trainingsSheet.addEventListener("click", (e) => {
+      if (e.target.closest("[data-sheet-close]")) { closeSheet(); return; }
+      const card = e.target.closest(".sheet-card[data-app]");
+      if (card) openMiniApp(card.getAttribute("data-app"), card);  // успех -> уходим; ошибка -> flash в карточке, шторка открыта
+    });
+  }
 })();
 
 // ===================== ЭКРАНЫ СТАРТ / ВХОД =====================
