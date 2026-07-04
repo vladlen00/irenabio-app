@@ -78,9 +78,9 @@
           <div class="home-tools-h">Твои инструменты</div>
           <div class="home-tools">
             <div class="t5" data-group="trainings" role="button" style="cursor:pointer"><i class="ti ti-barbell"></i><div class="t5n">Тренировки</div><div class="t5s">и упражнения</div></div>
-            <div class="t5"><i class="ti ti-sparkles"></i><div class="t5n">Подружка</div><div class="t5s">AI-помощник</div></div>
+            <div class="t5" data-app="podruzhka" role="button" style="cursor:pointer"><i class="ti ti-sparkles"></i><div class="t5n">Подружка</div><div class="t5s">AI-помощник</div></div>
             <div class="t5"><i class="ti ti-flower"></i><div class="t5n">Расслабление</div><div class="t5s">медитации, дыхание</div></div>
-            <div class="t5"><i class="ti ti-chart-line"></i><div class="t5n">Трекеры</div><div class="t5s">здоровье и цикл</div></div>
+            <div class="t5" data-group="trackers" role="button" style="cursor:pointer"><i class="ti ti-chart-line"></i><div class="t5n">Трекеры</div><div class="t5s">здоровье и цикл</div></div>
             <div class="t5"><i class="ti ti-bookmarks"></i><div class="t5n">Справочники</div><div class="t5s">добавки, анализы</div></div>
             <div class="t5 t5-archive"><i class="ti ti-layout-grid"></i><div class="t5n">Все спринты</div><div class="t5s">архив</div></div>
           </div>
@@ -297,6 +297,27 @@
     </div>
   </div>
 
+  <!-- ЛИСТ ВЫБОРА ТРЕКЕРА (открывается плиткой "Трекеры"). Скрыт по умолчанию. -->
+  <div id="trackers-sheet" class="sheet" hidden>
+    <div class="sheet-backdrop" data-sheet-close></div>
+    <div class="sheet-panel" role="dialog" aria-label="Выбор трекера">
+      <div class="sheet-head">
+        <div class="sheet-title">Выбери трекер</div>
+        <button type="button" class="sheet-close" data-sheet-close aria-label="Закрыть"><i class="ti ti-x"></i></button>
+      </div>
+      <button type="button" class="sheet-card" data-app="zdorovie">
+        <i class="ti ti-heartbeat"></i>
+        <span class="sheet-card-body"><span class="sheet-card-name">Здоровье</span><span class="sheet-card-sub">сон, энергия, стресс, настроение</span></span>
+        <i class="ti ti-chevron-right sheet-card-arrow"></i>
+      </button>
+      <button type="button" class="sheet-card" data-app="cycle">
+        <i class="ti ti-flower"></i>
+        <span class="sheet-card-body"><span class="sheet-card-name">Цикл</span><span class="sheet-card-sub">женский календарь</span></span>
+        <i class="ti ti-chevron-right sheet-card-arrow"></i>
+      </button>
+    </div>
+  </div>
+
   <!-- ГЛОБАЛЬНЫЙ АУДИО-СЛОЙ: один <audio> вне секций (переживает переходы) + мини-плеер -->
   <audio id="app-audio" preload="metadata"></audio>
   <div id="mini-player" hidden>
@@ -314,6 +335,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=25"></script>
+  <script src="app.js?v=26"></script>
 </body>
 </html>

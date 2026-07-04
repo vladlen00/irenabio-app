@@ -607,6 +607,10 @@ const MINT_APP_TOKEN_URL = SUPABASE_URL + "/functions/v1/mint-app-token";
 const MINI_APPS = {
   workout: { url: "https://vladlen00.github.io/workout/", v: "3" },
   glutes: { url: "https://vladlen00.github.io/glutes/", v: "1" },
+  // biohack-трекер - один апп, экран выбирается через ?startapp= (читается App.js из search).
+  podruzhka: { url: "https://biohack-tracker-blond.vercel.app/", v: "1", q: "startapp=ai" },
+  zdorovie: { url: "https://biohack-tracker-blond.vercel.app/", v: "1", q: "startapp=checkin" },
+  cycle: { url: "https://vladlen00.github.io/cycle/", v: "1" },
 };
 
 async function openMiniApp(appKey, tileEl) {
@@ -628,7 +632,8 @@ async function openMiniApp(appKey, tileEl) {
     if (res.ok && data.ok && data.token) {
       const frag = "#irena_token=" + encodeURIComponent(data.token) +
                    "&exp=" + encodeURIComponent(data.expiresIn || 3600);
-      location.href = app.url + "?v=" + encodeURIComponent(app.v) + frag;  // уходим со страницы
+      const q = app.q ? "&" + app.q : "";   // напр. startapp=ai для biohack-экрана
+      location.href = app.url + "?v=" + encodeURIComponent(app.v) + q + frag;  // уходим со страницы
       return;
     }
     // подписка не подтвердилась (редко: истекла между загрузкой дома и кликом) или сбой сервера
@@ -641,29 +646,32 @@ async function openMiniApp(appKey, tileEl) {
   }
 }
 
-// Лист выбора программы (шторка). Плитка с data-group открывает шторку; карточки в ней
-// (data-app) минтят токен и открывают нужный мини-апп. Плитки с прямым data-app тоже работают.
-const trainingsSheet = document.getElementById("trainings-sheet");
-function openSheet() { if (trainingsSheet) trainingsSheet.hidden = false; }
-function closeSheet() { if (trainingsSheet) trainingsSheet.hidden = true; }
+// Шторки выбора. Плитка с data-group открывает свою шторку; карточки в ней (data-app) минтят
+// токен и открывают нужный апп. Плитки с прямым data-app (напр. Подружка) открывают сразу.
+const GROUP_SHEETS = { trainings: "trainings-sheet", trackers: "trackers-sheet" };
+function openSheetByGroup(group) {
+  const id = GROUP_SHEETS[group]; if (!id) return;
+  const el = document.getElementById(id); if (el) el.hidden = false;
+}
 
 (function wireMiniAppTiles() {
   const tools = document.querySelector(".home-tools");
   if (tools) {
     tools.addEventListener("click", (e) => {
-      const grouped = e.target.closest('.t5[data-group="trainings"]');
-      if (grouped) { openSheet(); return; }
+      const grouped = e.target.closest(".t5[data-group]");
+      if (grouped) { openSheetByGroup(grouped.getAttribute("data-group")); return; }
       const tile = e.target.closest(".t5[data-app]");
       if (tile) openMiniApp(tile.getAttribute("data-app"), tile);
     });
   }
-  if (trainingsSheet) {
-    trainingsSheet.addEventListener("click", (e) => {
-      if (e.target.closest("[data-sheet-close]")) { closeSheet(); return; }
+  // Делегирование на всех шторках: закрытие по фону/крестику, открытие мини-аппа по карточке.
+  document.querySelectorAll(".sheet").forEach((sheet) => {
+    sheet.addEventListener("click", (e) => {
+      if (e.target.closest("[data-sheet-close]")) { sheet.hidden = true; return; }
       const card = e.target.closest(".sheet-card[data-app]");
-      if (card) openMiniApp(card.getAttribute("data-app"), card);  // успех -> уходим; ошибка -> flash в карточке, шторка открыта
+      if (card) openMiniApp(card.getAttribute("data-app"), card);  // успех -> уходим; ошибка -> flash в карточке
     });
-  }
+  });
 })();
 
 // ===================== ЭКРАНЫ СТАРТ / ВХОД =====================
