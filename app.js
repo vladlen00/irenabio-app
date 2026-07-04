@@ -610,7 +610,7 @@ const MINI_APPS = {
   // biohack-трекер - один апп, экран выбирается через ?startapp= (читается App.js из search).
   podruzhka: { url: "https://biohack-tracker-blond.vercel.app/", v: "1", q: "startapp=ai" },
   zdorovie: { url: "https://biohack-tracker-blond.vercel.app/", v: "1", q: "startapp=checkin" },
-  cycle: { url: "https://vladlen00.github.io/cycle/", v: "1" },
+  cycle: { url: "https://vladlen00.github.io/cycle/", v: "2" },
 };
 
 async function openMiniApp(appKey, tileEl) {
