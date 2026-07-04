@@ -605,7 +605,7 @@ if (homeEls.supportBtn) {
 const MINT_APP_TOKEN_URL = SUPABASE_URL + "/functions/v1/mint-app-token";
 // ?v= - кэш-бост для веб-открытия, бампать при обновлении самого мини-аппа.
 const MINI_APPS = {
-  workout: { url: "https://vladlen00.github.io/workout/", v: "2" },
+  workout: { url: "https://vladlen00.github.io/workout/", v: "3" },
 };
 
 async function openMiniApp(appKey, tileEl) {
