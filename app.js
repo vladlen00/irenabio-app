@@ -1216,7 +1216,7 @@ function openSprint() {
     const done = completed.has(d.id);
     const isNext = nextDay && d.id === nextDay.id;
     const cls = "sprint-day" + (done ? " done-day" : "") + (isNext ? " next" : "");
-    const icon = done ? "ti-check" : (isNext ? "ti-player-play" : "ti-circle");
+    const icon = done ? "ti-check" : (isNext ? "ti-player-play" : "ti-circle-dot");
     const badge = done ? "Пройден" : (isNext ? "Продолжить" : "");
     html += '<div class="' + cls + '" data-day-id="' + escapeHtml(d.id) + '">' +
       '<div class="sprint-day-ic"><i class="ti ' + icon + '"></i></div>' +

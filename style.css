@@ -325,6 +325,7 @@ a:hover { text-decoration: underline; }
 .sprint-day.locked { opacity: .55; cursor: default; }
 .sprint-day-ic { width: 30px; height: 30px; border-radius: 50%; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; background: #f3e3df; }
 .sprint-day-ic i { font-size: 16px; color: #b06f72; }
+.sprint-day-ic i.ti-circle-dot { color: #b0938f; }   /* доступен, не пройден - приглушённый коралл, не как яркий play */
 .sprint-day.done-day .sprint-day-ic { background: #1d9e75; }
 .sprint-day.done-day .sprint-day-ic i { color: #fff; }
 .sprint-day-main { flex: 1; min-width: 0; }
