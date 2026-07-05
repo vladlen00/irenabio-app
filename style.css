@@ -193,10 +193,10 @@ a:hover { text-decoration: underline; }
 .home-headline { font-size: 26px; font-weight: 800; line-height: 1.1; margin-bottom: 6px; overflow-wrap: break-word; word-wrap: break-word; }
 .home-headline.long { font-size: 23px; }              /* длинный заголовок -> мельче, 2 строки, БЕЗ многоточия */
 .home-subhead { font-size: 13px; color: #7a4a4a; margin-bottom: 14px; line-height: 1.4; overflow-wrap: break-word; }
-.home-cta { display: inline-flex; align-items: center; gap: 8px; background: #fff; padding: 10px 20px; border-radius: 24px; cursor: pointer; }
-.home-cta-ic { width: 24px; height: 24px; border-radius: 50%; background: #c98a8a; display: flex; align-items: center; justify-content: center; }
-.home-cta-ic i { font-size: 13px; color: #fff; }
-.home-cta > span:last-child { font-size: 13px; font-weight: 600; color: #3d2b2b; }
+.home-cta { display: inline-flex; align-items: center; gap: 8px; background: #b06f72; padding: 10px 20px; border-radius: 24px; cursor: pointer; box-shadow: 0 4px 14px rgba(176,111,114,0.22); }
+.home-cta-ic { width: 24px; height: 24px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; }
+.home-cta-ic i { font-size: 13px; color: #b06f72; }
+.home-cta > span:last-child { font-size: 13px; font-weight: 600; color: #fff; }
 
 .home-body { padding: 16px 0 24px; }
 .home .card { background: #fff; border: 0.5px solid #efe3dd; border-radius: 16px; }
