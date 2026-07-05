@@ -580,6 +580,10 @@ function showCheckout() {
   if (siteHeader) siteHeader.hidden = false;
   if (siteFooter) siteFooter.hidden = false;
   if (els.viewHome) els.viewHome.hidden = true;
+  if (els.viewLavaReturn) els.viewLavaReturn.hidden = true;   // мост Lava не должен висеть под чекаутом
+  els.viewPassword.hidden = true;
+  els.viewAccess.hidden = true;
+  clearLavaReturn();   // ушли на чекаут -> сбрасываем незавершённый Lava-возврат (ложный мост)
   els.viewCheckout.hidden = false;
   // существующая инициализация чекаута (ровно как было на старте) — оплатная ветка не тронута
   if (!applyTestPlanIfRequested()) {
