@@ -86,10 +86,16 @@ a:hover { text-decoration: underline; }
 .btn-ghost { margin-top: 20px; background: transparent; color: var(--accent-deep); border: 1.5px solid var(--border); }
 .btn-ghost:hover { border-color: var(--accent); text-decoration: none; }
 
-.alt-pay { margin: 16px 0 0; }
-.alt-pay-q { font-size: 14px; font-weight: 500; color: var(--text); margin: 0 0 8px; text-align: center; }
-.alt-pay-btns { display: flex; gap: 8px; }
-.alt-pay-btns .btn { flex: 1; }
+/* Ссылка "Нет аккаунта? Оформить подписку" на экране логина (исходный вид). */
+.alt-pay { text-align: center; margin: 14px 0 0; }
+.alt-pay a { font-size: 14px; color: var(--muted); border-bottom: 1px dashed var(--border); }
+.alt-pay a:hover { color: var(--accent-deep); text-decoration: none; }
+.alt-pay a.disabled { opacity: .5; pointer-events: none; }
+/* Блок "другой способ оплаты" на чекауте (кнопки €/₽) - отдельный класс. */
+.pay-alt { margin: 16px 0 0; }
+.pay-alt-q { font-size: 14px; font-weight: 500; color: var(--text); margin: 0 0 8px; text-align: center; }
+.pay-alt-btns { display: flex; gap: 8px; }
+.pay-alt-btns .btn { flex: 1; }
 .lava-hint { font-size: 12px; line-height: 1.4; margin-top: 6px; }
 
 .reassure { text-align: center; color: var(--muted); font-size: 13px; margin: 18px 0 0; }
