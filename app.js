@@ -623,15 +623,15 @@ function renderHome(data) {
   } else if (completedVisible === 0) {
     // НОВИЧОК
     homeEls.herobox.innerHTML =
-      '<div class="home-kicker">СПРИНТ: ' + escapeHtml(sprintTitle) + '</div>' +
-      '<div class="home-headline">Начните с первого дня</div>' +
-      '<div class="home-subhead">Проходите в своём темпе. Один день - один шаг к результату.</div>' +
+      '<div class="home-kicker">Начинаем</div>' +
+      '<div class="home-headline" id="home-hl"></div>' +
       '<div class="home-cta" data-day-id="' + escapeHtml(days[0].id) + '">' +
-        '<span class="home-cta-ic"><i class="ti ti-player-play"></i></span><span>День 1 - начать</span></div>';
+        '<span class="home-cta-ic"><i class="ti ti-player-play"></i></span><span>Начать</span></div>';
+    setHeadline(document.getElementById("home-hl"), days[0].title);
   } else if (nextDay) {
     // ВЕРНУВШИЙСЯ
     homeEls.herobox.innerHTML =
-      '<div class="home-kicker">Продолжаем</div>' +
+      '<div class="home-kicker">Сегодня</div>' +
       '<div class="home-headline" id="home-hl"></div>' +
       '<div class="home-cta" data-day-id="' + escapeHtml(nextDay.id) + '">' +
         '<span class="home-cta-ic"><i class="ti ti-player-play"></i></span><span>Продолжить</span></div>';
@@ -654,6 +654,17 @@ function renderHome(data) {
 
   // --- статус подписки ---
   homeEls.subUntil.textContent = data.valid_until ? ("до " + fmtDateRu(data.valid_until)) : "";
+  const hmenuUntil = document.getElementById("hmenu-sub-until");
+  if (hmenuUntil) {
+    let subText = "активна";
+    if (data.valid_until) {
+      const active = new Date(data.valid_until).getTime() >= Date.now();
+      subText = active
+        ? ("активна до " + fmtDateRu(data.valid_until))
+        : ("истекла " + fmtDateRu(data.valid_until) + ", продлите");
+    }
+    hmenuUntil.textContent = subText;
+  }
 
   homeEls.loading.hidden = true;
   homeEls.content.hidden = false;
