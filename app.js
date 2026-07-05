@@ -1073,6 +1073,13 @@ async function markDone() {
   }
 }
 
+// Имя дня для карточки списка спринта: срезаем префикс "День N." (номер уже в сером eyebrow).
+// Без префикса возвращает title как есть; пустой результат -> фолбэк на оригинал.
+function dayShortTitle(title) {
+  const t = (title || "").trim();
+  return t.replace(/^День\s*\d+\.?\s*/i, "").trim() || t;
+}
+
 // Экран спринта: список дней из homeData (доступные по publish_at уже отфильтрованы get-home).
 function openSprint() {
   if (!homeData || !homeData.sprint) return;
@@ -1101,7 +1108,9 @@ function openSprint() {
     html += '<div class="' + cls + '" data-day-id="' + escapeHtml(d.id) + '">' +
       '<div class="sprint-day-ic"><i class="ti ' + icon + '"></i></div>' +
       '<div class="sprint-day-main"><div class="sprint-day-num">День ' + d.day_number + '</div>' +
-      '<div class="sprint-day-title">' + escapeHtml(d.title) + '</div></div>' +
+      '<div class="sprint-day-title">' + escapeHtml(dayShortTitle(d.title)) + '</div>' +
+      (d.subtitle && d.subtitle.trim() ? '<div class="sprint-day-sub">' + escapeHtml(d.subtitle.trim()) + '</div>' : '') +
+      '</div>' +
       (badge ? '<div class="sprint-day-badge">' + badge + '</div>' : "") +
       '</div>';
   });
