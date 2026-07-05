@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Женский биохакинг с Иреной Пол - оформление</title>
-  <link rel="stylesheet" href="style.css?v=26">
+  <link rel="stylesheet" href="style.css?v=27">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -192,11 +192,14 @@
           Оформить подписку
         </button>
 
-        <p class="alt-pay">
-          <a href="#" id="alt-pay-link" data-method="lava" role="button">
-            Карта не проходит? Другой способ оплаты
-          </a>
-        </p>
+        <div class="alt-pay" id="alt-pay">
+          <p class="alt-pay-q">Карта не проходит? Другой способ оплаты:</p>
+          <div class="alt-pay-btns">
+            <button type="button" class="btn btn-ghost" id="pay-lava-eur" data-method="lava" data-currency="EUR">Оплатить в €</button>
+            <button type="button" class="btn btn-ghost" id="pay-lava-rub" data-method="lava" data-currency="RUB">Оплатить в ₽</button>
+          </div>
+          <p class="alt-pay-note">Рубли - для карт российских банков.</p>
+        </div>
 
         <p class="form-error" id="form-error" hidden></p>
       </form>
@@ -204,15 +207,15 @@
       <p class="reassure">Нажимая кнопку, вы создаёте аккаунт по почте. Оплата на следующем шаге.</p>
     </section>
 
-    <!-- ЭКРАН 2: заглушка после создания person (ветка Lava) -->
-    <section id="view-pending" hidden>
+    <!-- ЭКРАН 2: мост после оплаты Lava (Lava назад не редиректит) -->
+    <section id="view-lava-return" hidden>
       <div class="pending-card">
-        <div class="pending-check">✓</div>
-        <h1>Отлично, аккаунт создан</h1>
-        <p class="pending-plan" id="pending-plan"></p>
-        <p>Оплата подключается. Скоро здесь появится кнопка оплаты, и вы сразу получите доступ.</p>
-        <p class="muted" id="pending-email"></p>
-        <button class="btn btn-ghost" type="button" id="btn-back">Изменить тариф</button>
+        <h1>Оплатили на Lava?</h1>
+        <p>Когда оплата пройдёт, войдите здесь по своей почте <strong id="lava-return-email"></strong> и придумайте пароль ДЛЯ ВХОДА В ПРИЛОЖЕНИЕ.</p>
+        <p class="muted">Письмо «Complete registration» от lava.top - это пароль для кабинета платежей Lava, а НЕ наш вход в приложение. Пароль для приложения задаётся здесь.</p>
+        <p class="field-error" id="lava-return-msg" hidden></p>
+        <button class="btn btn-primary" type="button" id="btn-lava-entered">Я оплатил, войти</button>
+        <button class="btn btn-ghost" type="button" id="btn-lava-back">Назад к тарифам</button>
       </div>
     </section>
 
@@ -227,6 +230,7 @@
           <div class="pending-check">✓</div>
           <h1>Оплата прошла</h1>
           <p>Придумайте пароль, чтобы входить в приложение.</p>
+          <p class="muted lava-hint" id="pw-lava-hint" hidden>Это пароль для входа в ПРИЛОЖЕНИЕ (задаёте здесь). Письмо от lava.top - отдельный кабинет платежей Lava, не наш вход.</p>
 
           <div id="pw-form" hidden>
             <p class="muted login-line">Ваш логин: <strong id="pw-email"></strong></p>
@@ -335,6 +339,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=28"></script>
+  <script src="app.js?v=29"></script>
 </body>
 </html>
