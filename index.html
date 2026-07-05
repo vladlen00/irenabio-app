@@ -60,8 +60,19 @@
       <div id="home-content" class="home" hidden>
         <div class="home-hero">
           <div class="home-topbar">
-            <div class="home-chip"><i class="ti ti-sparkles"></i><span id="home-greeting">Привет</span></div>
-            <div class="home-menu-btn" id="home-menu" role="button" aria-label="Меню"><i class="ti ti-layout-grid"></i></div>
+            <span id="home-greeting" class="home-hello">Привет!</span>
+            <div class="home-menu" id="home-menu">
+              <button class="home-menu-btn" id="home-menu-btn" type="button" aria-label="Меню профиля" aria-haspopup="true" aria-expanded="false"><i class="ti ti-menu-2"></i></button>
+              <div class="home-menu-panel" id="home-menu-panel" hidden>
+                <div class="hmenu-sub">
+                  <div class="hmenu-label">Подписка</div>
+                  <div class="hmenu-value" id="hmenu-sub-until">активна</div>
+                </div>
+                <button type="button" class="hmenu-item" id="hmenu-support"><i class="ti ti-help-circle"></i> Поддержка</button>
+                <div class="hmenu-contacts" id="hmenu-contacts" hidden></div>
+                <button type="button" class="hmenu-item hmenu-danger" id="hmenu-signout"><i class="ti ti-logout"></i> Выход</button>
+              </div>
+            </div>
           </div>
           <div id="home-herobox"></div>
         </div>

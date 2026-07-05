@@ -683,6 +683,33 @@ if (homeEls.supportBtn) {
   });
 }
 
+// Меню профиля (кнопка топбара): подписка / поддержка / выход. Закрытие по клику вне + Esc.
+(function wireProfileMenu() {
+  const wrap = document.getElementById("home-menu");
+  const btn = document.getElementById("home-menu-btn");
+  const panel = document.getElementById("home-menu-panel");
+  const support = document.getElementById("hmenu-support");
+  const contacts = document.getElementById("hmenu-contacts");
+  const signout = document.getElementById("hmenu-signout");
+  if (!wrap || !btn || !panel) return;
+  const open = () => { panel.hidden = false; btn.setAttribute("aria-expanded", "true"); };
+  const close = () => { panel.hidden = true; btn.setAttribute("aria-expanded", "false"); };
+  btn.addEventListener("click", (e) => { e.stopPropagation(); panel.hidden ? open() : close(); });
+  if (support && contacts) support.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (contacts.hidden) { contacts.innerHTML = supportContactsHtml(); contacts.hidden = false; }
+    else contacts.hidden = true;
+  });
+  if (signout) signout.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    close();
+    try { if (sb) await sb.auth.signOut(); } catch {}
+    showStart();   // выход -> стартовый экран (Войти/Оформить); токен сессии снят signOut'ом
+  });
+  document.addEventListener("click", (e) => { if (!panel.hidden && !wrap.contains(e.target)) close(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !panel.hidden) close(); });
+})();
+
 // ===================== ПЛИТКИ: мини-аппы (пилот - Тренировки/workout) =====================
 // Клик по плитке -> mint-app-token (сервер проверяет веб-подписку) -> открыть мини-апп на его
 // СОБСТВЕННОМ домене с токеном во фрагменте #. Плитку видит только залогиненный с подпиской

@@ -173,11 +173,20 @@ a:hover { text-decoration: underline; }
   background: radial-gradient(120% 80% at 70% 0%, #e7c3b8 0%, #d9a7a0 40%, #f3ddd4 80%, #faf3ee 100%);
 }
 .home-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
-.home-chip { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.55); padding: 6px 13px; border-radius: 20px; }
-.home-chip i { font-size: 14px; color: #7a4a4a; }
-.home-chip span { font-size: 11px; font-weight: 600; color: #7a4a4a; letter-spacing: 0.5px; }
-.home-menu-btn { width: 36px; height: 36px; border-radius: 11px; background: rgba(255,255,255,0.55); display: flex; align-items: center; justify-content: center; cursor: pointer; }
-.home-menu-btn i { font-size: 17px; color: #7a4a4a; }
+.home-hello { font-size: 17px; font-weight: 500; color: #5a3535; }
+.home-menu { position: relative; }
+.home-menu-btn { width: 36px; height: 36px; border-radius: 11px; background: rgba(255,255,255,0.55); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.home-menu-btn i { font-size: 19px; color: #7a4a4a; }
+.home-menu-panel { position: absolute; right: 0; top: calc(100% + 8px); min-width: 210px; background: #fff; border-radius: 14px; box-shadow: 0 10px 30px rgba(122,74,74,0.18); padding: 8px; z-index: 50; }
+.home-menu-panel[hidden] { display: none; }
+.hmenu-sub { padding: 8px 10px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.hmenu-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.hmenu-value { font-size: 13px; color: var(--text); margin-top: 2px; }
+.hmenu-item { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: transparent; border: none; padding: 10px; border-radius: 9px; font-family: inherit; font-size: 14px; color: var(--text); cursor: pointer; }
+.hmenu-item:hover { background: var(--bg); }
+.hmenu-item i { font-size: 17px; color: var(--muted); }
+.hmenu-danger, .hmenu-danger i { color: var(--accent-deep); }
+.hmenu-contacts { padding: 4px 10px 8px; font-size: 13px; line-height: 1.5; }
 
 /* Адаптивная верхняя карточка (новичок/вернувшийся) */
 .home-kicker { font-size: 11px; font-weight: 600; color: #8a5555; letter-spacing: 1.5px; margin-bottom: 7px; text-transform: uppercase; }
