@@ -556,12 +556,11 @@ function renderHome(data) {
   } else if (nextDay) {
     // ВЕРНУВШИЙСЯ
     homeEls.herobox.innerHTML =
-      '<div class="home-kicker">ВЫ ОСТАНОВИЛИСЬ НА ДНЕ ' + (nextDay.day_number - 1) + '</div>' +
+      '<div class="home-kicker">Продолжаем</div>' +
       '<div class="home-headline" id="home-hl"></div>' +
-      '<div class="home-subhead">' + escapeHtml(nextDay.title) + '</div>' +
       '<div class="home-cta" data-day-id="' + escapeHtml(nextDay.id) + '">' +
         '<span class="home-cta-ic"><i class="ti ti-player-play"></i></span><span>Продолжить</span></div>';
-    setHeadline(document.getElementById("home-hl"), "Продолжить - день " + nextDay.day_number);
+    setHeadline(document.getElementById("home-hl"), nextDay.title);
   } else {
     // все доступные дни пройдены
     homeEls.herobox.innerHTML =
