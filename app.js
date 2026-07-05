@@ -969,7 +969,7 @@ function wireBlocks(root) {
     const more = wrap.querySelector(".blk-text-more");
     requestAnimationFrame(() => {
       const linePx = parseFloat(getComputedStyle(body).lineHeight) || 22;
-      if (body.scrollHeight > linePx * 5.2) {
+      if (body.scrollHeight > linePx * 7.5) {
         body.classList.add("clamped");
         more.hidden = false;
         more.addEventListener("click", () => {

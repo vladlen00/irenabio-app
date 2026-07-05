@@ -268,7 +268,7 @@ a:hover { text-decoration: underline; }
 .blk-text-body p, .blk-task-text p, .blk-image-cap p { margin: 0 0 10px; }
 .blk-text-body p:last-child, .blk-task-text p:last-child, .blk-image-cap p:last-child { margin-bottom: 0; }
 .blk-text-body a, .blk-task-text a, .blk-image-cap a { color: #b06f72; font-weight: 600; text-decoration: underline; }
-.blk-text-body.clamped { max-height: 4.8em; overflow: hidden; -webkit-mask-image: linear-gradient(180deg, #000 60%, transparent); mask-image: linear-gradient(180deg, #000 60%, transparent); }
+.blk-text-body.clamped { max-height: 11.2em; overflow: hidden; -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent); mask-image: linear-gradient(180deg, #000 70%, transparent); }
 .blk-text-more { border: none; background: transparent; padding: 6px 0 0; font-family: inherit; font-size: 13px; font-weight: 600; color: #b06f72; cursor: pointer; }
 
 /* --- блок image --- */
