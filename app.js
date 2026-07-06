@@ -710,6 +710,30 @@ if (homeEls.supportBtn) {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !panel.hidden) close(); });
 })();
 
+// Тумблер темы в меню профиля. Дефолт светлый; тёмная включается вручную и запоминается в
+// localStorage (тот же ключ, что читает pre-render скрипт в <head>). Меняет только data-theme
+// на <html> -> CSS-токены переопределяются, ТГ-мини-аппы и прочее не затрагиваются.
+(function wireThemeToggle() {
+  const KEY = "irena_theme";
+  const item = document.getElementById("hmenu-theme");
+  const label = document.getElementById("hmenu-theme-label");
+  const ic = document.getElementById("hmenu-theme-ic");
+  const isDark = () => document.documentElement.getAttribute("data-theme") === "dark";
+  function reflect() {
+    const dark = isDark();
+    if (label) label.textContent = dark ? "Светлая тема" : "Тёмная тема";
+    if (ic) ic.className = "ti " + (dark ? "ti-sun" : "ti-moon");
+  }
+  reflect();
+  if (item) item.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const dark = !isDark();
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    try { localStorage.setItem(KEY, dark ? "dark" : "light"); } catch {}
+    reflect();
+  });
+})();
+
 // ===================== ПЛИТКИ: мини-аппы (пилот - Тренировки/workout) =====================
 // Клик по плитке -> mint-app-token (сервер проверяет веб-подписку) -> открыть мини-апп на его
 // СОБСТВЕННОМ домене с токеном во фрагменте #. Плитку видит только залогиненный с подпиской

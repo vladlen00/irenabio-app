@@ -3,8 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Тема: применяем ДО рендера, чтобы не было вспышки светлого. Дефолт светлый. -->
+  <script>(function(){try{if(localStorage.getItem('irena_theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
   <title>Женский биохакинг с Иреной Пол - оформление</title>
-  <link rel="stylesheet" href="style.css?v=31">
+  <link rel="stylesheet" href="style.css?v=32">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -68,6 +70,7 @@
                   <div class="hmenu-label">Подписка</div>
                   <div class="hmenu-value" id="hmenu-sub-until">активна</div>
                 </div>
+                <button type="button" class="hmenu-item" id="hmenu-theme"><i class="ti ti-moon" id="hmenu-theme-ic"></i> <span id="hmenu-theme-label">Тёмная тема</span></button>
                 <button type="button" class="hmenu-item" id="hmenu-support"><i class="ti ti-help-circle"></i> Поддержка</button>
                 <div class="hmenu-contacts" id="hmenu-contacts" hidden></div>
                 <button type="button" class="hmenu-item hmenu-danger" id="hmenu-signout"><i class="ti ti-logout"></i> Выход</button>
@@ -347,6 +350,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=38"></script>
+  <script src="app.js?v=39"></script>
 </body>
 </html>
