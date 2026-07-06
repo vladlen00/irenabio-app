@@ -1160,18 +1160,34 @@ async function markDone() {
   const btn = document.getElementById("day-done");
   if (btn.classList.contains("done") || btn.disabled) return;
   const dayId = currentDayId; if (!dayId) return;
-  btn.disabled = true; btn.innerHTML = '<i class="ti ti-circle-check"></i> Отмечаем…';
+  const errEl = document.getElementById("day-error");
+  errEl.hidden = true;                       // ретрай прячет прошлую ошибку
+  // ОПТИМИСТИЧНО: галочка сразу (done + disabled -> повторные тапы в полёте отсечены).
+  setDoneState(btn, true);
+  // ОТКАТ при любой неудаче: галочку снять, честно сказать. Ложный зелёный не оставляем:
+  // homeData мутируется ТОЛЬКО после подтверждения сервером (ниже), поэтому за пределами
+  // этой кнопки оптимизм никуда не протекает (список спринта рисуется из homeData).
+  const rollback = () => {
+    setDoneState(btn, false);
+    errEl.innerHTML = "Не сохранилось - проверьте интернет и нажмите ещё раз. Не помогает - напишите нам " + supportEmailHtml() + ".";
+    errEl.hidden = false;
+  };
   const token = await getToken();
-  if (!token) { setDoneState(btn, false); return; }
+  if (!token) { rollback(); return; }
   try {
+    // таймаут: висящий запрос не должен оставить ложную галочку навсегда
+    const ctrl = new AbortController();
+    const tm = setTimeout(() => ctrl.abort(), 12000);
     const res = await fetch(MARK_DAY_DONE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
       body: JSON.stringify({ day_id: dayId }),
+      signal: ctrl.signal,
     });
+    clearTimeout(tm);
     let data = {}; try { data = await res.json(); } catch { data = {}; }
     if (res.ok && data.ok) {
-      setDoneState(btn, true);
+      // подтверждено сервером - фиксируем прогресс (галочка уже стоит)
       if (homeData) {
         homeData.progress = homeData.progress || { completed_day_ids: [], completed_count: 0 };
         const s = new Set(homeData.progress.completed_day_ids || []);
@@ -1180,10 +1196,10 @@ async function markDone() {
         homeData.progress.completed_count = s.size;
       }
     } else {
-      setDoneState(btn, false);
+      rollback();
     }
   } catch {
-    setDoneState(btn, false);
+    rollback();
   }
 }
 
