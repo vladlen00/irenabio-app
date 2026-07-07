@@ -347,6 +347,12 @@ a:hover { text-decoration: underline; }
 .blk-video-kick { font-size: 11px; font-weight: 600; color: var(--accent-deep); letter-spacing: 0.5px; margin-bottom: 3px; text-transform: uppercase; }
 .blk-video-title { font-size: 14px; font-weight: 700; }
 
+/* --- блок pdf (кнопка-вложение на presigned url) --- */
+.blk-pdf { overflow: hidden; margin-bottom: 14px; }
+.blk-pdf-link { display: flex; align-items: center; gap: 10px; padding: 15px; font-size: 14px; font-weight: 700; color: var(--accent-deep); text-decoration: none; }
+.blk-pdf-link i { font-size: 22px; flex-shrink: 0; }
+.blk-pdf-cap { padding: 0 15px 13px; font-size: 13px; color: var(--ink-body-soft); line-height: 1.5; }
+
 /* --- блок task (бежевый микрошаг) --- */
 .blk-task { background: var(--task-bg); border: 0.5px solid var(--task-border); border-radius: 16px; padding: 15px; margin-bottom: 18px; }
 .blk-task-h { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }

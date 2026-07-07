@@ -1061,6 +1061,14 @@ function renderBlock(b) {
       return '<div class="blk-task"><div class="blk-task-h"><i class="ti ti-pin"></i><span>ЗАДАНИЕ ДНЯ</span></div>' +
         (b.title ? '<div class="blk-task-title">' + escapeHtml(b.title) + '</div>' : "") +
         '<div class="blk-task-text">' + mdLite(b.content_text || "") + '</div></div>';
+    case "pdf": {
+      const url = b.url ? escapeHtml(b.url) : "";
+      if (!url) return "";
+      const label = escapeHtml(b.title || "Скачать памятку");
+      const cap = b.content_text ? '<div class="blk-pdf-cap">' + mdLite(b.content_text) + '</div>' : "";
+      return '<div class="card blk-pdf"><a class="blk-pdf-link" href="' + url + '" target="_blank" rel="noopener">' +
+        '<i class="ti ti-file-type-pdf"></i><span>' + label + '</span></a>' + cap + '</div>';
+    }
     default:
       return "";
   }
