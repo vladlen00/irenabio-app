@@ -741,13 +741,13 @@ if (homeEls.supportBtn) {
 const MINT_APP_TOKEN_URL = SUPABASE_URL + "/functions/v1/mint-app-token";
 // ?v= - кэш-бост для веб-открытия, бампать при обновлении самого мини-аппа.
 const MINI_APPS = {
-  workout: { url: "https://vladlen00.github.io/workout/", v: "3" },
-  glutes: { url: "https://vladlen00.github.io/glutes/", v: "1" },
+  workout: { url: "https://vladlen00.github.io/workout/", v: "4" },
+  glutes: { url: "https://vladlen00.github.io/glutes/", v: "2" },
   // biohack-трекер - один апп, экран выбирается через ?startapp= (читается App.js из search).
   podruzhka: { url: "https://biohack-tracker-blond.vercel.app/", v: "1", q: "startapp=ai" },
   zdorovie: { url: "https://biohack-tracker-blond.vercel.app/", v: "1", q: "startapp=checkin" },
   cycle: { url: "https://vladlen00.github.io/cycle/", v: "2" },
-  relax: { url: "https://vladlen00.github.io/studio/", v: "6" },
+  relax: { url: "https://vladlen00.github.io/studio/", v: "7" },
 };
 
 async function openMiniApp(appKey, tileEl) {
