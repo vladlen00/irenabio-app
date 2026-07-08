@@ -568,6 +568,13 @@ function fmtDateRu(iso) {
   if (isNaN(d.getTime())) return "";
   return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
 }
+// ДД.ММ.ГГГГ (экран управления подпиской). Пустая строка при кривой дате.
+function fmtDateDots(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const p = (n) => String(n).padStart(2, "0");
+  return p(d.getDate()) + "." + p(d.getMonth() + 1) + "." + d.getFullYear();
+}
 // Адаптивный заголовок: длинный (>18 символов) -> мельче (23px) и переносится в 2 строки, БЕЗ многоточия.
 function setHeadline(el, text) {
   if (!el) return;
@@ -709,6 +716,166 @@ if (homeEls.supportBtn) {
   document.addEventListener("click", (e) => { if (!panel.hidden && !wrap.contains(e.target)) close(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !panel.hidden) close(); });
 })();
+
+// ===================== ЭКРАН «УПРАВЛЕНИЕ ПОДПИСКОЙ» (веб) =====================
+// Детали читаются read-only через web-subscription (боевой verify-access-web НЕ трогаем).
+// Блок 1 статус, Блок 2 отмена (роутинг по source, инлайн-подтверждение), Блок 3 поддержка.
+// ТГ-ветку не касается: экран открывается только в вебе (пункт меню профиля).
+const WEB_SUB_URL = SUPABASE_URL + "/functions/v1/web-subscription";
+const CANCEL_SUB_URL = SUPABASE_URL + "/functions/v1/cancel-subscription";
+// ВРЕМЕННО: до своей API-отмены Lava ведём в кабинет. Заменить URL/ветку lava одной правкой в renderSubscription.
+const LAVA_MANAGE_URL = "https://app.lava.top/my-purchases";
+
+(function wireSubscriptionScreen() {
+  const menuItem = document.getElementById("hmenu-subscription");
+  const homeCard = document.getElementById("home-sub-card");   // карточка «Подписка активна» внизу дома (role=button + шеврон)
+  const back = document.getElementById("sub-back");
+  const panel = document.getElementById("home-menu-panel");
+  if (back) back.addEventListener("click", () => backToHome());
+  if (menuItem) menuItem.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (panel) panel.hidden = true;   // закрыть меню профиля
+    openSubscription();
+  });
+  if (homeCard) homeCard.addEventListener("click", () => openSubscription());
+})();
+
+async function openSubscription() {
+  hideContentViews();
+  const view = document.getElementById("view-subscription");
+  if (view) view.hidden = false;
+  window.scrollTo(0, 0);
+  const loading = document.getElementById("sub-loading");
+  const content = document.getElementById("sub-content");
+  const errEl = document.getElementById("sub-error");
+  const support = document.getElementById("sub-support");
+  if (support) support.innerHTML = "Нужна помощь? Напишите нам: " + supportContactsHtml();
+  if (loading) loading.hidden = false;
+  if (content) content.hidden = true;
+  if (errEl) errEl.hidden = true;
+  try {
+    const token = await getToken();
+    if (!token) { routeHomeOrCheckout(); return; }   // сессия потерялась -> перемаршрутизируем
+    const res = await fetch(WEB_SUB_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.ok && data.subscription) {
+      renderSubscription(data.subscription);
+      if (loading) loading.hidden = true;
+      if (content) content.hidden = false;
+    } else {
+      if (loading) loading.hidden = true;
+      if (errEl) { errEl.innerHTML = "Не удалось загрузить данные подписки. Обновите страницу или напишите нам " + supportEmailHtml() + "."; errEl.hidden = false; }
+    }
+  } catch {
+    if (loading) loading.hidden = true;
+    if (errEl) { errEl.innerHTML = "Нет связи. Проверьте интернет и обновите страницу."; errEl.hidden = false; }
+  }
+}
+
+function renderSubscription(sub) {
+  const until = fmtDateDots(sub.valid_until);
+  const statusEl = document.getElementById("sub-status");
+  const actionsEl = document.getElementById("sub-actions");
+
+  // --- Блок 1: статус ---
+  let statusHtml = "";
+  let showRenew = false;
+  if (sub.status === "grace") {
+    statusHtml = '<div class="sub-status-title sub-status-warn">Оплата не прошла</div>' +
+                 '<div class="sub-status-sub">Доступ' + (until ? " до " + until : " активен") + '. Продлите, чтобы не потерять доступ.</div>';
+    showRenew = true;
+  } else if (sub.cancelled) {
+    statusHtml = '<div class="sub-status-title">Автопродление отключено</div>' +
+                 '<div class="sub-status-sub">Доступ' + (until ? " до " + until : " активен") + '. Чтобы вернуть — оформите заново.</div>';
+  } else {
+    statusHtml = '<div class="sub-status-title sub-status-ok">Подписка активна</div>' +
+                 '<div class="sub-status-sub">' + (until ? "Действует до " + until : "Активна") + '.</div>';
+  }
+  if (showRenew) statusHtml += '<button type="button" class="btn btn-primary sub-btn" id="sub-renew">Продлить</button>';
+  if (statusEl) statusEl.innerHTML = statusHtml;
+  const renewBtn = document.getElementById("sub-renew");
+  if (renewBtn) renewBtn.addEventListener("click", () => { hideContentViews(); showCheckout(); });
+
+  // --- Блок 2: отмена (роутинг по source) ---
+  let actionsHtml = "";
+  let wireCancel = false;
+  if (sub.source === "wayforpay" && !sub.cancelled && sub.status !== "grace") {
+    actionsHtml =
+      '<div class="sub-actions-title">Автопродление</div>' +
+      '<div class="sub-status-sub">Подписка продлевается автоматически. Можно отключить — доступ доработает до конца оплаченного периода.</div>' +
+      '<button type="button" class="btn btn-ghost sub-btn sub-danger" id="sub-cancel-btn">Отменить подписку</button>' +
+      '<div class="sub-confirm" id="sub-confirm" hidden>' +
+        '<div class="sub-confirm-text">Точно отменить? Доступ останется' + (until ? " до " + until : "") + ', дальше не продлится. Вернуть потом — оформить заново.</div>' +
+        '<div class="sub-confirm-row">' +
+          '<button type="button" class="btn btn-ghost sub-btn" id="sub-confirm-no">Оставить</button>' +
+          '<button type="button" class="btn btn-primary sub-btn sub-danger-solid" id="sub-confirm-yes">Да, отменить</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="sub-result" id="sub-cancel-result" hidden></div>';
+    wireCancel = true;
+  } else if (sub.source === "lava") {
+    // ВРЕМЕННЫЙ СЛОТ Lava (заменить на свою кнопку API-отмены, когда придёт ответ саппорта)
+    actionsHtml =
+      '<div class="sub-actions-title">Управление подпиской</div>' +
+      '<div class="sub-status-sub">Подписка оформлена через Lava. Управление автопродлением — в личном кабинете Lava.</div>' +
+      '<a class="btn btn-ghost sub-btn" href="' + LAVA_MANAGE_URL + '" target="_blank" rel="noopener">Управлять подпиской в Lava</a>';
+  }
+  // manual / уже отменённая wayforpay / grace-wayforpay -> блока действий нет
+  if (actionsEl) {
+    actionsEl.innerHTML = actionsHtml;
+    actionsEl.hidden = !actionsHtml;
+  }
+  if (wireCancel) wireCancelFlow(sub);
+}
+
+function wireCancelFlow(sub) {
+  const btn = document.getElementById("sub-cancel-btn");
+  const confirmBox = document.getElementById("sub-confirm");
+  const no = document.getElementById("sub-confirm-no");
+  const yes = document.getElementById("sub-confirm-yes");
+  const result = document.getElementById("sub-cancel-result");
+  if (btn) btn.addEventListener("click", () => { if (confirmBox) confirmBox.hidden = false; btn.hidden = true; });
+  if (no) no.addEventListener("click", () => { if (confirmBox) confirmBox.hidden = true; if (btn) btn.hidden = false; });
+  if (yes) yes.addEventListener("click", async () => {
+    yes.disabled = true; if (no) no.disabled = true; yes.textContent = "Отменяем…";
+    try {
+      const token = await getToken();
+      if (!token) { routeHomeOrCheckout(); return; }
+      const res = await fetch(CANCEL_SUB_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        // успех: cancelled / already_cancelled / no_active_recurrent
+        const until = fmtDateDots(data.valid_until || sub.valid_until);
+        if (confirmBox) confirmBox.hidden = true;
+        if (btn) btn.hidden = true;
+        if (result) {
+          result.innerHTML = '<div class="sub-status-title">Автопродление отключено</div>' +
+            '<div class="sub-status-sub">Доступ' + (until ? " активен до " + until : " сохраняется") + '. Чтобы вернуть — оформите заново.</div>';
+          result.hidden = false;
+        }
+      } else {
+        // ok:false (вкл. 502 rc≠4100/4102) -> честная ошибка + контакты, кнопка остаётся
+        yes.disabled = false; if (no) no.disabled = false; yes.textContent = "Да, отменить";
+        if (result) {
+          result.innerHTML = '<div class="sub-status-sub sub-status-warn">Не удалось отменить. Напишите в поддержку: ' + supportContactsHtml() + " — поможем.</div>";
+          result.hidden = false;
+        }
+      }
+    } catch {
+      yes.disabled = false; if (no) no.disabled = false; yes.textContent = "Да, отменить";
+      if (result) {
+        result.innerHTML = '<div class="sub-status-sub sub-status-warn">Нет связи. Проверьте интернет и попробуйте ещё раз. Не помогает — напишите ' + supportContactsHtml() + ".</div>";
+        result.hidden = false;
+      }
+    }
+  });
+}
 
 // Тумблер темы в меню профиля. Дефолт светлый; тёмная включается вручную и запоминается в
 // localStorage (тот же ключ, что читает pre-render скрипт в <head>). Меняет только data-theme
@@ -1000,6 +1167,7 @@ function hideContentViews() {
   els.viewHome.hidden = true;
   const vs = document.getElementById("view-sprint"); if (vs) vs.hidden = true;
   const vd = document.getElementById("view-day"); if (vd) vd.hidden = true;
+  const vsub = document.getElementById("view-subscription"); if (vsub) vsub.hidden = true;
 }
 function backToHome() {
   hideContentViews();

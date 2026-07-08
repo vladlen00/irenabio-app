@@ -461,6 +461,22 @@ body.has-mini { padding-bottom: 80px; }
 .sheet-card-sub { font-size: 12px; color: var(--muted); }
 .sheet-card-arrow { font-size: 18px; color: var(--muted); flex: 0 0 auto; }
 
+/* ===== Экран «Управление подпиской» (только токены -> обе темы автоматически) ===== */
+.sub-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 14px; color: var(--text-home); box-shadow: var(--shadow); }
+.sub-status-title { font-size: 17px; font-weight: 800; }
+.sub-status-ok, .sub-status-warn { color: var(--accent-deep); }
+.sub-status-sub { font-size: 14px; color: var(--muted-home); line-height: 1.5; margin-top: 6px; }
+.sub-actions-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted-home); margin-bottom: 6px; }
+.sub-btn { width: 100%; margin-top: 14px; }
+.sub-danger { color: var(--accent-deep); }
+.sub-confirm { margin-top: 14px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.sub-confirm-text { font-size: 14px; color: var(--text-home); line-height: 1.5; }
+.sub-confirm-row { display: flex; gap: 10px; margin-top: 12px; }
+.sub-confirm-row .btn { flex: 1; margin-top: 0; }
+.sub-result { margin-top: 14px; }
+.sub-support { margin-top: 8px; font-size: 13px; color: var(--muted-home); line-height: 1.6; text-align: center; }
+.sub-loaderr { color: var(--accent-deep); font-size: 14px; text-align: center; padding: 20px 0; }
+
 /* ===================== ТЁМНАЯ ТЕМА (Вариант A: тёплый тёмный, коралловый акцент) =====================
    Дефолт светлый. Активируется атрибутом data-theme="dark" на <html> (тумблер в меню профиля +
    localStorage + применение до рендера). Переопределяются ТОЛЬКО токены -> светлая тема не тронута.
