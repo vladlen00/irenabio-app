@@ -788,7 +788,7 @@ function renderSubscription(sub) {
     showRenew = true;
   } else if (sub.cancelled) {
     statusHtml = '<div class="sub-status-title">Автопродление отключено</div>' +
-                 '<div class="sub-status-sub">Доступ' + (until ? " до " + until : " активен") + '. Чтобы вернуть — оформите заново.</div>';
+                 '<div class="sub-status-sub">Доступ' + (until ? " активен до " + until : " активен") + '. Чтобы вернуться, оформите подписку заново.</div>';
   } else {
     statusHtml = '<div class="sub-status-title sub-status-ok">Подписка активна</div>' +
                  '<div class="sub-status-sub">' + (until ? "Действует до " + until : "Активна") + '.</div>';
@@ -804,10 +804,10 @@ function renderSubscription(sub) {
   if ((sub.source === "wayforpay" || sub.source === "lava") && !sub.cancelled && sub.status !== "grace") {
     actionsHtml =
       '<div class="sub-actions-title">Автопродление</div>' +
-      '<div class="sub-status-sub">Подписка продлевается автоматически. Можно отключить — доступ доработает до конца оплаченного периода.</div>' +
+      '<div class="sub-status-sub">Подписка продлевается автоматически. Можно отключить - доступ останется до конца оплаченного периода.</div>' +
       '<button type="button" class="btn btn-ghost sub-btn sub-danger" id="sub-cancel-btn">Отменить подписку</button>' +
       '<div class="sub-confirm" id="sub-confirm" hidden>' +
-        '<div class="sub-confirm-text">Точно отменить? Доступ останется' + (until ? " до " + until : "") + ', дальше не продлится. Вернуть потом — оформить заново.</div>' +
+        '<div class="sub-confirm-text">Точно отменить? Доступ останется' + (until ? " до " + until : "") + ', дальше продления не будет. Чтобы вернуться позже, оформите подписку заново.</div>' +
         '<div class="sub-confirm-row">' +
           '<button type="button" class="btn btn-ghost sub-btn" id="sub-confirm-no">Оставить</button>' +
           '<button type="button" class="btn btn-primary sub-btn sub-danger-solid" id="sub-confirm-yes">Да, отменить</button>' +
@@ -850,21 +850,21 @@ function wireCancelFlow(sub) {
         if (btn) btn.hidden = true;
         if (result) {
           result.innerHTML = '<div class="sub-status-title">Автопродление отключено</div>' +
-            '<div class="sub-status-sub">Доступ' + (until ? " активен до " + until : " сохраняется") + '. Чтобы вернуть — оформите заново.</div>';
+            '<div class="sub-status-sub">Доступ' + (until ? " активен до " + until : " сохраняется") + '. Чтобы вернуться, оформите подписку заново.</div>';
           result.hidden = false;
         }
       } else {
         // ok:false (вкл. 502 rc≠4100/4102) -> честная ошибка + контакты, кнопка остаётся
         yes.disabled = false; if (no) no.disabled = false; yes.textContent = "Да, отменить";
         if (result) {
-          result.innerHTML = '<div class="sub-status-sub sub-status-warn">Не удалось отменить. Напишите в поддержку: ' + supportContactsHtml() + " — поможем.</div>";
+          result.innerHTML = '<div class="sub-status-sub sub-status-warn">Не удалось отменить. Напишите в поддержку: ' + supportContactsHtml() + " - поможем.</div>";
           result.hidden = false;
         }
       }
     } catch {
       yes.disabled = false; if (no) no.disabled = false; yes.textContent = "Да, отменить";
       if (result) {
-        result.innerHTML = '<div class="sub-status-sub sub-status-warn">Нет связи. Проверьте интернет и попробуйте ещё раз. Не помогает — напишите ' + supportContactsHtml() + ".</div>";
+        result.innerHTML = '<div class="sub-status-sub sub-status-warn">Нет связи. Проверьте интернет и попробуйте ещё раз. Не помогает - напишите ' + supportContactsHtml() + ".</div>";
         result.hidden = false;
       }
     }
