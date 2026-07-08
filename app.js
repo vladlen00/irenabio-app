@@ -722,9 +722,8 @@ if (homeEls.supportBtn) {
 // Блок 1 статус, Блок 2 отмена (роутинг по source, инлайн-подтверждение), Блок 3 поддержка.
 // ТГ-ветку не касается: экран открывается только в вебе (пункт меню профиля).
 const WEB_SUB_URL = SUPABASE_URL + "/functions/v1/web-subscription";
-const CANCEL_SUB_URL = SUPABASE_URL + "/functions/v1/cancel-subscription";
-// ВРЕМЕННО: до своей API-отмены Lava ведём в кабинет. Заменить URL/ветку lava одной правкой в renderSubscription.
-const LAVA_MANAGE_URL = "https://app.lava.top/my-purchases";
+const CANCEL_SUB_URL = SUPABASE_URL + "/functions/v1/cancel-subscription";        // WFP
+const CANCEL_LAVA_URL = SUPABASE_URL + "/functions/v1/cancel-lava-subscription";  // Lava (тот же UX, эндпоинт по source)
 
 (function wireSubscriptionScreen() {
   const menuItem = document.getElementById("hmenu-subscription");
@@ -799,10 +798,10 @@ function renderSubscription(sub) {
   const renewBtn = document.getElementById("sub-renew");
   if (renewBtn) renewBtn.addEventListener("click", () => { hideContentViews(); showCheckout(); });
 
-  // --- Блок 2: отмена (роутинг по source) ---
+  // --- Блок 2: отмена автопродления (единый UX для WFP и Lava; эндпоинт роутится по source в wireCancelFlow) ---
   let actionsHtml = "";
   let wireCancel = false;
-  if (sub.source === "wayforpay" && !sub.cancelled && sub.status !== "grace") {
+  if ((sub.source === "wayforpay" || sub.source === "lava") && !sub.cancelled && sub.status !== "grace") {
     actionsHtml =
       '<div class="sub-actions-title">Автопродление</div>' +
       '<div class="sub-status-sub">Подписка продлевается автоматически. Можно отключить — доступ доработает до конца оплаченного периода.</div>' +
@@ -816,14 +815,8 @@ function renderSubscription(sub) {
       '</div>' +
       '<div class="sub-result" id="sub-cancel-result" hidden></div>';
     wireCancel = true;
-  } else if (sub.source === "lava") {
-    // ВРЕМЕННЫЙ СЛОТ Lava (заменить на свою кнопку API-отмены, когда придёт ответ саппорта)
-    actionsHtml =
-      '<div class="sub-actions-title">Управление подпиской</div>' +
-      '<div class="sub-status-sub">Подписка оформлена через Lava. Управление автопродлением — в личном кабинете Lava.</div>' +
-      '<a class="btn btn-ghost sub-btn" href="' + LAVA_MANAGE_URL + '" target="_blank" rel="noopener">Управлять подпиской в Lava</a>';
   }
-  // manual / уже отменённая wayforpay / grace-wayforpay -> блока действий нет
+  // manual / уже отменённая / grace -> блока действий нет
   if (actionsEl) {
     actionsEl.innerHTML = actionsHtml;
     actionsEl.hidden = !actionsHtml;
@@ -844,7 +837,8 @@ function wireCancelFlow(sub) {
     try {
       const token = await getToken();
       if (!token) { routeHomeOrCheckout(); return; }
-      const res = await fetch(CANCEL_SUB_URL, {
+      const cancelUrl = sub.source === "lava" ? CANCEL_LAVA_URL : CANCEL_SUB_URL;
+      const res = await fetch(cancelUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
       });
