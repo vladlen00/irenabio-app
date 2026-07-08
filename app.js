@@ -592,7 +592,7 @@ function showCheckout() {
   els.viewAccess.hidden = true;
   clearLavaReturn();   // ушли на чекаут -> сбрасываем незавершённый Lava-возврат (ложный мост)
   els.viewCheckout.hidden = false;
-  // существующая инициализация чекаута (ровно как было на старте) — оплатная ветка не тронута
+  // существующая инициализация чекаута (ровно как было на старте) - оплатная ветка не тронута
   if (!applyTestPlanIfRequested()) {
     readPlanFromUrl();
     writePlanToUrl();
@@ -1019,7 +1019,7 @@ async function doLogin() {
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error || !data || !data.session) {
       // GoTrue не различает "нет аккаунта" и "неверный пароль" (защита от перебора) -> общий текст + путь на оформление
-      showLoginError(null, "Неверная почта или пароль. Если аккаунта ещё нет — <a href=\"#\" id=\"login-err-signup\" style=\"color:inherit;text-decoration:underline\">оформите подписку</a>.");
+      showLoginError(null, "Неверная почта или пароль. Если аккаунта ещё нет - <a href=\"#\" id=\"login-err-signup\" style=\"color:inherit;text-decoration:underline\">оформите подписку</a>.");
       const l = document.getElementById("login-err-signup");
       if (l) l.addEventListener("click", (e) => { e.preventDefault(); showCheckout(); });
       btn.disabled = false; btn.textContent = "Войти";
@@ -1271,7 +1271,7 @@ function wireBlocks(root) {
       openDay(currentDayId, other);
     });
   });
-  // "читать дальше" — сворачиваем только реально длинный текст
+  // "читать дальше" - сворачиваем только реально длинный текст
   root.querySelectorAll(".blk-text").forEach((wrap) => {
     const body = wrap.querySelector(".blk-text-body");
     const more = wrap.querySelector(".blk-text-more");
@@ -1315,7 +1315,7 @@ function renderDay(data) {
   setDoneState(doneBtn, completed.has(day.id));
 }
 
-// Открыть день: get-day -> рендер блоков. forceHost (timeweb|minio) — ручное переключение хранилища.
+// Открыть день: get-day -> рендер блоков. forceHost (timeweb|minio) - ручное переключение хранилища.
 async function openDay(dayId, forceHost) {
   currentDayId = dayId;
   hideContentViews();
@@ -1463,7 +1463,7 @@ function openSprint() {
 // --- старт: ветвление возврат-после-оплаты / дом / чекаут ---
 const startParams = new URLSearchParams(location.search);
 if (startParams.get("paid") === "1" && startParams.get("order")) {
-  enterPaymentReturn(startParams.get("order"));   // оплатный возврат — без изменений
+  enterPaymentReturn(startParams.get("order"));   // оплатный возврат - без изменений
 } else {
   routeHomeOrCheckout();                           // НОВОЕ: дом ИЛИ чекаут
 }
