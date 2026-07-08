@@ -914,7 +914,7 @@ const MINI_APPS = {
   podruzhka: { url: "https://biohack-tracker-blond.vercel.app/", v: "1", q: "startapp=ai" },
   zdorovie: { url: "https://biohack-tracker-blond.vercel.app/", v: "1", q: "startapp=checkin" },
   cycle: { url: "https://vladlen00.github.io/cycle/", v: "2" },
-  relax: { url: "https://vladlen00.github.io/studio/", v: "7" },
+  relax: { url: "https://vladlen00.github.io/studio/", v: "8" },
 };
 
 async function openMiniApp(appKey, tileEl) {
