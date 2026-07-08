@@ -476,6 +476,12 @@ body.has-mini { padding-bottom: 80px; }
 .sub-result { margin-top: 14px; }
 .sub-support { margin-top: 8px; font-size: 13px; color: var(--muted-home); line-height: 1.6; text-align: center; }
 .sub-loaderr { color: var(--accent-deep); font-size: 14px; text-align: center; padding: 20px 0; }
+/* Номер заказа на экране "оплата прошла" (для восстановления пароля) */
+.pw-order-box { background: var(--accent-wash); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin: 14px 0; text-align: center; }
+.pw-order-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.pw-order-value { font-family: Consolas, "SF Mono", monospace; font-size: 17px; font-weight: 700; color: var(--text); margin: 6px 0; word-break: break-all; user-select: all; -webkit-user-select: all; }
+.pw-order-note { font-size: 12px; color: var(--accent-deep); line-height: 1.5; }
+.reset-hint { text-align: left; }
 
 /* ===================== ТЁМНАЯ ТЕМА (Вариант A: тёплый тёмный, коралловый акцент) =====================
    Дефолт светлый. Активируется атрибутом data-theme="dark" на <html> (тумблер в меню профиля +

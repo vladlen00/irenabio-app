@@ -6,7 +6,7 @@
   <!-- Тема: применяем ДО рендера, чтобы не было вспышки светлого. Дефолт светлый. -->
   <script>(function(){try{if(localStorage.getItem('irena_theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
   <title>Женский биохакинг с Иреной Пол - оформление</title>
-  <link rel="stylesheet" href="style.css?v=37">
+  <link rel="stylesheet" href="style.css?v=38">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -51,8 +51,43 @@
         <p class="field-error" id="login-error" hidden></p>
         <button class="btn btn-primary" id="btn-login" type="button">Войти</button>
         <p class="alt-pay"><a href="#" id="login-to-signup" role="button">Нет аккаунта? Оформить подписку</a></p>
-        <p class="reassure">Восстановление пароля пока недоступно. Не удаётся войти - напишите в поддержку.</p>
+        <p class="alt-pay"><a href="#" id="login-to-reset" role="button">Забыли пароль?</a></p>
         <button class="btn btn-ghost" id="login-back" type="button">Назад</button>
+      </div>
+    </section>
+
+    <!-- ЭКРАН: ВОССТАНОВЛЕНИЕ ПАРОЛЯ по номеру заказа (без писем). Единая форма: email + заказ + новый пароль. -->
+    <section id="view-reset" hidden>
+      <div class="login-card">
+        <h1>Восстановление доступа</h1>
+        <p class="lead">Введите почту, номер заказа и новый пароль.</p>
+        <label class="field" for="reset-email">
+          <span class="field-label">Почта</span>
+          <input id="reset-email" type="email" inputmode="email" autocomplete="email"
+                 placeholder="ваша@почта.com" autocapitalize="off" spellcheck="false">
+        </label>
+        <label class="field" for="reset-order">
+          <span class="field-label">Номер заказа</span>
+          <input id="reset-order" type="text" autocomplete="off"
+                 placeholder="номер, сохранённый при оплате" autocapitalize="off" spellcheck="false">
+        </label>
+        <p class="reassure reset-hint" id="reset-hint"></p>
+        <label class="field" for="reset-password">
+          <span class="field-label">Новый пароль</span>
+          <div class="pw-field">
+            <input id="reset-password" type="password" autocomplete="new-password"
+                   placeholder="Минимум 8 символов" minlength="8" autocapitalize="off" spellcheck="false">
+            <button type="button" id="reset-eye" class="pw-eye" aria-label="Показать пароль">показать</button>
+          </div>
+        </label>
+        <label class="field" for="reset-password2">
+          <span class="field-label">Повторите пароль</span>
+          <input id="reset-password2" type="password" autocomplete="new-password"
+                 placeholder="Повторите пароль" autocapitalize="off" spellcheck="false">
+        </label>
+        <p class="field-error" id="reset-error" hidden></p>
+        <button class="btn btn-primary" id="btn-reset" type="button">Сбросить пароль</button>
+        <button class="btn btn-ghost" id="reset-back" type="button">Назад ко входу</button>
       </div>
     </section>
 
@@ -266,6 +301,12 @@
           <p>Придумайте пароль, чтобы входить в приложение.</p>
           <p class="muted lava-hint" id="pw-lava-hint" hidden>Это пароль для входа в ПРИЛОЖЕНИЕ (задаёте здесь). Письмо от lava.top - отдельный кабинет платежей Lava, не наш вход.</p>
 
+          <div class="pw-order-box" id="pw-order-box" hidden>
+            <div class="pw-order-label">Ваш номер заказа</div>
+            <div class="pw-order-value" id="pw-order"></div>
+            <div class="pw-order-note">ВАЖНО: сохраните этот номер. Без него не восстановить доступ, если забудете пароль.</div>
+          </div>
+
           <div id="pw-form" hidden>
             <p class="muted login-line">Ваш логин: <strong id="pw-email"></strong></p>
             <div class="pw-field">
@@ -281,7 +322,7 @@
             <p class="field-error" id="pw-error" hidden></p>
             <button id="btn-enter" class="btn btn-primary" type="button" disabled>Открыть доступ</button>
             <button id="btn-retry" class="btn btn-ghost" type="button" hidden>Повторить</button>
-            <p class="reassure">Сохраните логин и пароль - восстановление пока недоступно.</p>
+            <p class="reassure">Забудете пароль - восстановите по почте и номеру заказа (сохраните его выше).</p>
           </div>
         </div>
 
@@ -373,6 +414,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=47"></script>
+  <script src="app.js?v=48"></script>
 </body>
 </html>

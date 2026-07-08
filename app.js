@@ -11,6 +11,7 @@ const PUBLISHABLE_KEY = "sb_publishable_pOloEHMZ5QjMhnbfhygqmA_CQPSP1hU";
 const CREATE_CHECKOUT_URL = SUPABASE_URL + "/functions/v1/create-checkout";
 const CREATE_LAVA_INVOICE_URL = SUPABASE_URL + "/functions/v1/create-lava-invoice";
 const RESOLVE_ORDER_URL = SUPABASE_URL + "/functions/v1/resolve-paid-order";
+const RESET_PASSWORD_URL = SUPABASE_URL + "/functions/v1/reset-password";   // сброс пароля по номеру заказа
 const ATTACH_IDENTITY_URL = SUPABASE_URL + "/functions/v1/attach-web-identity";
 const VERIFY_ACCESS_URL = SUPABASE_URL + "/functions/v1/verify-access-web";
 const GET_HOME_URL = SUPABASE_URL + "/functions/v1/get-home";
@@ -280,6 +281,14 @@ function validatePw() {
 }
 
 // Вход на возврате с оплаты: показать экран пароля, подставить email по оплаченному заказу.
+// Показать номер заказа крупно в блоке "оплата прошла" (для будущего восстановления пароля).
+function fillPwOrder(order) {
+  const box = document.getElementById("pw-order-box");
+  const val = document.getElementById("pw-order");
+  if (val) val.textContent = order || "";
+  if (box) box.hidden = !order;
+}
+
 async function enterPaymentReturn(order) {
   state.order = order;
   hideEntryViews();
@@ -315,6 +324,7 @@ async function enterPaymentReturn(order) {
       // Заказ найден -> ТОЛЬКО теперь показываем "Оплата прошла" + форму пароля.
       state.email = data.email;
       els.pwEmail.textContent = data.email;
+      fillPwOrder(order);
       els.pwSuccess.hidden = false;
       els.pwForm.hidden = false;
       els.pwResolveError.hidden = true;
@@ -346,6 +356,7 @@ function showPasswordForm(order, email, isLava) {
   els.pwSuccess.hidden = false;
   els.pwForm.hidden = false;
   els.pwEmail.textContent = email;
+  fillPwOrder(order);
   const hint = document.getElementById("pw-lava-hint");
   if (hint) hint.hidden = !isLava;
   window.scrollTo(0, 0);
@@ -977,6 +988,7 @@ function openSheetByGroup(group) {
 function hideEntryViews() {
   const vs = document.getElementById("view-start"); if (vs) vs.hidden = true;
   const vl = document.getElementById("view-login"); if (vl) vl.hidden = true;
+  const vr = document.getElementById("view-reset"); if (vr) vr.hidden = true;
 }
 function showStart() {
   if (siteHeader) siteHeader.hidden = false;
@@ -1032,6 +1044,69 @@ async function doLogin() {
     btn.disabled = false; btn.textContent = "Войти";
   }
 }
+
+// ===================== ВОССТАНОВЛЕНИЕ ПАРОЛЯ по номеру заказа (без писем) =====================
+function showReset() {
+  if (siteHeader) siteHeader.hidden = false;
+  if (siteFooter) siteFooter.hidden = false;
+  const vs = document.getElementById("view-start"); if (vs) vs.hidden = true;
+  const vl = document.getElementById("view-login"); if (vl) vl.hidden = true;
+  els.viewCheckout.hidden = true;
+  const vr = document.getElementById("view-reset"); if (vr) vr.hidden = false;
+  const hint = document.getElementById("reset-hint");
+  if (hint) hint.innerHTML = "Номер заказа вы сохранили при оплате. Не сохранили? Напишите в поддержку " + supportTgHtml() + " - поможем.";
+  showResetError("");
+  const em = document.getElementById("reset-email"); if (em) em.focus();
+  window.scrollTo(0, 0);
+}
+function showResetError(msg, html) {
+  const el = document.getElementById("reset-error");
+  if (!el) return;
+  if (html) el.innerHTML = html; else el.textContent = msg || "";
+  el.hidden = !(msg || html);
+}
+async function doReset() {
+  const btn = document.getElementById("btn-reset");
+  const email = normalizeEmail(document.getElementById("reset-email").value);
+  const order = (document.getElementById("reset-order").value || "").trim();
+  const password = document.getElementById("reset-password").value || "";
+  const password2 = document.getElementById("reset-password2").value || "";
+  showResetError("");
+  if (!emailValid(email)) { showResetError(EMAIL_HINT); document.getElementById("reset-email").focus(); return; }
+  if (!order) { showResetError("Введите номер заказа."); document.getElementById("reset-order").focus(); return; }
+  if (password.length < 8) { showResetError("Пароль минимум 8 символов."); document.getElementById("reset-password").focus(); return; }
+  if (password !== password2) { showResetError("Пароли не совпадают."); document.getElementById("reset-password2").focus(); return; }
+  if (!sb) { showResetError("Не удалось загрузить вход. Обновите страницу."); return; }
+  btn.disabled = true; btn.textContent = "Проверяем...";
+  try {
+    const res = await fetch(RESET_PASSWORD_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, orderReference: order, password }),
+    });
+    let data = {}; try { data = await res.json(); } catch { data = {}; }
+    if (res.ok && data.ok) {
+      // пароль сменён на сервере -> входим им же -> в приложение
+      btn.textContent = "Входим...";
+      const inn = await sb.auth.signInWithPassword({ email, password });
+      if (inn.data && inn.data.session) { await routeHomeOrCheckout(); return; }
+      // редкий случай: пароль сменён, авто-вход не удался -> отправляем на вход
+      showResetError(null, "Пароль обновлён. Войдите с новым паролем.");
+      setTimeout(showLogin, 1400);
+      return;
+    }
+    if (res.status === 429) {
+      showResetError("Слишком много попыток. Подождите минуту и попробуйте снова.");
+    } else {
+      // анти-энумерация: единый текст на ЛЮБОЙ промах (неверный email/заказ/не оплачен/нет логина)
+      showResetError(null, "Почта и номер заказа не совпали. Не сходится - напишите в поддержку " + supportTgHtml() + ".");
+    }
+    btn.disabled = false; btn.textContent = "Сбросить пароль";
+  } catch {
+    showResetError(NET_MSG);
+    btn.disabled = false; btn.textContent = "Сбросить пароль";
+  }
+}
 (function wireEntry() {
   const bind = (id, fn) => { const e = document.getElementById(id); if (e) e.addEventListener("click", fn); };
   bind("start-login", (e) => { e.preventDefault(); showLogin(); });
@@ -1039,6 +1114,18 @@ async function doLogin() {
   bind("btn-login", (e) => { e.preventDefault(); doLogin(); });
   bind("login-back", (e) => { e.preventDefault(); showStart(); });
   bind("login-to-signup", (e) => { e.preventDefault(); showCheckout(); });
+  bind("login-to-reset", (e) => { e.preventDefault(); showReset(); });
+  bind("btn-reset", (e) => { e.preventDefault(); doReset(); });
+  bind("reset-back", (e) => { e.preventDefault(); showLogin(); });
+  const reye = document.getElementById("reset-eye");
+  const rpw = document.getElementById("reset-password");
+  if (reye && rpw) reye.addEventListener("click", () => {
+    const m = rpw.type === "password"; rpw.type = m ? "text" : "password"; reye.textContent = m ? "скрыть" : "показать";
+  });
+  ["reset-email", "reset-order", "reset-password", "reset-password2"].forEach((id) => {
+    const e = document.getElementById(id);
+    if (e) e.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); doReset(); } });
+  });
   const eye = document.getElementById("login-eye");
   const pw = document.getElementById("login-password");
   if (eye && pw) eye.addEventListener("click", () => {
