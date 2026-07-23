@@ -11,7 +11,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png?v=1">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=1">
   <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=1">
-  <link rel="stylesheet" href="style.css?v=40">
+  <link rel="stylesheet" href="style.css?v=41">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -33,6 +33,8 @@
         <p class="lead">Женский биохакинг с Иреной Пол - тренировки, трекеры, подкасты и материалы.</p>
         <button class="btn btn-primary" id="start-login" type="button">Войти</button>
         <button class="btn btn-ghost" id="start-signup" type="button">Оформить подписку</button>
+        <p class="alt-pay start-paid-help"><a href="#" id="start-paid-help" role="button">Оплатили, но доступ не открылся?</a></p>
+        <p class="reassure" id="start-paid-help-box" hidden></p>
       </div>
     </section>
 
@@ -297,37 +299,29 @@
       <p class="form-error" id="lavacur-error" hidden></p>
     </section>
 
-    <!-- ЭКРАН 3: перед уходом на оплату (ОБА провайдера). Кнопка = синхронный window.open (мина iOS #1). -->
+    <!-- ЭКРАН 3 (Lava): предупреждение об уходе на оплату + адрес возврата. Редирект в ТОЙ ЖЕ вкладке. -->
     <section id="view-pay-go" hidden>
       <div class="pending-card">
-        <h1>Оплата откроется в новой вкладке</h1>
-        <p>Эту вкладку не закрывайте. После оплаты вернитесь сюда - здесь вы придумаете пароль для входа в приложение.</p>
+        <h1>Сейчас откроется оплата</h1>
+        <p>Оплата пройдёт на сайте Lava. После оплаты вернитесь сюда — снова откройте в браузере адрес:</p>
+        <div class="pay-addr">app.irenabio.com</div>
+        <p class="muted">Доступ откроется сам. Запомните адрес — понадобится, чтобы вернуться после оплаты.</p>
         <button class="btn btn-primary" type="button" id="btn-pay-go">Перейти к оплате</button>
         <p class="form-error" id="pay-go-error" hidden></p>
       </div>
     </section>
 
-    <!-- ЭКРАН 4: ожидание подтверждения (автоопрос resolve-paid-order + ручная кнопка). Мины #2/#3. -->
+    <!-- ЭКРАН 4: возврат после оплаты Lava - проверяем оплату (опрос) + ручная кнопка + выход. -->
     <section id="view-pay-wait" hidden>
       <div class="pending-card">
         <div class="wait-dots" aria-hidden="true"><span></span><span></span><span></span></div>
-        <h1>Ждём подтверждение оплаты</h1>
-        <p>Оплатили в соседней вкладке? Закройте её и вернитесь сюда. Экран обновится сам.</p>
+        <h1>Проверяем оплату</h1>
+        <p>Как только оплата пройдёт, доступ откроется здесь. Обычно это занимает до минуты.</p>
         <p class="muted lava-hint" id="pay-wait-lava-note" hidden>Письмо «Complete registration» от lava.top - это пароль для кабинета платежей Lava, а НЕ наш вход. Пароль для приложения вы зададите на следующем шаге.</p>
-        <button class="btn btn-ghost" type="button" id="btn-paid-check">Я оплатила</button>
+        <button class="btn btn-primary" type="button" id="btn-paid-check">Я оплатила</button>
         <p class="muted" id="pay-wait-msg" hidden></p>
-      </div>
-    </section>
-
-    <!-- ЗАГЛУШКА для ВКЛАДКИ ОПЛАТЫ WayForPay (returnUrl вернул сюда при newTab=true). Пароль НЕ
-         показываем - доступ открывается в исходной вкладке (опрос). Иначе две вкладки с паролем. -->
-    <section id="view-pay-tab-return" hidden>
-      <div class="pending-card">
-        <div class="pending-check">✓</div>
-        <h1>Вы вернулись с оплаты</h1>
-        <p>Доступ открывается на предыдущей вкладке - вернитесь на неё. Эту вкладку можно закрыть.</p>
-        <button class="btn btn-primary" type="button" id="btn-close-pay-tab">Закрыть вкладку</button>
-        <p class="alt-pay"><a href="#" id="pay-tab-here" role="button">Не видите предыдущую вкладку? Задать пароль здесь →</a></p>
+        <p class="muted pay-addr-note">Если снова отвлечётесь — этот адрес вернёт вас сюда: <strong>app.irenabio.com</strong></p>
+        <button class="btn btn-ghost" type="button" id="btn-pay-back">Вернуться к тарифам</button>
       </div>
     </section>
 
@@ -457,6 +451,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=50"></script>
+  <script src="app.js?v=51"></script>
 </body>
 </html>

@@ -23,10 +23,10 @@ const PROJECT_REF = "kjzxrpwqyyjcykwbqskn";
 // по возвращении мост "Я оплатил" скармливает его в существующий поток resolve-paid-order -> пароль.
 const LAVA_RETURN_KEY = "irenabio_lava_return";
 const LAVA_RETURN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // мост живёт 7 дней
-// newTab: true = попап открылся (WFP-вкладка вернётся по returnUrl -> заглушка);
-//         false = ушли редиректом в ЭТОЙ вкладке (returnUrl вернёт сюда же -> сразу пароль).
-function stashLavaReturn(order, email, method, newTab) {
-  try { localStorage.setItem(LAVA_RETURN_KEY, JSON.stringify({ order, email, method: method || "lava", newTab: !!newTab, ts: Date.now() })); } catch {}
+// Обе платёжки уходят на оплату в ЭТОЙ вкладке. Stash пишет ТОЛЬКО Lava (у неё нет returnUrl -> возврат
+// руками -> readLavaReturn -> showPayWait -> опрос). WFP чистит stash и возвращается сам по returnUrl.
+function stashLavaReturn(order, email, method) {
+  try { localStorage.setItem(LAVA_RETURN_KEY, JSON.stringify({ order, email, method: method || "lava", ts: Date.now() })); } catch {}
 }
 function readLavaReturn() {
   try {
@@ -70,7 +70,6 @@ const state = {
   method: "wayforpay", // wayforpay | lava
   email: "",
   lavaCurrency: "RUB", // RUB | EUR (экран 2)
-  preparedInvoice: null, // {key,url,order,ts} - пре-фетч Lava-инвойса (reuse-by-key)
 };
 
 const els = {
@@ -233,71 +232,41 @@ function showLavaCurrency() {
   els.viewLavaCurrency.hidden = false;
   window.scrollTo(0, 0);
 }
-// --- экран 3 (ТОЛЬКО Lava): пре-фетч инвойса ДО клика, чтобы window.open получил готовый URL
-// СИНХРОННО в жесте (иначе iOS молча не навигирует about:blank после await -> белая вкладка). ---
-let lavaPrepToken = 0;
-const PREP_TTL_MS = 10 * 60 * 1000;
-function invoiceKey() { return state.email + "|" + state.plan + "|" + state.lavaCurrency; }
-
+// --- экран 3 (ТОЛЬКО Lava): предупреждение об уходе + адрес возврата ---
 function showPayGo() {
   hideCoreViews(); hidePayFlowExtra();
   const e = document.getElementById("pay-go-error"); if (e) e.hidden = true;
+  const b = document.getElementById("btn-pay-go"); if (b) { b.disabled = false; b.textContent = "Перейти к оплате"; }
   els.viewPayGo.hidden = false;
   window.scrollTo(0, 0);
-  prepareLavaInvoice();   // готовим инвойс сразу; кнопка активна, когда URL готов
 }
 
-// Создаём инвойс заранее. REUSE-BY-KEY: тот же email|plan|currency в пределах TTL -> НЕ плодим
-// новый инвойс, берём готовый. Новый только при смене ключа. guard-токен отбрасывает устаревший
-// in-flight пре-фетч (ушли назад / сменили валюту).
-async function prepareLavaInvoice() {
+// Клик "Перейти к оплате": создаём инвойс и уходим на Lava в ЭТОЙ ЖЕ вкладке (у Lava нет returnUrl).
+// Навигация своей вкладки после await надёжна на iOS (в отличие от window.open) - белой вкладки нет,
+// пре-фетч не нужен, инвойс создаётся только по реальному клику -> нет сирот. stash -> возврат руками.
+async function onPayGo() {
   const btn = document.getElementById("btn-pay-go");
   const errEl = document.getElementById("pay-go-error");
   if (errEl) errEl.hidden = true;
-  const key = invoiceKey();
-  const cached = state.preparedInvoice;
-  if (cached && cached.key === key && cached.url && (Date.now() - cached.ts) < PREP_TTL_MS) {
-    if (btn) { btn.disabled = false; btn.textContent = "Перейти к оплате"; }
-    return;
-  }
-  const token = ++lavaPrepToken;
-  if (btn) { btn.disabled = true; btn.textContent = "Готовим оплату..."; }
+  if (btn) { btn.disabled = true; btn.textContent = "Открываем оплату..."; }
   try {
     const currency = state.lavaCurrency === "EUR" ? "EUR" : "RUB";
     const res = await fetch(CREATE_LAVA_INVOICE_URL, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: state.email, plan: state.plan, currency }),
     });
-    if (token !== lavaPrepToken) return;   // устаревший пре-фетч -> игнор
     let data = {}; try { data = await res.json(); } catch {}
     if (res.ok && data.ok && data.paymentUrl && data.order_reference) {
-      state.preparedInvoice = { key, url: data.paymentUrl, order: data.order_reference, ts: Date.now() };
-      if (btn) { btn.disabled = false; btn.textContent = "Перейти к оплате"; }
-    } else {
-      if (errEl) { errEl.textContent = res.status === 429 ? RATE_MSG : "Не удалось подготовить оплату. Нажмите «Повторить»."; errEl.hidden = false; }
-      if (btn) { btn.disabled = false; btn.textContent = "Повторить"; }
+      stashLavaReturn(data.order_reference, state.email, "lava");
+      window.location.href = data.paymentUrl;   // та же вкладка -> Lava; возврат руками на адрес
+      return;
     }
+    if (errEl) { errEl.textContent = res.status === 429 ? RATE_MSG : "Не удалось открыть оплату. Попробуйте ещё раз."; errEl.hidden = false; }
+    if (btn) { btn.disabled = false; btn.textContent = "Перейти к оплате"; }
   } catch {
-    if (token !== lavaPrepToken) return;
     if (errEl) { errEl.textContent = NET_MSG; errEl.hidden = false; }
-    if (btn) { btn.disabled = false; btn.textContent = "Повторить"; }
+    if (btn) { btn.disabled = false; btn.textContent = "Перейти к оплате"; }
   }
-}
-
-// Клик "Перейти к оплате". URL уже готов -> window.open(РЕАЛЬНЫЙ_URL) СИНХРОННО (надёжно на iOS).
-// Не готов/устарел -> (пере)готовим, откроется следующим кликом. Попап заблокирован -> тихий фолбэк.
-function onPayGo() {
-  const cached = state.preparedInvoice;
-  const key = invoiceKey();
-  const ready = cached && cached.key === key && cached.url && (Date.now() - cached.ts) < PREP_TTL_MS;
-  if (!ready) { prepareLavaInvoice(); return; }
-  let win = null;
-  try { win = window.open(cached.url, "_blank"); } catch { win = null; }
-  const opened = !!win;
-  stashLavaReturn(cached.order, state.email, "lava", opened);
-  if (opened) { showPayWait(); return; }
-  // попап заблокирован -> тихий фолбэк: та же вкладка (Lava вернётся руками -> showPayWait -> опрос)
-  window.location.href = cached.url;
 }
 
 // --- экран 4: ожидание (автоопрос resolve-paid-order + ручная кнопка). Мины #2/#3 ---
@@ -355,16 +324,12 @@ async function onPaidCheck() {
 }
 // Мина #2: iOS усыпляет фон -> при возврате на вкладку перезапускаем опрос.
 document.addEventListener("visibilitychange", () => { if (!document.hidden && payWaitVisible()) startPayPoll(); });
-window.addEventListener("pageshow", () => { if (payWaitVisible()) startPayPoll(); });
-
-// --- заглушка ВКЛАДКИ ОПЛАТЫ WFP (returnUrl -> ?paid=1&order= при newTab=true). Пароль не показываем. ---
-function showPayTabReturn(order) {
-  hideCoreViews(); hidePayFlowExtra();
-  state.order = order || "";
-  els.viewPayTabReturn.hidden = false;
-  window.scrollTo(0, 0);
-  setTimeout(() => { try { window.close(); } catch {} }, 600); // best-effort, не несущее
-}
+// pageshow: (а) уже на ожидании -> перезапуск опроса; (б) вернулись Назад из Lava (bfcache) на экран 3,
+// а оплата уже начата (stash есть) -> сразу показываем ожидание+опрос (бонус к ручному возврату на адрес).
+window.addEventListener("pageshow", () => {
+  if (payWaitVisible()) { startPayPoll(); return; }
+  if (readLavaReturn() && els.viewPayGo && !els.viewPayGo.hidden) showPayWait();
+});
 
 // ===================== ВОЗВРАТ ПОСЛЕ ОПЛАТЫ: ЭКРАН ПАРОЛЯ =====================
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
@@ -588,12 +553,12 @@ els.form.addEventListener("submit", (e) => {
   bind("to-lava-currency", goLavaCurrency);            // экран 1 -> экран 2 (валюта Lava)
   bind("lavacur-back", () => showCheckout());          // экран 2 -> назад к тарифам
   bind("btn-lava-pay", () => showPayGo());             // экран 2 -> экран 3
-  bind("btn-pay-go", () => onPayGo());                 // экран 3 -> оплата (новая вкладка / тихий фолбэк)
+  bind("btn-pay-go", () => onPayGo());                 // экран 3 -> оплата в той же вкладке (Lava)
   bind("btn-paid-check", () => onPaidCheck());         // экран 4 -> ручная проверка
-  bind("btn-close-pay-tab", () => { try { window.close(); } catch {} }); // заглушка вкладки WFP
-  bind("pay-tab-here", () => {                          // страховка: задать пароль в этой вкладке
-    const ord = new URLSearchParams(location.search).get("order") || (readLavaReturn() || {}).order || state.order || "";
-    enterPaymentReturn(ord);
+  bind("btn-pay-back", () => { clearLavaReturn(); showCheckout(); }); // экран 4 -> выход к тарифам (чистит stash)
+  bind("start-paid-help", () => {                      // старт: "оплатили, доступа нет?" -> путь без второй оплаты
+    const box = document.getElementById("start-paid-help-box");
+    if (box) { box.innerHTML = "Только что оплатили и вернулись — доступ откроется сам за минуту. Если оплатили раньше, с другого устройства или доступа всё нет — напишите " + supportContactsHtml() + " и пришлите почту оплаты, откроем вручную."; box.hidden = false; }
   });
   const curOpts = document.getElementById("cur-opts");
   if (curOpts) curOpts.addEventListener("change", (e) => {
@@ -1638,13 +1603,8 @@ function openSprint() {
 // --- старт: ветвление возврат-после-оплаты / дом / чекаут ---
 const startParams = new URLSearchParams(location.search);
 if (startParams.get("paid") === "1" && startParams.get("order")) {
-  // ?paid приходит только по returnUrl WayForPay. Разводим по stash.newTab (мина #4):
-  //  newTab=true  -> это ВКЛАДКА ОПЛАТЫ (попап) -> заглушка "вернитесь на предыдущую".
-  //  newTab=false -> это ИСХОДНАЯ вкладка (тихий фолбэк) -> сразу экран пароля.
-  //  нет stash    -> ведём как newTab=false (человек хотя бы попадёт на пароль).
-  const st = readLavaReturn();
-  if (st && st.newTab === true) showPayTabReturn(startParams.get("order"));
-  else enterPaymentReturn(startParams.get("order"));
+  // ?paid приходит только по returnUrl WayForPay (та же вкладка) -> сразу экран пароля.
+  enterPaymentReturn(startParams.get("order"));
 } else {
   routeHomeOrCheckout();                           // дом / чекаут / (stash -> экран ожидания)
 }
