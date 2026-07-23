@@ -70,6 +70,7 @@ const state = {
   method: "wayforpay", // wayforpay | lava
   email: "",
   lavaCurrency: "RUB", // RUB | EUR (экран 2)
+  preparedInvoice: null, // {key,url,order,ts} - пре-фетч Lava-инвойса (reuse-by-key)
 };
 
 const els = {
@@ -181,14 +182,32 @@ function hideCoreViews() {
   els.viewAccess.hidden = true;
 }
 
-// --- экран 1 -> WFP: валидируем почту здесь; инвойс создаётся на экране 3 (мина iOS #1) ---
-function goCheckoutSubmit() {
+// --- экран 1 -> WFP: своя returnUrl -> редирект в ЭТОЙ вкладке, БЕЗ экрана 3 и новой вкладки.
+// WFP вернётся по returnUrl -> ?paid=1&order= -> enterPaymentReturn (пароль). ---
+async function goCheckoutSubmit() {
   clearErrors();
   const email = normalizeEmail(els.email.value);
   if (!emailValid(email)) { showEmailError(EMAIL_HINT); els.email.focus(); return; }
   state.method = "wayforpay";
   state.email = email;
-  showPayGo();
+  clearLavaReturn();   // WFP не использует stash; чистим, чтобы бут на возврате не ушёл в заглушку
+  const btn = els.btnPay;
+  if (btn) { btn.disabled = true; btn.textContent = "Открываем оплату..."; }
+  try {
+    const res = await fetch(CREATE_CHECKOUT_URL, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, plan: state.plan, method: "wayforpay" }),
+    });
+    let data = {}; try { data = await res.json(); } catch {}
+    if (res.ok && data.ok && data.invoiceUrl) { window.location.href = data.invoiceUrl; return; }
+    if (res.status === 429) showFormError(RATE_MSG);
+    else if (res.status === 400 || data.error === "invalid_email") showEmailError(EMAIL_HINT);
+    else showFormError("Не удалось открыть оплату. Попробуйте ещё раз.");
+    if (btn) { btn.disabled = false; btn.textContent = "Оплатить"; }
+  } catch {
+    showFormError(NET_MSG);
+    if (btn) { btn.disabled = false; btn.textContent = "Оплатить"; }
+  }
 }
 // --- экран 1 -> ссылка "Оплатить в рублях": та же валидация, дальше экран 2 (выбор валюты) ---
 function goLavaCurrency() {
@@ -214,61 +233,71 @@ function showLavaCurrency() {
   els.viewLavaCurrency.hidden = false;
   window.scrollTo(0, 0);
 }
+// --- экран 3 (ТОЛЬКО Lava): пре-фетч инвойса ДО клика, чтобы window.open получил готовый URL
+// СИНХРОННО в жесте (иначе iOS молча не навигирует about:blank после await -> белая вкладка). ---
+let lavaPrepToken = 0;
+const PREP_TTL_MS = 10 * 60 * 1000;
+function invoiceKey() { return state.email + "|" + state.plan + "|" + state.lavaCurrency; }
+
 function showPayGo() {
   hideCoreViews(); hidePayFlowExtra();
   const e = document.getElementById("pay-go-error"); if (e) e.hidden = true;
-  const b = document.getElementById("btn-pay-go"); if (b) { b.disabled = false; b.textContent = "Перейти к оплате"; }
   els.viewPayGo.hidden = false;
   window.scrollTo(0, 0);
+  prepareLavaInvoice();   // готовим инвойс сразу; кнопка активна, когда URL готов
 }
 
-// --- экран 3: "Перейти к оплате" ---
-// Мина iOS #1: window.open СИНХРОННО первым делом; инвойс после; URL подставляем в открытую вкладку.
-// Попап заблокирован -> ТИХИЙ фолбэк: редирект в ЭТОЙ вкладке (аудитория нетех., "разрешите попапы" = потеря оплаты).
-function payErr(msg) { const e = new Error(msg); e.pay = true; return e; }
-async function onPayGo() {
+// Создаём инвойс заранее. REUSE-BY-KEY: тот же email|plan|currency в пределах TTL -> НЕ плодим
+// новый инвойс, берём готовый. Новый только при смене ключа. guard-токен отбрасывает устаревший
+// in-flight пре-фетч (ушли назад / сменили валюту).
+async function prepareLavaInvoice() {
   const btn = document.getElementById("btn-pay-go");
   const errEl = document.getElementById("pay-go-error");
   if (errEl) errEl.hidden = true;
-  let win = null;
-  try { win = window.open("about:blank", "_blank"); } catch { win = null; }
+  const key = invoiceKey();
+  const cached = state.preparedInvoice;
+  if (cached && cached.key === key && cached.url && (Date.now() - cached.ts) < PREP_TTL_MS) {
+    if (btn) { btn.disabled = false; btn.textContent = "Перейти к оплате"; }
+    return;
+  }
+  const token = ++lavaPrepToken;
   if (btn) { btn.disabled = true; btn.textContent = "Готовим оплату..."; }
   try {
-    let order = null, url = null;
-    if (state.method === "wayforpay") {
-      const res = await fetch(CREATE_CHECKOUT_URL, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: state.email, plan: state.plan, method: "wayforpay" }),
-      });
-      let data = {}; try { data = await res.json(); } catch {}
-      if (res.ok && data.ok && data.invoiceUrl && data.orderReference) { url = data.invoiceUrl; order = data.orderReference; }
-      else if (res.status === 429) throw payErr(RATE_MSG);
-      else throw payErr("Не удалось открыть оплату. Попробуйте ещё раз.");
+    const currency = state.lavaCurrency === "EUR" ? "EUR" : "RUB";
+    const res = await fetch(CREATE_LAVA_INVOICE_URL, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: state.email, plan: state.plan, currency }),
+    });
+    if (token !== lavaPrepToken) return;   // устаревший пре-фетч -> игнор
+    let data = {}; try { data = await res.json(); } catch {}
+    if (res.ok && data.ok && data.paymentUrl && data.order_reference) {
+      state.preparedInvoice = { key, url: data.paymentUrl, order: data.order_reference, ts: Date.now() };
+      if (btn) { btn.disabled = false; btn.textContent = "Перейти к оплате"; }
     } else {
-      const currency = state.lavaCurrency === "EUR" ? "EUR" : "RUB";
-      const res = await fetch(CREATE_LAVA_INVOICE_URL, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: state.email, plan: state.plan, currency }),
-      });
-      let data = {}; try { data = await res.json(); } catch {}
-      if (res.ok && data.ok && data.paymentUrl && data.order_reference) { url = data.paymentUrl; order = data.order_reference; }
-      else if (res.status === 429) throw payErr(RATE_MSG);
-      else throw payErr("Не удалось открыть оплату. Попробуйте ещё раз.");
+      if (errEl) { errEl.textContent = res.status === 429 ? RATE_MSG : "Не удалось подготовить оплату. Нажмите «Повторить»."; errEl.hidden = false; }
+      if (btn) { btn.disabled = false; btn.textContent = "Повторить"; }
     }
-    // Пытаемся подставить URL в открытую вкладку. Успех -> newTab=true, ждём в исходной.
-    let opened = false;
-    if (win) { try { win.location.href = url; opened = true; } catch { win = null; opened = false; } }
-    // Мина #5: stash order+email+method+newTab (мост входа + опрос + развод мины #4 на буте).
-    stashLavaReturn(order, state.email, state.method, opened);
-    if (opened) { showPayWait(); return; }
-    // ТИХИЙ ФОЛБЭК: попап заблокирован/не подставился -> уходим на оплату в ЭТОЙ вкладке.
-    // WFP вернётся сюда по returnUrl (newTab=false -> сразу пароль); Lava вернётся руками -> экран ожидания.
-    window.location.href = url;
-  } catch (err) {
-    try { if (win) win.close(); } catch {}
-    if (errEl) { errEl.textContent = err && err.pay ? err.message : NET_MSG; errEl.hidden = false; }
-    if (btn) { btn.disabled = false; btn.textContent = "Перейти к оплате"; }
+  } catch {
+    if (token !== lavaPrepToken) return;
+    if (errEl) { errEl.textContent = NET_MSG; errEl.hidden = false; }
+    if (btn) { btn.disabled = false; btn.textContent = "Повторить"; }
   }
+}
+
+// Клик "Перейти к оплате". URL уже готов -> window.open(РЕАЛЬНЫЙ_URL) СИНХРОННО (надёжно на iOS).
+// Не готов/устарел -> (пере)готовим, откроется следующим кликом. Попап заблокирован -> тихий фолбэк.
+function onPayGo() {
+  const cached = state.preparedInvoice;
+  const key = invoiceKey();
+  const ready = cached && cached.key === key && cached.url && (Date.now() - cached.ts) < PREP_TTL_MS;
+  if (!ready) { prepareLavaInvoice(); return; }
+  let win = null;
+  try { win = window.open(cached.url, "_blank"); } catch { win = null; }
+  const opened = !!win;
+  stashLavaReturn(cached.order, state.email, "lava", opened);
+  if (opened) { showPayWait(); return; }
+  // попап заблокирован -> тихий фолбэк: та же вкладка (Lava вернётся руками -> showPayWait -> опрос)
+  window.location.href = cached.url;
 }
 
 // --- экран 4: ожидание (автоопрос resolve-paid-order + ручная кнопка). Мины #2/#3 ---
