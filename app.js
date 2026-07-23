@@ -23,8 +23,10 @@ const PROJECT_REF = "kjzxrpwqyyjcykwbqskn";
 // по возвращении мост "Я оплатил" скармливает его в существующий поток resolve-paid-order -> пароль.
 const LAVA_RETURN_KEY = "irenabio_lava_return";
 const LAVA_RETURN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // мост живёт 7 дней
-function stashLavaReturn(order, email) {
-  try { localStorage.setItem(LAVA_RETURN_KEY, JSON.stringify({ order, email, ts: Date.now() })); } catch {}
+// newTab: true = попап открылся (WFP-вкладка вернётся по returnUrl -> заглушка);
+//         false = ушли редиректом в ЭТОЙ вкладке (returnUrl вернёт сюда же -> сразу пароль).
+function stashLavaReturn(order, email, method, newTab) {
+  try { localStorage.setItem(LAVA_RETURN_KEY, JSON.stringify({ order, email, method: method || "lava", newTab: !!newTab, ts: Date.now() })); } catch {}
 }
 function readLavaReturn() {
   try {
@@ -66,6 +68,8 @@ const PLANS = {
 const state = {
   plan: "6m",
   method: "wayforpay", // wayforpay | lava
+  email: "",
+  lavaCurrency: "RUB", // RUB | EUR (экран 2)
 };
 
 const els = {
@@ -77,7 +81,11 @@ const els = {
   btnPay: document.getElementById("btn-pay"),
   viewCheckout: document.getElementById("view-checkout"),
   viewHome: document.getElementById("view-home"),
-  viewLavaReturn: document.getElementById("view-lava-return"),
+  viewLavaReturn: document.getElementById("view-lava-return"), // удалён из DOM -> null, использования под if()
+  viewLavaCurrency: document.getElementById("view-lava-currency"),
+  viewPayGo: document.getElementById("view-pay-go"),
+  viewPayWait: document.getElementById("view-pay-wait"),
+  viewPayTabReturn: document.getElementById("view-pay-tab-return"),
   // экран пароля после оплаты
   viewPassword: document.getElementById("view-password"),
   viewAccess: document.getElementById("view-access"),
@@ -149,115 +157,184 @@ const RATE_MSG = "Слишком много попыток. Подождите �
 // Сетевой сбой у аудитории в заблокированных регионах лечит VPN.
 const NET_MSG = "Не получилось связаться с сервером. Включите VPN и попробуйте снова.";
 
-// --- мост после оплаты Lava (Lava назад не редиректит; siteHeader/hideEntryViews заданы ниже,
-//     функция вызывается только в рантайме после полного парса скрипта) ---
-function showLavaReturn() {
-  const r = readLavaReturn();
+// ===================== НОВЫЙ ПОТОК ОПЛАТЫ (экраны 2/3/4 + заглушка вкладки + опрос) =====================
+let payPollTimer = null, payPollStart = 0;
+const PAY_POLL_INTERVAL_MS = 4000;
+const PAY_POLL_MAX_MS = 15 * 60 * 1000;
+
+// Спрятать экраны 2/3/4 + заглушку вкладки оплаты + остановить опрос.
+function hidePayFlowExtra() {
+  if (els.viewLavaCurrency) els.viewLavaCurrency.hidden = true;
+  if (els.viewPayGo) els.viewPayGo.hidden = true;
+  if (els.viewPayWait) els.viewPayWait.hidden = true;
+  if (els.viewPayTabReturn) els.viewPayTabReturn.hidden = true;
+  stopPayPoll();
+}
+// Базовое состояние экранов "колонки" (шапка/футер видны, контентные экраны скрыты).
+function hideCoreViews() {
   hideEntryViews();
   if (siteHeader) siteHeader.hidden = false;
   if (siteFooter) siteFooter.hidden = false;
   els.viewCheckout.hidden = true;
   if (els.viewHome) els.viewHome.hidden = true;
   els.viewPassword.hidden = true;
-  const em = document.getElementById("lava-return-email");
-  if (em) em.textContent = r ? r.email : "";
-  const msg = document.getElementById("lava-return-msg");
-  if (msg) msg.hidden = true;
-  els.viewLavaReturn.hidden = false;
+  els.viewAccess.hidden = true;
+}
+
+// --- экран 1 -> WFP: валидируем почту здесь; инвойс создаётся на экране 3 (мина iOS #1) ---
+function goCheckoutSubmit() {
+  clearErrors();
+  const email = normalizeEmail(els.email.value);
+  if (!emailValid(email)) { showEmailError(EMAIL_HINT); els.email.focus(); return; }
+  state.method = "wayforpay";
+  state.email = email;
+  showPayGo();
+}
+// --- экран 1 -> ссылка "Оплатить в рублях": та же валидация, дальше экран 2 (выбор валюты) ---
+function goLavaCurrency() {
+  clearErrors();
+  const email = normalizeEmail(els.email.value);
+  if (!emailValid(email)) { showEmailError(EMAIL_HINT); els.email.focus(); return; }
+  state.method = "lava";
+  state.email = email;
+  showLavaCurrency();
+}
+// .selected как JS-фолбэк к :has() для старых iOS WebView.
+function paintCur() {
+  const opts = document.getElementById("cur-opts");
+  if (!opts) return;
+  opts.querySelectorAll(".cur-opt").forEach((l) => { const i = l.querySelector("input"); l.classList.toggle("selected", i.checked); });
+}
+function showLavaCurrency() {
+  hideCoreViews(); hidePayFlowExtra();
+  const lp = document.getElementById("lavacur-plan");
+  if (lp) lp.textContent = (PLANS[state.plan] || {}).label || "";
+  const err = document.getElementById("lavacur-error"); if (err) err.hidden = true;
+  paintCur();
+  els.viewLavaCurrency.hidden = false;
+  window.scrollTo(0, 0);
+}
+function showPayGo() {
+  hideCoreViews(); hidePayFlowExtra();
+  const e = document.getElementById("pay-go-error"); if (e) e.hidden = true;
+  const b = document.getElementById("btn-pay-go"); if (b) { b.disabled = false; b.textContent = "Перейти к оплате"; }
+  els.viewPayGo.hidden = false;
   window.scrollTo(0, 0);
 }
 
-// --- индикатор загрузки на кнопке (защита от двойных кликов/заказов) ---
-function setLoading(on, label) {
-  els.btnPay.disabled = on;
-  ["pay-lava-eur", "pay-lava-rub"].forEach((id) => { const b = document.getElementById(id); if (b) b.disabled = on; });
-  els.btnPay.textContent = on ? (label || "Загрузка...") : "Оформить подписку";
+// --- экран 3: "Перейти к оплате" ---
+// Мина iOS #1: window.open СИНХРОННО первым делом; инвойс после; URL подставляем в открытую вкладку.
+// Попап заблокирован -> ТИХИЙ фолбэк: редирект в ЭТОЙ вкладке (аудитория нетех., "разрешите попапы" = потеря оплаты).
+function payErr(msg) { const e = new Error(msg); e.pay = true; return e; }
+async function onPayGo() {
+  const btn = document.getElementById("btn-pay-go");
+  const errEl = document.getElementById("pay-go-error");
+  if (errEl) errEl.hidden = true;
+  let win = null;
+  try { win = window.open("about:blank", "_blank"); } catch { win = null; }
+  if (btn) { btn.disabled = true; btn.textContent = "Готовим оплату..."; }
+  try {
+    let order = null, url = null;
+    if (state.method === "wayforpay") {
+      const res = await fetch(CREATE_CHECKOUT_URL, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: state.email, plan: state.plan, method: "wayforpay" }),
+      });
+      let data = {}; try { data = await res.json(); } catch {}
+      if (res.ok && data.ok && data.invoiceUrl && data.orderReference) { url = data.invoiceUrl; order = data.orderReference; }
+      else if (res.status === 429) throw payErr(RATE_MSG);
+      else throw payErr("Не удалось открыть оплату. Попробуйте ещё раз.");
+    } else {
+      const currency = state.lavaCurrency === "EUR" ? "EUR" : "RUB";
+      const res = await fetch(CREATE_LAVA_INVOICE_URL, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: state.email, plan: state.plan, currency }),
+      });
+      let data = {}; try { data = await res.json(); } catch {}
+      if (res.ok && data.ok && data.paymentUrl && data.order_reference) { url = data.paymentUrl; order = data.order_reference; }
+      else if (res.status === 429) throw payErr(RATE_MSG);
+      else throw payErr("Не удалось открыть оплату. Попробуйте ещё раз.");
+    }
+    // Пытаемся подставить URL в открытую вкладку. Успех -> newTab=true, ждём в исходной.
+    let opened = false;
+    if (win) { try { win.location.href = url; opened = true; } catch { win = null; opened = false; } }
+    // Мина #5: stash order+email+method+newTab (мост входа + опрос + развод мины #4 на буте).
+    stashLavaReturn(order, state.email, state.method, opened);
+    if (opened) { showPayWait(); return; }
+    // ТИХИЙ ФОЛБЭК: попап заблокирован/не подставился -> уходим на оплату в ЭТОЙ вкладке.
+    // WFP вернётся сюда по returnUrl (newTab=false -> сразу пароль); Lava вернётся руками -> экран ожидания.
+    window.location.href = url;
+  } catch (err) {
+    try { if (win) win.close(); } catch {}
+    if (errEl) { errEl.textContent = err && err.pay ? err.message : NET_MSG; errEl.hidden = false; }
+    if (btn) { btn.disabled = false; btn.textContent = "Перейти к оплате"; }
+  }
 }
 
-// --- общий вход: валидация почты, затем ветка способа оплаты ---
-async function submit(method, currency) {
-  clearErrors();
-  state.method = method;
-
-  const email = normalizeEmail(els.email.value);
-  if (!emailValid(email)) {
-    showEmailError(EMAIL_HINT);
-    els.email.focus();
+// --- экран 4: ожидание (автоопрос resolve-paid-order + ручная кнопка). Мины #2/#3 ---
+function payWaitVisible() { return els.viewPayWait && !els.viewPayWait.hidden; }
+function stopPayPoll() { if (payPollTimer) { clearInterval(payPollTimer); payPollTimer = null; } }
+function startPayPoll() { stopPayPoll(); payPoll(); payPollTimer = setInterval(payPoll, PAY_POLL_INTERVAL_MS); }
+function showPayWait() {
+  hideCoreViews(); hidePayFlowExtra();
+  const r = readLavaReturn();
+  const note = document.getElementById("pay-wait-lava-note");
+  if (note) note.hidden = !(r && r.method === "lava");
+  const msg = document.getElementById("pay-wait-msg"); if (msg) msg.hidden = true;
+  const btn = document.getElementById("btn-paid-check"); if (btn) { btn.disabled = false; btn.textContent = "Я оплатила"; }
+  els.viewPayWait.hidden = false;
+  window.scrollTo(0, 0);
+  payPollStart = Date.now();
+  startPayPoll();
+}
+async function checkPaidOnce(order) {
+  try {
+    const res = await fetch(RESOLVE_ORDER_URL, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderReference: order }),
+    });
+    let data = {}; try { data = await res.json(); } catch {}
+    if (res.ok && data.ok && data.email) return { email: data.email };
+  } catch {}
+  return null;
+}
+async function payPoll() {
+  if (!payWaitVisible()) { stopPayPoll(); return; }
+  const r = readLavaReturn();
+  if (!r || !r.order) { stopPayPoll(); return; }
+  if (Date.now() - payPollStart > PAY_POLL_MAX_MS) {   // мина #3: потолок -> дальше только вручную
+    stopPayPoll();
+    const msg = document.getElementById("pay-wait-msg");
+    if (msg) { msg.innerHTML = "Оплата всё ещё не подтверждена. Нажмите «Я оплатила» ещё раз или напишите " + supportContactsHtml() + "."; msg.hidden = false; }
     return;
   }
-
-  if (method === "wayforpay") {
-    await payWayforpay(email);
-  } else {
-    await payLava(email, currency === "RUB" ? "RUB" : "EUR");
-  }
+  const found = await checkPaidOnce(r.order);
+  if (found && payWaitVisible()) { stopPayPoll(); showPasswordForm(r.order, found.email, r.method === "lava"); }
 }
-
-// --- WayForPay: создаём заказ на сервере и уводим на страницу оплаты ---
-async function payWayforpay(email) {
-  setLoading(true, "Открываем оплату...");
-  try {
-    const res = await fetch(CREATE_CHECKOUT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, plan: state.plan, method: "wayforpay" }),
-    });
-
-    let data = {};
-    try { data = await res.json(); } catch { data = {}; }
-
-    if (res.ok && data.ok && data.invoiceUrl) {
-      // Успех: уходим на оплату. Кнопку НЕ разблокируем - страница сейчас сменится.
-      window.location.href = data.invoiceUrl;
-      return;
-    }
-
-    if (res.status === 429) {
-      showFormError(RATE_MSG);
-    } else if (res.status === 400 || data.error === "invalid_email") {
-      showEmailError(EMAIL_HINT);
-    } else {
-      showFormError("Не удалось открыть оплату. Попробуйте ещё раз.");
-    }
-    setLoading(false);
-  } catch (err) {
-    showFormError(NET_MSG);
-    setLoading(false);
-  }
+async function onPaidCheck() {
+  const btn = document.getElementById("btn-paid-check");
+  const msg = document.getElementById("pay-wait-msg");
+  const r = readLavaReturn();
+  if (!r || !r.order) { showStart(); return; }
+  if (msg) msg.hidden = true;
+  if (btn) { btn.disabled = true; btn.textContent = "Проверяем..."; }
+  const found = await checkPaidOnce(r.order);
+  if (found) { showPasswordForm(r.order, found.email, r.method === "lava"); return; }
+  if (msg) { msg.innerHTML = "Оплата ещё не подтвердилась. Если только что оплатили - подождите минуту. Долго не открывается - напишите " + supportContactsHtml() + "."; msg.hidden = false; }
+  if (btn) { btn.disabled = false; btn.textContent = "Я оплатила"; }
+  if (payWaitVisible() && Date.now() - payPollStart <= PAY_POLL_MAX_MS) startPayPoll();
 }
+// Мина #2: iOS усыпляет фон -> при возврате на вкладку перезапускаем опрос.
+document.addEventListener("visibilitychange", () => { if (!document.hidden && payWaitVisible()) startPayPoll(); });
+window.addEventListener("pageshow", () => { if (payWaitVisible()) startPayPoll(); });
 
-// --- Lava: создаём инвойс через наш create-lava-invoice и уводим на оплату (app.lava.top).
-//     order_reference (=invoice.id) сохраняем в localStorage для моста возврата (Lava назад не редиректит). ---
-async function payLava(email, currency) {
-  setLoading(true, "Открываем оплату...");
-  try {
-    const res = await fetch(CREATE_LAVA_INVOICE_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, plan: state.plan, currency }),
-    });
-
-    let data = {};
-    try { data = await res.json(); } catch { data = {}; }
-
-    if (res.ok && data.ok && data.paymentUrl && data.order_reference) {
-      stashLavaReturn(data.order_reference, email);   // мост после возврата
-      window.location.href = data.paymentUrl;
-      return;
-    }
-
-    if (res.status === 429) {
-      showFormError(RATE_MSG);
-    } else if (res.status === 400 || data.error === "invalid_email") {
-      showEmailError(EMAIL_HINT);
-    } else {
-      showFormError("Не удалось открыть оплату. Попробуйте ещё раз.");
-    }
-    setLoading(false);
-  } catch (err) {
-    showFormError(NET_MSG);
-    setLoading(false);
-  }
+// --- заглушка ВКЛАДКИ ОПЛАТЫ WFP (returnUrl -> ?paid=1&order= при newTab=true). Пароль не показываем. ---
+function showPayTabReturn(order) {
+  hideCoreViews(); hidePayFlowExtra();
+  state.order = order || "";
+  els.viewPayTabReturn.hidden = false;
+  window.scrollTo(0, 0);
+  setTimeout(() => { try { window.close(); } catch {} }, 600); // best-effort, не несущее
 }
 
 // ===================== ВОЗВРАТ ПОСЛЕ ОПЛАТЫ: ЭКРАН ПАРОЛЯ =====================
@@ -292,6 +369,7 @@ function fillPwOrder(order) {
 async function enterPaymentReturn(order) {
   state.order = order;
   hideEntryViews();
+  hidePayFlowExtra();
   els.viewCheckout.hidden = true;
   if (els.viewLavaReturn) els.viewLavaReturn.hidden = true;
   els.viewPassword.hidden = false;
@@ -342,12 +420,13 @@ async function enterPaymentReturn(order) {
   }
 }
 
-// Экран пароля с уже известным email (Lava-мост: resolve уже прошёл в lavaEnteredClick).
+// Экран пароля с уже известным email (resolve уже прошёл в опросе экрана 4 / onPaidCheck).
 function showPasswordForm(order, email, isLava) {
   state.order = order;
   state.email = email;
   state.lavaReturn = !!isLava;
   hideEntryViews();
+  hidePayFlowExtra();
   els.viewCheckout.hidden = true;
   if (els.viewLavaReturn) els.viewLavaReturn.hidden = true;
   els.viewPassword.hidden = false;
@@ -360,37 +439,6 @@ function showPasswordForm(order, email, isLava) {
   const hint = document.getElementById("pw-lava-hint");
   if (hint) hint.hidden = !isLava;
   window.scrollTo(0, 0);
-}
-
-// Мост Lava: "Я оплатил" -> resolve-paid-order по stash-заказу. Обработан -> экран пароля;
-// ещё не обработан -> остаёмся на мосте с мягким сообщением (кнопка тут же для повтора).
-async function lavaEnteredClick() {
-  const r = readLavaReturn();
-  if (!r) { showStart(); return; }
-  const msg = document.getElementById("lava-return-msg");
-  const btn = document.getElementById("btn-lava-entered");
-  if (msg) msg.hidden = true;
-  if (btn) { btn.disabled = true; btn.textContent = "Проверяем оплату..."; }
-  try {
-    const res = await fetch(RESOLVE_ORDER_URL, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderReference: r.order }),
-    });
-    let data = {};
-    try { data = await res.json(); } catch { data = {}; }
-    if (res.ok && data.ok && data.email) {
-      showPasswordForm(r.order, data.email, true);
-      return;
-    }
-    if (msg) {
-      msg.innerHTML = "Оплата ещё обрабатывается. Если только что оплатили на Lava - подождите минуту и нажмите ещё раз. Долго не открывается - напишите " + supportContactsHtml() + ".";
-      msg.hidden = false;
-    }
-  } catch {
-    if (msg) { msg.textContent = "Не получилось проверить оплату. Включите VPN и попробуйте снова."; msg.hidden = false; }
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = "Я оплатил, войти"; }
-  }
 }
 
 // Confirm email OFF -> signUp сразу даёт сессию. Существующий email -> нет сессии ->
@@ -504,20 +552,26 @@ els.plans.addEventListener("change", (e) => {
 });
 els.form.addEventListener("submit", (e) => {
   e.preventDefault();
-  submit(els.btnPay.dataset.method); // wayforpay
+  goCheckoutSubmit(); // экран 1 -> WFP -> экран 3
 });
-["pay-lava-eur", "pay-lava-rub"].forEach((id) => {
-  const b = document.getElementById(id);
-  if (b) b.addEventListener("click", (e) => { e.preventDefault(); submit("lava", b.dataset.currency); });
-});
-els.email.addEventListener("input", () => showEmailError(""));
-// мост после оплаты Lava
 {
-  const be = document.getElementById("btn-lava-entered");
-  if (be) be.addEventListener("click", lavaEnteredClick);
-  const bb = document.getElementById("btn-lava-back");
-  if (bb) bb.addEventListener("click", () => { clearLavaReturn(); showCheckout(); });
+  const bind = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("click", (e) => { e.preventDefault(); fn(e); }); };
+  bind("to-lava-currency", goLavaCurrency);            // экран 1 -> экран 2 (валюта Lava)
+  bind("lavacur-back", () => showCheckout());          // экран 2 -> назад к тарифам
+  bind("btn-lava-pay", () => showPayGo());             // экран 2 -> экран 3
+  bind("btn-pay-go", () => onPayGo());                 // экран 3 -> оплата (новая вкладка / тихий фолбэк)
+  bind("btn-paid-check", () => onPaidCheck());         // экран 4 -> ручная проверка
+  bind("btn-close-pay-tab", () => { try { window.close(); } catch {} }); // заглушка вкладки WFP
+  bind("pay-tab-here", () => {                          // страховка: задать пароль в этой вкладке
+    const ord = new URLSearchParams(location.search).get("order") || (readLavaReturn() || {}).order || state.order || "";
+    enterPaymentReturn(ord);
+  });
+  const curOpts = document.getElementById("cur-opts");
+  if (curOpts) curOpts.addEventListener("change", (e) => {
+    if (e.target.name === "lavacur") { state.lavaCurrency = e.target.value === "EUR" ? "EUR" : "RUB"; paintCur(); }
+  });
 }
+els.email.addEventListener("input", () => showEmailError(""));
 
 // слушатели экрана пароля
 els.btnEnter.addEventListener("click", onEnter);
@@ -595,6 +649,7 @@ function setHeadline(el, text) {
 
 function showCheckout() {
   hideEntryViews();
+  hidePayFlowExtra();
   if (siteHeader) siteHeader.hidden = false;
   if (siteFooter) siteFooter.hidden = false;
   if (els.viewHome) els.viewHome.hidden = true;
@@ -612,6 +667,7 @@ function showCheckout() {
 }
 function showHomeShell() {
   hideEntryViews();
+  hidePayFlowExtra();
   if (siteHeader) siteHeader.hidden = true;
   if (siteFooter) siteFooter.hidden = true;
   els.viewCheckout.hidden = true;
@@ -991,6 +1047,7 @@ function hideEntryViews() {
   const vr = document.getElementById("view-reset"); if (vr) vr.hidden = true;
 }
 function showStart() {
+  hidePayFlowExtra();
   if (siteHeader) siteHeader.hidden = false;
   if (siteFooter) siteFooter.hidden = false;
   els.viewHome.hidden = true;
@@ -1003,6 +1060,7 @@ function showStart() {
   window.scrollTo(0, 0);
 }
 function showLogin() {
+  hidePayFlowExtra();
   if (siteHeader) siteHeader.hidden = false;
   if (siteFooter) siteFooter.hidden = false;
   const vs = document.getElementById("view-start"); if (vs) vs.hidden = true;
@@ -1047,6 +1105,7 @@ async function doLogin() {
 
 // ===================== ВОССТАНОВЛЕНИЕ ПАРОЛЯ по номеру заказа (без писем) =====================
 function showReset() {
+  hidePayFlowExtra();
   if (siteHeader) siteHeader.hidden = false;
   if (siteFooter) siteFooter.hidden = false;
   const vs = document.getElementById("view-start"); if (vs) vs.hidden = true;
@@ -1143,7 +1202,7 @@ async function routeHomeOrCheckout() {
   // Синхронный пик сохранённой сессии -> прячем чекаут сразу, без мигания. Нет токена -> чекаут мгновенно.
   let hasStored = false;
   try { hasStored = !!localStorage.getItem("sb-" + PROJECT_REF + "-auth-token"); } catch (e) {}
-  if (!sb || !hasStored) { if (readLavaReturn()) showLavaReturn(); else showStart(); return; }
+  if (!sb || !hasStored) { if (readLavaReturn()) showPayWait(); else showStart(); return; }
 
   showHomeShell(); // чекаут скрыт, показываем загрузку дома, пока проверяем доступ
   try {
@@ -1550,7 +1609,13 @@ function openSprint() {
 // --- старт: ветвление возврат-после-оплаты / дом / чекаут ---
 const startParams = new URLSearchParams(location.search);
 if (startParams.get("paid") === "1" && startParams.get("order")) {
-  enterPaymentReturn(startParams.get("order"));   // оплатный возврат - без изменений
+  // ?paid приходит только по returnUrl WayForPay. Разводим по stash.newTab (мина #4):
+  //  newTab=true  -> это ВКЛАДКА ОПЛАТЫ (попап) -> заглушка "вернитесь на предыдущую".
+  //  newTab=false -> это ИСХОДНАЯ вкладка (тихий фолбэк) -> сразу экран пароля.
+  //  нет stash    -> ведём как newTab=false (человек хотя бы попадёт на пароль).
+  const st = readLavaReturn();
+  if (st && st.newTab === true) showPayTabReturn(startParams.get("order"));
+  else enterPaymentReturn(startParams.get("order"));
 } else {
-  routeHomeOrCheckout();                           // НОВОЕ: дом ИЛИ чекаут
+  routeHomeOrCheckout();                           // дом / чекаут / (stash -> экран ожидания)
 }

@@ -11,7 +11,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png?v=1">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=1">
   <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=1">
-  <link rel="stylesheet" href="style.css?v=38">
+  <link rel="stylesheet" href="style.css?v=39">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -266,30 +266,68 @@
         <p class="field-error" id="email-error" hidden></p>
 
         <button id="btn-pay" class="btn btn-primary" type="submit" data-method="wayforpay">
-          Оформить подписку
+          Оплатить
         </button>
 
-        <div class="pay-alt" id="pay-alt">
-          <p class="pay-alt-q">Не получилось оплатить? Попробуй другой способ:</p>
-          <div class="pay-alt-btns">
-            <button type="button" class="btn btn-ghost" id="pay-lava-eur" data-method="lava" data-currency="EUR">Оплатить в €</button>
-            <button type="button" class="btn btn-ghost" id="pay-lava-rub" data-method="lava" data-currency="RUB">Оплатить в ₽</button>
-          </div>
-        </div>
+        <p class="alt-pay pay-rub-link">
+          <a href="#" id="to-lava-currency" role="button">Оплатить в рублях <i class="ti ti-chevron-right"></i></a>
+        </p>
 
         <p class="form-error" id="form-error" hidden></p>
       </form>
     </section>
 
-    <!-- ЭКРАН 2: мост после оплаты Lava (Lava назад не редиректит) -->
-    <section id="view-lava-return" hidden>
+    <!-- ЭКРАН 2: другой способ оплаты (Lava) - выбор валюты. Почта/тариф перенесены с экрана 1. -->
+    <section id="view-lava-currency" hidden>
+      <button type="button" class="linkback" id="lavacur-back"><i class="ti ti-arrow-left"></i> Назад</button>
+      <h1>Другой способ оплаты</h1>
+      <p class="lead">Тариф: <strong id="lavacur-plan"></strong></p>
+      <fieldset class="cur-opts" id="cur-opts">
+        <legend class="sr-only">Валюта оплаты</legend>
+        <label class="cur-opt">
+          <input type="radio" name="lavacur" value="RUB" checked>
+          <span class="cur-body"><span class="cur-name">В рублях</span><span class="cur-sub">Visa, Mastercard, Мир</span></span>
+        </label>
+        <label class="cur-opt">
+          <input type="radio" name="lavacur" value="EUR">
+          <span class="cur-body"><span class="cur-name">В евро</span><span class="cur-sub">для белорусских карт</span></span>
+        </label>
+      </fieldset>
+      <button class="btn btn-primary" type="button" id="btn-lava-pay">Оплатить</button>
+      <p class="form-error" id="lavacur-error" hidden></p>
+    </section>
+
+    <!-- ЭКРАН 3: перед уходом на оплату (ОБА провайдера). Кнопка = синхронный window.open (мина iOS #1). -->
+    <section id="view-pay-go" hidden>
       <div class="pending-card">
-        <h1>Оплатили на Lava?</h1>
-        <p>Когда оплата пройдёт, войдите здесь по своей почте <strong id="lava-return-email"></strong> и придумайте пароль ДЛЯ ВХОДА В ПРИЛОЖЕНИЕ.</p>
-        <p class="muted">Письмо «Complete registration» от lava.top - это пароль для кабинета платежей Lava, а НЕ наш вход в приложение. Пароль для приложения задаётся здесь.</p>
-        <p class="field-error" id="lava-return-msg" hidden></p>
-        <button class="btn btn-primary" type="button" id="btn-lava-entered">Я оплатил, войти</button>
-        <button class="btn btn-ghost" type="button" id="btn-lava-back">Назад к тарифам</button>
+        <h1>Оплата откроется в новой вкладке</h1>
+        <p>Эту вкладку не закрывайте. После оплаты вернитесь сюда - здесь вы придумаете пароль для входа в приложение.</p>
+        <button class="btn btn-primary" type="button" id="btn-pay-go">Перейти к оплате</button>
+        <p class="form-error" id="pay-go-error" hidden></p>
+      </div>
+    </section>
+
+    <!-- ЭКРАН 4: ожидание подтверждения (автоопрос resolve-paid-order + ручная кнопка). Мины #2/#3. -->
+    <section id="view-pay-wait" hidden>
+      <div class="pending-card">
+        <div class="wait-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+        <h1>Ждём подтверждение оплаты</h1>
+        <p>Оплатили в соседней вкладке? Закройте её и вернитесь сюда. Экран обновится сам.</p>
+        <p class="muted lava-hint" id="pay-wait-lava-note" hidden>Письмо «Complete registration» от lava.top - это пароль для кабинета платежей Lava, а НЕ наш вход. Пароль для приложения вы зададите на следующем шаге.</p>
+        <button class="btn btn-ghost" type="button" id="btn-paid-check">Я оплатила</button>
+        <p class="muted" id="pay-wait-msg" hidden></p>
+      </div>
+    </section>
+
+    <!-- ЗАГЛУШКА для ВКЛАДКИ ОПЛАТЫ WayForPay (returnUrl вернул сюда при newTab=true). Пароль НЕ
+         показываем - доступ открывается в исходной вкладке (опрос). Иначе две вкладки с паролем. -->
+    <section id="view-pay-tab-return" hidden>
+      <div class="pending-card">
+        <div class="pending-check">✓</div>
+        <h1>Вы вернулись с оплаты</h1>
+        <p>Доступ открывается на предыдущей вкладке - вернитесь на неё. Эту вкладку можно закрыть.</p>
+        <button class="btn btn-primary" type="button" id="btn-close-pay-tab">Закрыть вкладку</button>
+        <p class="alt-pay"><a href="#" id="pay-tab-here" role="button">Не видите предыдущую вкладку? Задать пароль здесь →</a></p>
       </div>
     </section>
 
@@ -419,6 +457,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=48"></script>
+  <script src="app.js?v=49"></script>
 </body>
 </html>

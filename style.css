@@ -542,3 +542,23 @@ body.has-mini { padding-bottom: 80px; }
 }
 /* плейсхолдеры полей в тёмной - приглушённый, не браузерный тёмно-серый на тёмном */
 :root[data-theme="dark"] input::placeholder { color: var(--muted); opacity: 1; }
+
+/* ===================== НОВЫЙ ПОТОК ОПЛАТЫ (экраны 2/3/4) ===================== */
+/* экран 1: ссылка "Оплатить в рублях" */
+.pay-rub-link { text-align: center; margin-top: 16px; }
+.pay-rub-link a { color: var(--accent-deep); font-weight: 600; border-bottom: 0; }
+.pay-rub-link a .ti { font-size: .85em; vertical-align: middle; }
+/* экран 2: назад + выбор валюты */
+.linkback { background: none; border: 0; color: var(--accent-deep); font: inherit; font-weight: 600; padding: 6px 0; margin-bottom: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.cur-opts { border: 0; padding: 0; margin: 0 0 20px; display: grid; gap: 12px; }
+.cur-opt { display: block; position: relative; border: 1.5px solid var(--border); border-radius: 14px; padding: 16px 18px; background: var(--surface); cursor: pointer; }
+.cur-opt input { position: absolute; opacity: 0; width: 0; height: 0; }
+.cur-opt.selected, .cur-opt:has(input:checked) { border-color: var(--accent); background: var(--accent-wash); }
+.cur-name { display: block; font-weight: 700; font-size: 17px; color: var(--text); }
+.cur-sub { display: block; color: var(--muted); font-size: 14px; margin-top: 2px; }
+/* экран 4: точки ожидания */
+.wait-dots { display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; }
+.wait-dots span { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); opacity: .35; animation: waitpulse 1.2s infinite ease-in-out; }
+.wait-dots span:nth-child(2) { animation-delay: .2s; }
+.wait-dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes waitpulse { 0%, 80%, 100% { opacity: .35; transform: scale(.85); } 40% { opacity: 1; transform: scale(1); } }
