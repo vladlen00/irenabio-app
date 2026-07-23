@@ -154,8 +154,7 @@ function clearErrors() {
 }
 const EMAIL_HINT = "Проверьте адрес почты. Пример: ваша@почта.com";
 const RATE_MSG = "Слишком много попыток. Подождите минуту и попробуйте снова.";
-// Сетевой сбой у аудитории в заблокированных регионах лечит VPN.
-const NET_MSG = "Не получилось связаться с сервером. Включите VPN и попробуйте снова.";
+const NET_MSG = "Не удалось связаться с сервером. Проверьте интернет и попробуйте ещё раз.";
 
 // ===================== НОВЫЙ ПОТОК ОПЛАТЫ (экраны 2/3/4 + заглушка вкладки + опрос) =====================
 let payPollTimer = null, payPollStart = 0;
@@ -259,6 +258,12 @@ async function onPayGo() {
     if (res.ok && data.ok && data.paymentUrl && data.order_reference) {
       stashLavaReturn(data.order_reference, state.email, "lava");
       window.location.href = data.paymentUrl;   // та же вкладка -> Lava; возврат руками на адрес
+      return;
+    }
+    // Lava строже нас по email (напр. отбивает несуществующий домен) -> возвращаем на экран 1 к полю почты.
+    if (data.error === "invalid_email") {
+      showCheckout();
+      showEmailError("Проверьте адрес почты — платёжная система его не приняла. Пример: ваша@почта.com");
       return;
     }
     if (errEl) { errEl.textContent = res.status === 429 ? RATE_MSG : "Не удалось открыть оплату. Попробуйте ещё раз."; errEl.hidden = false; }
@@ -409,7 +414,7 @@ async function enterPaymentReturn(order) {
   } catch {
     els.pwLoading.hidden = true;
     els.pwSuccess.hidden = true;
-    els.pwResolveError.textContent = "Не получилось проверить оплату. Включите VPN и обновите страницу.";
+    els.pwResolveError.textContent = "Не удалось проверить оплату. Проверьте интернет и обновите страницу.";
     els.pwResolveError.hidden = false;
   }
 }
@@ -597,6 +602,9 @@ function applyTestPlanIfRequested() {
   els.plans.hidden = true;
   const note = document.getElementById("test-note");
   if (note) note.hidden = false;
+  // Lava не принимает тариф test (PLAN_MAP только 1m/6m/12m) -> прячем рублёвый путь, чтобы не вести в тупик.
+  const rub = document.querySelector(".pay-rub-link");
+  if (rub) rub.hidden = true;
   writePlanToUrl();
   return true;
 }
