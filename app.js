@@ -889,11 +889,10 @@ function renderSubscription(sub) {
       '<div class="sub-status-sub">Подписка продлевается автоматически. Можно отключить - доступ останется до конца оплаченного периода.</div>' +
       '<button type="button" class="btn btn-ghost sub-btn sub-danger" id="sub-cancel-btn">Отменить подписку</button>' +
       '<div class="sub-confirm" id="sub-confirm" hidden>' +
-        '<div class="sub-confirm-text">Точно отменить? Доступ останется' + (until ? " до " + until : "") + ', дальше продления не будет. Чтобы вернуться позже, оформите подписку заново.</div>' +
-        '<div class="sub-confirm-row">' +
-          '<button type="button" class="btn btn-ghost sub-btn" id="sub-confirm-no">Оставить</button>' +
-          '<button type="button" class="btn btn-primary sub-btn sub-danger-solid" id="sub-confirm-yes">Да, отменить</button>' +
-        '</div>' +
+        '<div class="sub-confirm-title">Остаться?</div>' +
+        '<div class="sub-confirm-text">Доступ' + (until ? " до " + until : "") + ' сохранится в любом случае. Но текущая цена за вами не сохранится: при возврате подписка будет по действующему на тот момент тарифу.</div>' +
+        '<button type="button" class="btn btn-primary sub-btn" id="sub-confirm-no">Остаться</button>' +
+        '<button type="button" class="sub-cancel-link" id="sub-confirm-yes">Отменить подписку</button>' +
       '</div>' +
       '<div class="sub-result" id="sub-cancel-result" hidden></div>';
     wireCancel = true;
@@ -942,14 +941,14 @@ function wireCancelFlow(sub) {
         }
       } else {
         // ok:false (вкл. 502 rc≠4100/4102) -> честная ошибка + контакты, кнопка остаётся
-        yes.disabled = false; if (no) no.disabled = false; yes.textContent = "Да, отменить";
+        yes.disabled = false; if (no) no.disabled = false; yes.textContent = "Отменить подписку";
         if (result) {
           result.innerHTML = '<div class="sub-status-sub sub-status-warn">Отмена не прошла - вы всё ещё подписаны, лишнего не списано. Напишите в поддержку: ' + supportContactsHtml() + " - поможем.</div>";
           result.hidden = false;
         }
       }
     } catch {
-      yes.disabled = false; if (no) no.disabled = false; yes.textContent = "Да, отменить";
+      yes.disabled = false; if (no) no.disabled = false; yes.textContent = "Отменить подписку";
       if (result) {
         result.innerHTML = '<div class="sub-status-sub sub-status-warn">Нет связи. Проверьте интернет и попробуйте ещё раз. Не помогает - напишите ' + supportContactsHtml() + ".</div>";
         result.hidden = false;
