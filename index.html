@@ -33,7 +33,7 @@
         <p class="lead">Женский биохакинг с Иреной Пол - тренировки, трекеры, подкасты и материалы.</p>
         <button class="btn btn-primary" id="start-login" type="button">Войти</button>
         <button class="btn btn-ghost" id="start-signup" type="button">Оформить подписку</button>
-        <p class="alt-pay start-paid-help"><a href="#" id="start-paid-help" role="button">Оплатили, но доступ не открылся?</a></p>
+        <p class="alt-pay start-paid-help"><a href="#" id="start-paid-help" role="button">Оплатили, но ещё не заходили?</a></p>
         <p class="reassure" id="start-paid-help-box" hidden></p>
       </div>
     </section>
@@ -95,6 +95,41 @@
         <p class="field-error" id="reset-error" hidden></p>
         <button class="btn btn-primary" id="btn-reset" type="button">Сбросить пароль</button>
         <button class="btn btn-ghost" id="reset-back" type="button">Назад ко входу</button>
+      </div>
+    </section>
+
+    <!-- ЭКРАН: ПЕРВЫЙ ВХОД ПОСЛЕ ОПЛАТЫ (создать первый пароль по номеру заказа). Для оплативших без аккаунта. -->
+    <section id="view-claim" hidden>
+      <div class="login-card">
+        <h1>Первый вход после оплаты</h1>
+        <p class="lead">Вы оплатили подписку, но ещё не задавали пароль. Введите почту и номер заказа из чека, придумайте пароль - и входите.</p>
+        <label class="field" for="claim-email">
+          <span class="field-label">Почта</span>
+          <input id="claim-email" type="email" inputmode="email" autocomplete="email"
+                 placeholder="ваша@почта.com" autocapitalize="off" spellcheck="false">
+        </label>
+        <label class="field" for="claim-order">
+          <span class="field-label">Номер заказа</span>
+          <input id="claim-order" type="text" autocomplete="off"
+                 placeholder="код из чека об оплате" autocapitalize="off" spellcheck="false">
+        </label>
+        <p class="reassure claim-hint" id="claim-hint">Номер заказа - в чеке об оплате: он показан на экране сразу после оплаты и в письме от платёжной системы. Это длинный код с дефисами, вида a1b2c3d4-e5f6-… . Не находите - напишите в поддержку, откроем вручную.</p>
+        <label class="field" for="claim-password">
+          <span class="field-label">Придумайте пароль</span>
+          <div class="pw-field">
+            <input id="claim-password" type="password" autocomplete="new-password"
+                   placeholder="Минимум 8 символов" minlength="8" autocapitalize="off" spellcheck="false">
+            <button type="button" id="claim-eye" class="pw-eye" aria-label="Показать пароль">показать</button>
+          </div>
+        </label>
+        <label class="field" for="claim-password2">
+          <span class="field-label">Повторите пароль</span>
+          <input id="claim-password2" type="password" autocomplete="new-password"
+                 placeholder="Повторите пароль" autocapitalize="off" spellcheck="false">
+        </label>
+        <p class="field-error" id="claim-error" hidden></p>
+        <button class="btn btn-primary" id="btn-claim" type="button">Создать пароль и войти</button>
+        <button class="btn btn-ghost" id="claim-back" type="button">Назад</button>
       </div>
     </section>
 
@@ -451,6 +486,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=52"></script>
+  <script src="app.js?v=53"></script>
 </body>
 </html>

@@ -12,6 +12,7 @@ const CREATE_CHECKOUT_URL = SUPABASE_URL + "/functions/v1/create-checkout";
 const CREATE_LAVA_INVOICE_URL = SUPABASE_URL + "/functions/v1/create-lava-invoice";
 const RESOLVE_ORDER_URL = SUPABASE_URL + "/functions/v1/resolve-paid-order";
 const RESET_PASSWORD_URL = SUPABASE_URL + "/functions/v1/reset-password";   // сброс пароля по номеру заказа
+const CLAIM_ACCOUNT_URL = SUPABASE_URL + "/functions/v1/claim-account";     // ПЕРВЫЙ пароль по номеру заказа (нет auth-аккаунта)
 const ATTACH_IDENTITY_URL = SUPABASE_URL + "/functions/v1/attach-web-identity";
 const VERIFY_ACCESS_URL = SUPABASE_URL + "/functions/v1/verify-access-web";
 const GET_HOME_URL = SUPABASE_URL + "/functions/v1/get-home";
@@ -561,10 +562,7 @@ els.form.addEventListener("submit", (e) => {
   bind("btn-pay-go", () => onPayGo());                 // экран 3 -> оплата в той же вкладке (Lava)
   bind("btn-paid-check", () => onPaidCheck());         // экран 4 -> ручная проверка
   bind("btn-pay-back", () => { clearLavaReturn(); showCheckout(); }); // экран 4 -> выход к тарифам (чистит stash)
-  bind("start-paid-help", () => {                      // старт: "оплатили, доступа нет?" -> путь без второй оплаты
-    const box = document.getElementById("start-paid-help-box");
-    if (box) { box.innerHTML = "Только что оплатили и вернулись — доступ откроется сам за минуту. Если оплатили раньше, с другого устройства или доступа всё нет — напишите " + supportContactsHtml() + " и пришлите почту оплаты, откроем вручную."; box.hidden = false; }
-  });
+  bind("start-paid-help", () => showClaim());          // старт: "оплатили, но ещё не заходили?" -> первый пароль по номеру заказа
   const curOpts = document.getElementById("cur-opts");
   if (curOpts) curOpts.addEventListener("change", (e) => {
     if (e.target.name === "lavacur") { state.lavaCurrency = e.target.value === "EUR" ? "EUR" : "RUB"; paintCur(); }
@@ -1047,6 +1045,7 @@ function hideEntryViews() {
   const vs = document.getElementById("view-start"); if (vs) vs.hidden = true;
   const vl = document.getElementById("view-login"); if (vl) vl.hidden = true;
   const vr = document.getElementById("view-reset"); if (vr) vr.hidden = true;
+  const vc = document.getElementById("view-claim"); if (vc) vc.hidden = true;
 }
 function showStart() {
   hidePayFlowExtra();
@@ -1058,6 +1057,8 @@ function showStart() {
   els.viewPassword.hidden = true;
   els.viewAccess.hidden = true;
   const vl = document.getElementById("view-login"); if (vl) vl.hidden = true;
+  const vr0 = document.getElementById("view-reset"); if (vr0) vr0.hidden = true;
+  const vc0 = document.getElementById("view-claim"); if (vc0) vc0.hidden = true;
   const vs = document.getElementById("view-start"); if (vs) vs.hidden = false;
   window.scrollTo(0, 0);
 }
@@ -1067,6 +1068,8 @@ function showLogin() {
   if (siteFooter) siteFooter.hidden = false;
   const vs = document.getElementById("view-start"); if (vs) vs.hidden = true;
   els.viewCheckout.hidden = true;
+  const vr0 = document.getElementById("view-reset"); if (vr0) vr0.hidden = true;
+  const vc0 = document.getElementById("view-claim"); if (vc0) vc0.hidden = true;
   const vl = document.getElementById("view-login"); if (vl) vl.hidden = false;
   showLoginError("");
   const em = document.getElementById("login-email"); if (em) em.focus();
@@ -1090,8 +1093,11 @@ async function doLogin() {
   try {
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error || !data || !data.session) {
-      // GoTrue не различает "нет аккаунта" и "неверный пароль" (защита от перебора) -> общий текст + путь на оформление
-      showLoginError(null, "Неверная почта или пароль. Если аккаунта ещё нет - <a href=\"#\" id=\"login-err-signup\" style=\"color:inherit;text-decoration:underline\">оформите подписку</a>.");
+      // GoTrue не различает "нет аккаунта" и "неверный пароль". Развилка: первый раз после оплаты -> claim (НЕ платить снова!),
+      // иначе оформить. Оба пути явные, чтобы уже оплативший не ушёл во вторую оплату.
+      showLoginError(null, "Неверная почта или пароль. Первый раз после оплаты? <a href=\"#\" id=\"login-err-claim\" style=\"color:inherit;text-decoration:underline\">Создайте пароль</a>. Ещё нет подписки? <a href=\"#\" id=\"login-err-signup\" style=\"color:inherit;text-decoration:underline\">Оформить</a>.");
+      const lc = document.getElementById("login-err-claim");
+      if (lc) lc.addEventListener("click", (e) => { e.preventDefault(); showClaim(); });
       const l = document.getElementById("login-err-signup");
       if (l) l.addEventListener("click", (e) => { e.preventDefault(); showCheckout(); });
       btn.disabled = false; btn.textContent = "Войти";
@@ -1113,6 +1119,7 @@ function showReset() {
   const vs = document.getElementById("view-start"); if (vs) vs.hidden = true;
   const vl = document.getElementById("view-login"); if (vl) vl.hidden = true;
   els.viewCheckout.hidden = true;
+  const vc0 = document.getElementById("view-claim"); if (vc0) vc0.hidden = true;
   const vr = document.getElementById("view-reset"); if (vr) vr.hidden = false;
   const hint = document.getElementById("reset-hint");
   if (hint) hint.innerHTML = "Номер заказа вы сохранили при оплате. Не сохранили? Напишите в поддержку " + supportTgHtml() + " - поможем.";
@@ -1168,6 +1175,83 @@ async function doReset() {
     btn.disabled = false; btn.textContent = "Сбросить пароль";
   }
 }
+
+// ============ ПЕРВЫЙ ВХОД ПОСЛЕ ОПЛАТЫ: создать пароль по номеру заказа (auth-аккаунта ещё нет) ============
+function showClaim() {
+  hidePayFlowExtra();
+  if (siteHeader) siteHeader.hidden = false;
+  if (siteFooter) siteFooter.hidden = false;
+  const vs = document.getElementById("view-start"); if (vs) vs.hidden = true;
+  const vl = document.getElementById("view-login"); if (vl) vl.hidden = true;
+  const vr = document.getElementById("view-reset"); if (vr) vr.hidden = true;
+  els.viewCheckout.hidden = true;
+  const vc = document.getElementById("view-claim"); if (vc) vc.hidden = false;
+  const hint = document.getElementById("claim-hint");
+  if (hint) hint.innerHTML = "Номер заказа - в чеке об оплате: он показан на экране сразу после оплаты и в письме от платёжной системы. Длинный код с дефисами, вида a1b2c3d4-e5f6-… . Не находите - напишите " + supportTgHtml() + ", откроем вручную.";
+  showClaimError("");
+  const em = document.getElementById("claim-email"); if (em) em.focus();
+  window.scrollTo(0, 0);
+}
+function showClaimError(msg, html) {
+  const el = document.getElementById("claim-error");
+  if (!el) return;
+  if (html) el.innerHTML = html; else el.textContent = msg || "";
+  el.hidden = !(msg || html);
+}
+async function doClaim() {
+  const btn = document.getElementById("btn-claim");
+  const email = normalizeEmail(document.getElementById("claim-email").value);
+  const order = (document.getElementById("claim-order").value || "").trim();
+  const password = document.getElementById("claim-password").value || "";
+  const password2 = document.getElementById("claim-password2").value || "";
+  showClaimError("");
+  if (!emailValid(email)) { showClaimError(EMAIL_HINT); document.getElementById("claim-email").focus(); return; }
+  if (!order) { showClaimError("Введите номер заказа."); document.getElementById("claim-order").focus(); return; }
+  if (password.length < 8) { showClaimError("Пароль минимум 8 символов."); document.getElementById("claim-password").focus(); return; }
+  if (password !== password2) { showClaimError("Пароли не совпадают."); document.getElementById("claim-password2").focus(); return; }
+  if (!sb) { showClaimError("Не удалось загрузить вход. Обновите страницу."); return; }
+  btn.disabled = true; btn.textContent = "Проверяем...";
+  try {
+    const res = await fetch(CLAIM_ACCOUNT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, orderReference: order, password }),
+    });
+    let data = {}; try { data = await res.json(); } catch { data = {}; }
+    if (res.ok && data.ok) {
+      // аккаунт создан на сервере -> входим тем же паролем -> в приложение
+      btn.textContent = "Входим...";
+      const inn = await sb.auth.signInWithPassword({ email, password });
+      if (inn.data && inn.data.session) { await routeHomeOrCheckout(); return; }
+      showClaimError(null, "Пароль создан. Войдите с ним.");
+      setTimeout(showLogin, 1400);
+      return;
+    }
+    if (data && data.reason === "already_registered") {
+      // аккаунт уже есть -> обычный вход (там же "Забыли пароль?")
+      showClaimError(null, "У вас уже есть аккаунт с этой почтой. <a href=\"#\" id=\"claim-to-login\" style=\"color:inherit;text-decoration:underline\">Войдите</a>, а если забыли пароль - восстановите его там.");
+      const l = document.getElementById("claim-to-login");
+      if (l) l.addEventListener("click", (e) => { e.preventDefault(); showLogin(); });
+      btn.disabled = false; btn.textContent = "Создать пароль и войти";
+      return;
+    }
+    if (data && data.reason === "no_active_subscription") {
+      showClaimError(null, "По этому заказу нет активной подписки. Если срок вышел - оформите заново, или напишите " + supportTgHtml() + ".");
+      btn.disabled = false; btn.textContent = "Создать пароль и войти";
+      return;
+    }
+    if (res.status === 429) {
+      showClaimError("Слишком много попыток. Подождите минуту и попробуйте снова.");
+    } else {
+      // анти-энумерация: единый текст на промах заказ/почта
+      showClaimError(null, "Почта и номер заказа не совпали. Не сходится - напишите " + supportTgHtml() + ".");
+    }
+    btn.disabled = false; btn.textContent = "Создать пароль и войти";
+  } catch {
+    showClaimError(NET_MSG);
+    btn.disabled = false; btn.textContent = "Создать пароль и войти";
+  }
+}
 (function wireEntry() {
   const bind = (id, fn) => { const e = document.getElementById(id); if (e) e.addEventListener("click", fn); };
   bind("start-login", (e) => { e.preventDefault(); showLogin(); });
@@ -1186,6 +1270,17 @@ async function doReset() {
   ["reset-email", "reset-order", "reset-password", "reset-password2"].forEach((id) => {
     const e = document.getElementById(id);
     if (e) e.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); doReset(); } });
+  });
+  bind("btn-claim", (e) => { e.preventDefault(); doClaim(); });
+  bind("claim-back", (e) => { e.preventDefault(); showStart(); });
+  const ceye = document.getElementById("claim-eye");
+  const cpw = document.getElementById("claim-password");
+  if (ceye && cpw) ceye.addEventListener("click", () => {
+    const m = cpw.type === "password"; cpw.type = m ? "text" : "password"; ceye.textContent = m ? "скрыть" : "показать";
+  });
+  ["claim-email", "claim-order", "claim-password", "claim-password2"].forEach((id) => {
+    const e = document.getElementById(id);
+    if (e) e.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); doClaim(); } });
   });
   const eye = document.getElementById("login-eye");
   const pw = document.getElementById("login-password");
