@@ -889,7 +889,7 @@ function renderSubscription(sub) {
       '<div class="sub-status-sub">Подписка продлевается автоматически. Можно отключить - доступ останется до конца оплаченного периода.</div>' +
       '<button type="button" class="btn btn-ghost sub-btn sub-danger" id="sub-cancel-btn">Отменить подписку</button>' +
       '<div class="sub-confirm" id="sub-confirm" hidden>' +
-        '<div class="sub-confirm-title">Остаться?</div>' +
+        '<div class="sub-confirm-title">Прежде чем отменить</div>' +
         '<div class="sub-confirm-text">Доступ' + (until ? " до " + until : "") + ' сохранится в любом случае. Но текущая цена за вами не сохранится: при возврате подписка будет по действующему на тот момент тарифу.</div>' +
         '<button type="button" class="btn btn-primary sub-btn" id="sub-confirm-no">Остаться</button>' +
         '<button type="button" class="sub-cancel-link" id="sub-confirm-yes">Отменить подписку</button>' +
