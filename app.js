@@ -726,18 +726,21 @@ function renderHome(data) {
   const pct = denom > 0 ? Math.max(2, Math.min(100, Math.round((completedVisible / denom) * 100))) : 2;
   homeEls.progressBar.style.width = pct + "%";
 
-  // --- статус подписки ---
-  homeEls.subUntil.textContent = data.valid_until ? ("до " + fmtDateRu(data.valid_until)) : "";
+  // --- статус подписки (карточка + подпись в меню отражают реальное состояние) ---
+  // renderHome вызывается только при access=true -> состояние: active / grace / cancelled (не "истекла").
+  const subGrace = data.status === "grace";
+  const subCancelled = !!data.cancelled;
+  const untilRu = data.valid_until ? fmtDateRu(data.valid_until) : "";
+  homeEls.subUntil.textContent = untilRu ? ("до " + untilRu) : "";
+  const subTitleEl = document.getElementById("home-sub-title");
+  if (subTitleEl) subTitleEl.textContent = subGrace ? "Оплата не прошла" : (subCancelled ? "Автопродление отключено" : "Подписка активна");
   const hmenuUntil = document.getElementById("hmenu-sub-until");
   if (hmenuUntil) {
-    let subText = "активна";
-    if (data.valid_until) {
-      const active = new Date(data.valid_until).getTime() >= Date.now();
-      subText = active
-        ? ("активна до " + fmtDateRu(data.valid_until))
-        : ("истекла " + fmtDateRu(data.valid_until) + ", продлите");
-    }
-    hmenuUntil.textContent = subText;
+    hmenuUntil.textContent = subGrace
+      ? ("оплата не прошла" + (untilRu ? ", продлите до " + untilRu : ""))
+      : subCancelled
+        ? ("автопродление отключено" + (untilRu ? ", до " + untilRu : ""))
+        : ("активна" + (untilRu ? " до " + untilRu : ""));
   }
 
   homeEls.loading.hidden = true;
@@ -846,21 +849,33 @@ function renderSubscription(sub) {
   const statusEl = document.getElementById("sub-status");
   const actionsEl = document.getElementById("sub-actions");
 
+  // Доступ по ACCESS-CANON (active/grace + valid_until + 3д грейса). Нет доступа -> "истекла".
+  const SUB_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
+  const subTs = sub.valid_until ? new Date(sub.valid_until).getTime() : 0;
+  const hasAccess = (sub.status === "active" || sub.status === "grace") && subTs && (subTs + SUB_GRACE_MS > Date.now());
+
   // --- Блок 1: статус ---
   let statusHtml = "";
   let showRenew = false;
-  if (sub.status === "grace") {
+  let renewLabel = "Продлить";
+  if (!hasAccess) {
+    statusHtml = '<div class="sub-status-title">Подписка истекла</div>' +
+                 '<div class="sub-status-sub">Доступ закрыт. Оформите подписку, чтобы вернуться.</div>';
+    showRenew = true; renewLabel = "Оформить";
+  } else if (sub.status === "grace") {
     statusHtml = '<div class="sub-status-title sub-status-warn">Оплата не прошла</div>' +
                  '<div class="sub-status-sub">Доступ' + (until ? " до " + until : " активен") + '. Продлите, чтобы не потерять доступ.</div>';
     showRenew = true;
   } else if (sub.cancelled) {
     statusHtml = '<div class="sub-status-title">Автопродление отключено</div>' +
-                 '<div class="sub-status-sub">Доступ' + (until ? " активен до " + until : " активен") + '. Чтобы вернуться, оформите подписку заново.</div>';
+                 '<div class="sub-status-sub">Доступ сохраняется' + (until ? " до " + until : "") + ', дальше списаний не будет. Чтобы продлить - оформите подписку заново.</div>';
   } else {
+    // "Продлевается автоматически" ТОЛЬКО для рекуррентных source; manual (ручная выдача) не автопродлевается.
+    const autoRenew = (sub.source === "wayforpay" || sub.source === "lava");
     statusHtml = '<div class="sub-status-title sub-status-ok">Подписка активна</div>' +
-                 '<div class="sub-status-sub">' + (until ? "Действует до " + until : "Активна") + '.</div>';
+                 '<div class="sub-status-sub">' + (until ? "Действует до " + until : "Активна") + '.' + (autoRenew ? " Продлевается автоматически." : "") + '</div>';
   }
-  if (showRenew) statusHtml += '<button type="button" class="btn btn-primary sub-btn" id="sub-renew">Продлить</button>';
+  if (showRenew) statusHtml += '<button type="button" class="btn btn-primary sub-btn" id="sub-renew">' + renewLabel + '</button>';
   if (statusEl) statusEl.innerHTML = statusHtml;
   const renewBtn = document.getElementById("sub-renew");
   if (renewBtn) renewBtn.addEventListener("click", () => { hideContentViews(); showCheckout(); });
@@ -868,7 +883,7 @@ function renderSubscription(sub) {
   // --- Блок 2: отмена автопродления (единый UX для WFP и Lava; эндпоинт роутится по source в wireCancelFlow) ---
   let actionsHtml = "";
   let wireCancel = false;
-  if ((sub.source === "wayforpay" || sub.source === "lava") && !sub.cancelled && sub.status !== "grace") {
+  if (hasAccess && (sub.source === "wayforpay" || sub.source === "lava") && !sub.cancelled && sub.status !== "grace") {
     actionsHtml =
       '<div class="sub-actions-title">Автопродление</div>' +
       '<div class="sub-status-sub">Подписка продлевается автоматически. Можно отключить - доступ останется до конца оплаченного периода.</div>' +
@@ -912,19 +927,24 @@ function wireCancelFlow(sub) {
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.ok) {
         // успех: cancelled / already_cancelled / no_active_recurrent
-        const until = fmtDateDots(data.valid_until || sub.valid_until);
+        const untilC = fmtDateDots(data.valid_until || sub.valid_until);
         if (confirmBox) confirmBox.hidden = true;
         if (btn) btn.hidden = true;
         if (result) {
-          result.innerHTML = '<div class="sub-status-title">Автопродление отключено</div>' +
-            '<div class="sub-status-sub">Доступ' + (until ? " активен до " + until : " сохраняется") + '. Чтобы вернуться, оформите подписку заново.</div>';
+          // Осторожно ТОЛЬКО при Lava verified:false (DELETE 204, но GET не подтвердил). Иначе уверенно.
+          const cautious = data.verified === false;
+          const body = cautious
+            ? 'Доступ сохраняется' + (untilC ? " до " + untilC : "") + '. Если позже увидите списание - напишите в поддержку, вернём.'
+            : 'Дальше списаний не будет, доступ сохраняется' + (untilC ? " до " + untilC : "") + '. Чтобы вернуться - оформите подписку заново.';
+          result.innerHTML = '<div class="sub-status-title">' + (cautious ? "Автопродление отключено" : "Подписка отменена") + '</div>' +
+            '<div class="sub-status-sub">' + body + '</div>';
           result.hidden = false;
         }
       } else {
         // ok:false (вкл. 502 rc≠4100/4102) -> честная ошибка + контакты, кнопка остаётся
         yes.disabled = false; if (no) no.disabled = false; yes.textContent = "Да, отменить";
         if (result) {
-          result.innerHTML = '<div class="sub-status-sub sub-status-warn">Не удалось отменить. Напишите в поддержку: ' + supportContactsHtml() + " - поможем.</div>";
+          result.innerHTML = '<div class="sub-status-sub sub-status-warn">Отмена не прошла - вы всё ещё подписаны, лишнего не списано. Напишите в поддержку: ' + supportContactsHtml() + " - поможем.</div>";
           result.hidden = false;
         }
       }
