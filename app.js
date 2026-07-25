@@ -382,21 +382,18 @@ async function goCheckoutSubmit() {
   clearLavaReturn();   // WFP не использует stash; чистим, чтобы бут на возврате не ушёл в заглушку
   const btn = els.btnPay;
   if (btn) { btn.disabled = true; btn.textContent = "Открываем оплату..."; }
-  try {
-    const res = await fetch(CREATE_CHECKOUT_URL, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, plan: state.plan, method: "wayforpay" }),
-    });
-    let data = {}; try { data = await res.json(); } catch {}
-    if (res.ok && data.ok && data.invoiceUrl) { window.location.href = data.invoiceUrl; return; }
-    if (res.status === 429) showFormError(RATE_MSG);
-    else if (res.status === 400 || data.error === "invalid_email") showEmailError(EMAIL_HINT);
-    else showFormError("Не удалось открыть оплату. Попробуйте ещё раз.");
-    if (btn) { btn.disabled = false; btn.textContent = "Оплатить"; }
-  } catch {
-    showFormError(NET_MSG);
-    if (btn) { btn.disabled = false; btn.textContent = "Оплатить"; }
-  }
+  // БЕЗ автоповтора: повтор создаст второй заказ. Повторяет человек кнопкой.
+  const r = await sbFetch(CREATE_CHECKOUT_URL, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, plan: state.plan, method: "wayforpay" }),
+  });
+  const data = r.data || {};
+  if (r.state === "ok" && data.ok && data.invoiceUrl) { window.location.href = data.invoiceUrl; return; }
+  if (r.state === "unreachable") showFormError(NET_MSG);
+  else if (r.status === 429) showFormError(RATE_MSG);
+  else if (r.status === 400 || data.error === "invalid_email") showEmailError(EMAIL_HINT);
+  else showFormError("Не удалось открыть оплату. Попробуйте ещё раз.");
+  if (btn) { btn.disabled = false; btn.textContent = "Оплатить"; }
 }
 // --- экран 1 -> ссылка "Оплатить в рублях": та же валидация, дальше экран 2 (выбор валюты) ---
 function goLavaCurrency() {
@@ -439,30 +436,30 @@ async function onPayGo() {
   const errEl = document.getElementById("pay-go-error");
   if (errEl) errEl.hidden = true;
   if (btn) { btn.disabled = true; btn.textContent = "Открываем оплату..."; }
-  try {
-    const currency = state.lavaCurrency === "EUR" ? "EUR" : "RUB";
-    const res = await fetch(CREATE_LAVA_INVOICE_URL, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: state.email, plan: state.plan, currency }),
-    });
-    let data = {}; try { data = await res.json(); } catch {}
-    if (res.ok && data.ok && data.paymentUrl && data.order_reference) {
-      stashLavaReturn(data.order_reference, state.email, "lava");
-      window.location.href = data.paymentUrl;   // та же вкладка -> Lava; возврат руками на адрес
-      return;
-    }
-    // Lava строже нас по email (напр. отбивает несуществующий домен) -> возвращаем на экран 1 к полю почты.
-    if (data.error === "invalid_email") {
-      showCheckout();
-      showEmailError("Проверьте адрес почты — платёжная система его не приняла. Пример: ваша@почта.com");
-      return;
-    }
-    if (errEl) { errEl.textContent = res.status === 429 ? RATE_MSG : "Не удалось открыть оплату. Попробуйте ещё раз."; errEl.hidden = false; }
-    if (btn) { btn.disabled = false; btn.textContent = "Перейти к оплате"; }
-  } catch {
-    if (errEl) { errEl.textContent = NET_MSG; errEl.hidden = false; }
-    if (btn) { btn.disabled = false; btn.textContent = "Перейти к оплате"; }
+  // БЕЗ автоповтора: повтор создаст второй инвойс. Повторяет человек кнопкой.
+  const currency = state.lavaCurrency === "EUR" ? "EUR" : "RUB";
+  const r = await sbFetch(CREATE_LAVA_INVOICE_URL, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: state.email, plan: state.plan, currency }),
+  });
+  const data = r.data || {};
+  if (r.state === "ok" && data.ok && data.paymentUrl && data.order_reference) {
+    stashLavaReturn(data.order_reference, state.email, "lava");
+    window.location.href = data.paymentUrl;   // та же вкладка -> Lava; возврат руками на адрес
+    return;
   }
+  // Lava строже нас по email (напр. отбивает несуществующий домен) -> возвращаем на экран 1 к полю почты.
+  if (data.error === "invalid_email") {
+    showCheckout();
+    showEmailError("Проверьте адрес почты — платёжная система его не приняла. Пример: ваша@почта.com");
+    return;
+  }
+  if (errEl) {
+    errEl.textContent = r.state === "unreachable" ? NET_MSG
+      : (r.status === 429 ? RATE_MSG : "Не удалось открыть оплату. Попробуйте ещё раз.");
+    errEl.hidden = false;
+  }
+  if (btn) { btn.disabled = false; btn.textContent = "Перейти к оплате"; }
 }
 
 // --- экран 4: ожидание (автоопрос resolve-paid-order + ручная кнопка). Мины #2/#3 ---
@@ -481,15 +478,15 @@ function showPayWait() {
   payPollStart = Date.now();
   startPayPoll();
 }
+// resolve-paid-order - чтение, идемпотентно -> автоповтор разрешён.
+// Экран ожидания и так опрашивает по кругу, поэтому обрыв тут молчит, как и раньше.
 async function checkPaidOnce(order) {
-  try {
-    const res = await fetch(RESOLVE_ORDER_URL, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderReference: order }),
-    });
-    let data = {}; try { data = await res.json(); } catch {}
-    if (res.ok && data.ok && data.email) return { email: data.email };
-  } catch {}
+  const r = await sbFetch(RESOLVE_ORDER_URL, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ orderReference: order }),
+  }, { retry: true });
+  const data = r.data || {};
+  if (r.state === "ok" && data.ok && data.email) return { email: data.email };
   return null;
 }
 async function payPoll() {
@@ -579,14 +576,21 @@ async function enterPaymentReturn(order) {
     els.pwResolveError.hidden = false;
     return;
   }
-  try {
-    const res = await fetch(RESOLVE_ORDER_URL, {
+  {
+    // чтение, идемпотентно -> автоповтор разрешён
+    const r = await sbFetch(RESOLVE_ORDER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ orderReference: order }),
-    });
-    let data = {};
-    try { data = await res.json(); } catch { data = {}; }
+    }, { retry: true });
+    if (r.state === "unreachable") {
+      // связь не дала вердикта -> экран связи, кнопка «Повторить» вернёт сюда же
+      els.pwLoading.hidden = true;
+      showConnection(() => enterPaymentReturn(order));
+      return;
+    }
+    const res = { ok: r.state === "ok", status: r.status };
+    const data = r.data || {};
     els.pwLoading.hidden = true;
     if (res.ok && data.ok && data.email) {
       // Заказ найден -> ТОЛЬКО теперь показываем "Оплата прошла" + форму пароля.
@@ -602,11 +606,6 @@ async function enterPaymentReturn(order) {
       els.pwResolveError.innerHTML = "Ссылка недействительна или устарела. Если вы оплачивали и доступ не открылся - напишите нам на почту " + supportEmailHtml() + " или для более быстрого ответа в телеграм " + supportTgHtml() + ", проверим и поможем.";
       els.pwResolveError.hidden = false;
     }
-  } catch {
-    els.pwLoading.hidden = true;
-    els.pwSuccess.hidden = true;
-    els.pwResolveError.textContent = "Не удалось проверить оплату. Проверьте интернет и обновите страницу.";
-    els.pwResolveError.hidden = false;
   }
 }
 
@@ -674,46 +673,52 @@ async function onEnter() {
 // Склейка identity (идемпотентна) + проверка доступа с ретраями (гонка с вебхуком).
 async function attachAndVerify(accessToken) {
   pwLoading(true, "Открываем доступ...");
-  // 1) привязка supabase-логина к оплатившему person
-  try {
-    const a = await fetch(ATTACH_IDENTITY_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + accessToken },
-      body: JSON.stringify({ orderReference: state.order }),
-    });
-    if (!a.ok) {
-      showPwError("Не удалось открыть доступ. Нажмите «Повторить».");
-      els.btnRetry.hidden = false;
-      pwLoading(false);
-      return;
-    }
-  } catch {
-    showPwError(NET_MSG);
+  // 1) привязка supabase-логина к оплатившему person.
+  // БЕЗ автоповтора (создаёт связку). Нет связи -> экран связи, а не "не удалось открыть доступ".
+  const a = await sbFetch(ATTACH_IDENTITY_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + accessToken },
+    body: JSON.stringify({ orderReference: state.order }),
+  });
+  if (a.state === "unreachable") {
+    pwLoading(false);
+    showConnection(() => attachAndVerify(accessToken));
+    return;
+  }
+  if (a.state !== "ok") {
+    showPwError("Не удалось открыть доступ. Нажмите «Повторить».");
     els.btnRetry.hidden = false;
     pwLoading(false);
     return;
   }
-  // 2) проверка доступа: 3 попытки по ~2с (вебхук мог ещё не активировать подписку)
+  // 2) проверка доступа: 3 попытки по ~2с. Этот цикл - ПРО ГОНКУ С ВЕБХУКОМ (подписка могла
+  // ещё не активироваться), семантика сохранена. Сетевой слой добавлен сверху: считаем,
+  // сколько попыток вообще НЕ получили ответа. Внутренний ретрай sbFetch здесь выключен -
+  // цикл сам и есть повтор, иначе ожидание растянулось бы до нескольких минут.
+  let unreachableCount = 0;
   for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      const v = await fetch(VERIFY_ACCESS_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + accessToken },
-      });
-      if (v.ok) {
-        let data = {};
-        try { data = await v.json(); } catch { data = {}; }
-        if (data.access) { clearLavaReturn(); await routeHomeOrCheckout(); return; }  // после оплаты/пароля -> РЕАЛЬНЫЙ ДОМ, не заглушка
-      } else if (v.status === 401) {
-        showPwError("Сессия не подтвердилась. Обновите страницу и войдите снова.");
-        pwLoading(false);
-        return;
-      }
-      // 403 -> доступ ещё не выдан, ждём и ретраим
-    } catch {
-      // сетевой сбой -> тоже подождём и ретраим
+    const v = await sbFetch(VERIFY_ACCESS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + accessToken },
+    });
+    if (v.state === "ok") {
+      const data = v.data || {};
+      if (data.access) { clearLavaReturn(); await routeHomeOrCheckout(); return; }  // после оплаты/пароля -> РЕАЛЬНЫЙ ДОМ, не заглушка
+    } else if (v.status === 401) {
+      showPwError("Сессия не подтвердилась. Обновите страницу и войдите снова.");
+      pwLoading(false);
+      return;
+    } else if (v.state === "unreachable") {
+      unreachableCount++;
     }
+    // 403 -> доступ ещё не выдан, ждём и ретраим (гонка с вебхуком)
     if (attempt < 3) await sleep(2000);
+  }
+  // Ни одна попытка не получила вердикта -> это связь, а не "оплата обрабатывается".
+  if (unreachableCount === 3) {
+    pwLoading(false);
+    showConnection(() => attachAndVerify(accessToken));
+    return;
   }
   showPwError("Оплата обрабатывается. Обновите через минуту - доступ откроется. Если нет - напишите в поддержку.");
   els.btnRetry.hidden = false;
@@ -775,10 +780,16 @@ els.btnRetry.addEventListener("click", async () => {
   showPwError("");
   els.btnRetry.hidden = true;
   if (!sb) return;
-  const { data } = await sb.auth.getSession();
-  if (data && data.session) await attachAndVerify(data.session.access_token);
-  else showPwError("Сессия истекла. Обновите страницу и войдите снова.");
+  await resumeAttachFromSession();
 });
+// Достать сессию и продолжить выдачу доступа. Нет связи -> экран связи, кнопка «Повторить»
+// возвращается СЮДА ЖЕ (а не в attachAndVerify с пустым токеном).
+async function resumeAttachFromSession() {
+  const s = await getSessionState({ retry: true });
+  if (s.state === "ok") { await attachAndVerify(s.token); return; }
+  if (s.state === "unreachable") { showConnection(resumeAttachFromSession); return; }
+  showPwError("Сессия истекла. Обновите страницу и войдите снова.");
+}
 
 // TEST-TARIFF: тариф "test" доступен ТОЛЬКО через ?plan=test, в списке тарифов не показан.
 // Прячем боевые карточки, показываем заметку. state.plan='test' уходит в create-checkout.
@@ -865,6 +876,7 @@ function showHomeShell() {
   els.viewPassword.hidden = true;   // приходим из платёжного возврата -> прячем экран пароля
   els.viewAccess.hidden = true;     // старая заглушка "Доступ открыт" больше не показывается
   els.viewHome.hidden = false;
+  homeEls.loading.textContent = "Загрузка…";   // сброс счётчика попыток от прошлого захода
   homeEls.loading.hidden = false;
   homeEls.content.hidden = true;
 }
@@ -1012,26 +1024,25 @@ async function openSubscription() {
   if (loading) loading.hidden = false;
   if (content) content.hidden = true;
   if (errEl) errEl.hidden = true;
-  try {
-    const token = await getToken();
-    if (!token) { routeHomeOrCheckout(); return; }   // сессия потерялась -> перемаршрутизируем
-    const res = await fetch(WEB_SUB_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-    });
-    const data = await res.json().catch(() => ({}));
-    if (res.ok && data.ok && data.subscription) {
-      renderSubscription(data.subscription);
-      if (loading) loading.hidden = true;
-      if (content) content.hidden = false;
-    } else {
-      if (loading) loading.hidden = true;
-      if (errEl) { errEl.innerHTML = "Не удалось загрузить данные подписки. Обновите страницу или напишите нам " + supportEmailHtml() + "."; errEl.hidden = false; }
-    }
-  } catch {
+  const s = await getSessionState({ retry: true });
+  if (s.state === "unreachable") { if (loading) loading.hidden = true; showConnection(openSubscription); return; }
+  if (s.state !== "ok") { routeHomeOrCheckout(); return; }   // сессия потерялась -> перемаршрутизируем
+  // web-subscription - чтение, идемпотентно -> автоповтор разрешён
+  const r = await sbFetch(WEB_SUB_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + s.token },
+  }, { retry: true });
+  const data = r.data || {};
+  if (r.state === "ok" && data.ok && data.subscription) {
+    renderSubscription(data.subscription);
     if (loading) loading.hidden = true;
-    if (errEl) { errEl.innerHTML = "Нет связи. Проверьте интернет и обновите страницу."; errEl.hidden = false; }
+    if (content) content.hidden = false;
+    return;
   }
+  if (loading) loading.hidden = true;
+  // развели: нет связи -> отдельный экран; сервер ответил -> прежняя честная ошибка
+  if (r.state === "unreachable") { showConnection(openSubscription); return; }
+  if (errEl) { errEl.innerHTML = "Не удалось загрузить данные подписки. Обновите страницу или напишите нам " + supportEmailHtml() + "."; errEl.hidden = false; }
 }
 
 function renderSubscription(sub) {
@@ -1105,15 +1116,25 @@ function wireCancelFlow(sub) {
   if (no) no.addEventListener("click", () => { if (confirmBox) confirmBox.hidden = true; if (btn) btn.hidden = false; });
   if (yes) yes.addEventListener("click", async () => {
     yes.disabled = true; if (no) no.disabled = true; yes.textContent = "Отменяем…";
-    try {
+    {
       const token = await getToken();
       if (!token) { routeHomeOrCheckout(); return; }
       const cancelUrl = sub.source === "lava" ? CANCEL_LAVA_URL : CANCEL_SUB_URL;
-      const res = await fetch(cancelUrl, {
+      // БЕЗ автоповтора: отмена подписки - действие, повторять молча нельзя.
+      const r = await sbFetch(cancelUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
       });
-      const data = await res.json().catch(() => ({}));
+      if (r.state === "unreachable") {
+        yes.disabled = false; if (no) no.disabled = false; yes.textContent = "Отменить подписку";
+        if (result) {
+          result.innerHTML = '<div class="sub-status-sub sub-status-warn">Нет связи - отмена не отправилась, лишнего не списано. Попробуйте ещё раз или чуть позже. Не помогает - напишите ' + supportContactsHtml() + ".</div>";
+          result.hidden = false;
+        }
+        return;
+      }
+      const res = { ok: r.state === "ok" };
+      const data = r.data || {};
       if (res.ok && data.ok) {
         // успех: cancelled / already_cancelled / no_active_recurrent
         const untilC = fmtDateDots(data.valid_until || sub.valid_until);
@@ -1136,12 +1157,6 @@ function wireCancelFlow(sub) {
           result.innerHTML = '<div class="sub-status-sub sub-status-warn">Отмена не прошла - вы всё ещё подписаны, лишнего не списано. Напишите в поддержку: ' + supportContactsHtml() + " - поможем.</div>";
           result.hidden = false;
         }
-      }
-    } catch {
-      yes.disabled = false; if (no) no.disabled = false; yes.textContent = "Отменить подписку";
-      if (result) {
-        result.innerHTML = '<div class="sub-status-sub sub-status-warn">Нет связи. Проверьте интернет и попробуйте ещё раз. Не помогает - напишите ' + supportContactsHtml() + ".</div>";
-        result.hidden = false;
       }
     }
   });
@@ -1198,11 +1213,16 @@ async function openMiniApp(appKey, tileEl) {
   try {
     const token = await getToken();
     if (!token) { routeHomeOrCheckout(); return; }   // сессия потерялась -> перемаршрутизируем
-    const res = await fetch(MINT_APP_TOKEN_URL, {
+    // С автоповтором: в базу не пишет (только подписывает JWT), идемпотентно, и стоит
+    // на пути к контенту. Экран связи здесь не показываем: плитка сообщает о сбое на
+    // месте, человек остаётся на доме и ничего не теряет.
+    const r = await sbFetch(MINT_APP_TOKEN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-    });
-    const data = await res.json().catch(() => ({}));
+    }, { retry: true });
+    if (r.state === "unreachable") { flash("Нет связи, попробуйте ещё раз"); return; }
+    const res = { ok: r.state === "ok" };
+    const data = r.data || {};
     if (res.ok && data.ok && data.token) {
       const frag = "#irena_token=" + encodeURIComponent(data.token) +
                    "&exp=" + encodeURIComponent(data.expiresIn || 3600);
@@ -1212,8 +1232,6 @@ async function openMiniApp(appKey, tileEl) {
     }
     // подписка не подтвердилась (редко: истекла между загрузкой дома и кликом) или сбой сервера
     flash("Не удалось открыть, обновите страницу");
-  } catch {
-    flash("Нет связи, проверьте интернет");
   } finally {
     tileEl.dataset.busy = "0";
     tileEl.style.opacity = "";
@@ -1301,6 +1319,12 @@ async function doLogin() {
   btn.disabled = true; btn.textContent = "Входим...";
   try {
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    // Обрыв связи -> честно про связь. Иначе показали бы "неверный пароль" на верном пароле.
+    if (isAuthNetworkError(error)) {
+      showLoginError(NET_MSG);
+      btn.disabled = false; btn.textContent = "Войти";
+      return;
+    }
     if (error || !data || !data.session) {
       // GoTrue не различает "нет аккаунта" и "неверный пароль". Развилка: первый раз после оплаты -> claim (НЕ платить снова!),
       // иначе оформить. Оба пути явные, чтобы уже оплативший не ушёл во вторую оплату.
@@ -1355,13 +1379,20 @@ async function doReset() {
   if (password !== password2) { showResetError("Пароли не совпадают."); document.getElementById("reset-password2").focus(); return; }
   if (!sb) { showResetError("Не удалось загрузить вход. Обновите страницу."); return; }
   btn.disabled = true; btn.textContent = "Проверяем...";
-  try {
-    const res = await fetch(RESET_PASSWORD_URL, {
+  {
+    // БЕЗ автоповтора: у функции лимит 5/мин, повтор сжёг бы его. Повторяет человек.
+    const r = await sbFetch(RESET_PASSWORD_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, orderReference: order, password }),
     });
-    let data = {}; try { data = await res.json(); } catch { data = {}; }
+    if (r.state === "unreachable") {
+      showResetError(NET_MSG);
+      btn.disabled = false; btn.textContent = "Сбросить пароль";
+      return;
+    }
+    const res = { ok: r.state === "ok", status: r.status };
+    const data = r.data || {};
     if (res.ok && data.ok) {
       // пароль сменён на сервере -> входим им же -> в приложение
       btn.textContent = "Входим...";
@@ -1378,9 +1409,6 @@ async function doReset() {
       // анти-энумерация: единый текст на ЛЮБОЙ промах (неверный email/заказ/не оплачен/нет логина)
       showResetError(null, "Почта и номер заказа не совпали. Не сходится - напишите в поддержку " + supportTgHtml() + ".");
     }
-    btn.disabled = false; btn.textContent = "Сбросить пароль";
-  } catch {
-    showResetError(NET_MSG);
     btn.disabled = false; btn.textContent = "Сбросить пароль";
   }
 }
@@ -1420,13 +1448,20 @@ async function doClaim() {
   if (password !== password2) { showClaimError("Пароли не совпадают."); document.getElementById("claim-password2").focus(); return; }
   if (!sb) { showClaimError("Не удалось загрузить вход. Обновите страницу."); return; }
   btn.disabled = true; btn.textContent = "Проверяем...";
-  try {
-    const res = await fetch(CLAIM_ACCOUNT_URL, {
+  {
+    // БЕЗ автоповтора: создаёт аккаунт + лимит 5/мин. Повторяет человек.
+    const r = await sbFetch(CLAIM_ACCOUNT_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, orderReference: order, password }),
     });
-    let data = {}; try { data = await res.json(); } catch { data = {}; }
+    if (r.state === "unreachable") {
+      showClaimError(NET_MSG);
+      btn.disabled = false; btn.textContent = "Создать пароль и войти";
+      return;
+    }
+    const res = { ok: r.state === "ok", status: r.status };
+    const data = r.data || {};
     if (res.ok && data.ok) {
       // аккаунт создан на сервере -> входим тем же паролем -> в приложение
       btn.textContent = "Входим...";
@@ -1455,9 +1490,6 @@ async function doClaim() {
       // анти-энумерация: единый текст на промах заказ/почта
       showClaimError(null, "Почта и номер заказа не совпали. Не сходится - напишите " + supportTgHtml() + ".");
     }
-    btn.disabled = false; btn.textContent = "Создать пароль и войти";
-  } catch {
-    showClaimError(NET_MSG);
     btn.disabled = false; btn.textContent = "Создать пароль и войти";
   }
 }
@@ -1505,30 +1537,32 @@ async function doClaim() {
 
 // Роутинг: сессия -> get-home -> ДОМ или ЧЕКАУТ. Нет сессии -> СТАРТ (выбор войти/оформить).
 async function routeHomeOrCheckout() {
-  // Синхронный пик сохранённой сессии -> прячем чекаут сразу, без мигания. Нет токена -> чекаут мгновенно.
-  let hasStored = false;
-  try { hasStored = !!localStorage.getItem("sb-" + PROJECT_REF + "-auth-token"); } catch (e) {}
-  if (!sb || !hasStored) { if (readLavaReturn()) showPayWait(); else showStart(); return; }
+  // Синхронный пик сохранённой сессии -> прячем чекаут сразу, без мигания.
+  // Сессии НЕТ вообще -> человек не залогинен, это не сетевая ситуация -> старт.
+  if (!sb || !hasStoredSession()) { if (readLavaReturn()) showPayWait(); else showStart(); return; }
 
   showHomeShell(); // чекаут скрыт, показываем загрузку дома, пока проверяем доступ
-  try {
-    const { data } = await sb.auth.getSession();
-    const token = data && data.session ? data.session.access_token : null;
-    if (token) {
-      const res = await fetch(GET_HOME_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-      });
-      if (res.ok) {
-        let home = {};
-        try { home = await res.json(); } catch (e) { home = {}; }
-        if (home && home.access) { renderHome(home); return; }
-      }
-      // 403/любой не-ok -> подписки нет или кончилась -> чекаут (пусть оформит/продлит)
-    }
-  } catch (e) {
-    // сетевой сбой / битая сессия -> безопасный дефолт: чекаут
+  const s = await getSessionState({ retry: true, onAttempt: homeProgress });
+  if (s.state === "unreachable") { showConnection(routeHomeOrCheckout); return; }
+  if (s.state !== "ok") { showCheckout(); return; }   // сессия честно истекла
+
+  // get-home - чтение, идемпотентно -> автоповтор разрешён
+  const r = await sbFetch(GET_HOME_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + s.token },
+  }, { retry: true, onAttempt: homeProgress });
+
+  if (r.state === "ok") {
+    const home = r.data || {};
+    if (home.access) { renderHome(home); return; }
+    showCheckout();   // сервер ответил и сказал: доступа нет
+    return;
   }
+  // ГЛАВНОЕ МЕСТО ЗАДАЧИ: вердикта не было -> НИКАКОГО чекаута.
+  // Раньше тут стоял "безопасный дефолт: чекаут", и платящая подписчица при обрыве
+  // видела экран оплаты и могла заплатить второй раз.
+  if (r.state === "unreachable") { showConnection(routeHomeOrCheckout); return; }
+  // denied (401/403) или бизнес-ошибка -> сервер ответил, доступа нет -> чекаут
   showCheckout();
 }
 
@@ -1604,10 +1638,12 @@ const player = (function () {
   return { playTrack, toggle, seek, seekTo, dismiss, renderAll, swapCurrentUrl, current: () => track };
 })();
 
+// Токен для внутренних экранов. Сохранена прежняя сигнатура (null = токена нет),
+// но теперь вызывающий может отличить "сессии нет" от "не смогли обновить" через
+// getSessionState. getToken оставлен для мест, где различие не нужно.
 async function getToken() {
-  if (!sb) return null;
-  try { const { data } = await sb.auth.getSession(); return data && data.session ? data.session.access_token : null; }
-  catch { return null; }
+  const s = await getSessionState({ retry: true });
+  return s.state === "ok" ? s.token : null;
 }
 function hideContentViews() {
   els.viewHome.hidden = true;
@@ -1778,28 +1814,26 @@ async function openDay(dayId, forceHost) {
   const errEl = document.getElementById("day-error");
   loading.hidden = false; blocksEl.innerHTML = ""; doneBtn.hidden = true; errEl.hidden = true;
   if (!forceHost) window.scrollTo(0, 0);
-  const token = await getToken();
-  if (!token) { loading.hidden = true; errEl.textContent = "Сессия истекла. Обновите страницу."; errEl.hidden = false; return; }
-  try {
-    const body = { day_id: dayId };
-    if (forceHost) body.force_host = forceHost;
-    const res = await fetch(GET_DAY_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-      body: JSON.stringify(body),
-    });
-    let data = {}; try { data = await res.json(); } catch { data = {}; }
-    loading.hidden = true;
-    if (!res.ok || !data.access) {
-      errEl.innerHTML = "Не удалось открыть день. Обновите страницу или напишите нам " + supportEmailHtml() + ".";
-      errEl.hidden = false; return;
-    }
-    renderDay(data);
-  } catch {
-    loading.hidden = true;
-    errEl.textContent = "Не получилось загрузить. Включите VPN и обновите страницу.";
-    errEl.hidden = false;
+  const s = await getSessionState({ retry: true });
+  if (s.state === "unreachable") { loading.hidden = true; showConnection(() => openDay(dayId, forceHost)); return; }
+  if (s.state !== "ok") { loading.hidden = true; errEl.textContent = "Сессия истекла. Обновите страницу."; errEl.hidden = false; return; }
+  const body = { day_id: dayId };
+  if (forceHost) body.force_host = forceHost;
+  // get-day - чтение, идемпотентно -> автоповтор разрешён
+  const r = await sbFetch(GET_DAY_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + s.token },
+    body: JSON.stringify(body),
+  }, { retry: true });
+  loading.hidden = true;
+  // развели два случая: связи нет -> экран связи; сервер ответил "нет доступа" -> прежний текст
+  if (r.state === "unreachable") { showConnection(() => openDay(dayId, forceHost)); return; }
+  const data = r.data || {};
+  if (r.state !== "ok" || !data.access) {
+    errEl.innerHTML = "Не удалось открыть день. Обновите страницу или напишите нам " + supportEmailHtml() + ".";
+    errEl.hidden = false; return;
   }
+  renderDay(data);
 }
 
 async function markDone() {
@@ -1820,18 +1854,16 @@ async function markDone() {
   };
   const token = await getToken();
   if (!token) { rollback(); return; }
-  try {
-    // таймаут: висящий запрос не должен оставить ложную галочку навсегда
-    const ctrl = new AbortController();
-    const tm = setTimeout(() => ctrl.abort(), 12000);
-    const res = await fetch(MARK_DAY_DONE_URL, {
+  {
+    // БЕЗ автоповтора (см. список в шапке). Таймаут теперь общий, 15с вместо прежних 12с:
+    // висящий запрос не должен оставить ложную галочку навсегда.
+    const r = await sbFetch(MARK_DAY_DONE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
       body: JSON.stringify({ day_id: dayId }),
-      signal: ctrl.signal,
     });
-    clearTimeout(tm);
-    let data = {}; try { data = await res.json(); } catch { data = {}; }
+    const res = { ok: r.state === "ok" };
+    const data = r.data || {};
     if (res.ok && data.ok) {
       // подтверждено сервером - фиксируем прогресс (галочка уже стоит)
       if (homeData) {
@@ -1844,8 +1876,6 @@ async function markDone() {
     } else {
       rollback();
     }
-  } catch {
-    rollback();
   }
 }
 
