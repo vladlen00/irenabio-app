@@ -19,6 +19,11 @@ const GET_HOME_URL = SUPABASE_URL + "/functions/v1/get-home";
 const GET_DAY_URL = SUPABASE_URL + "/functions/v1/get-day";
 const MARK_DAY_DONE_URL = SUPABASE_URL + "/functions/v1/mark-day-done";
 const PROJECT_REF = "kjzxrpwqyyjcykwbqskn";
+// Таймаут одной сетевой попытки. Объявлен здесь (а не в блоке sbFetch ниже), потому что
+// его использует sbAuthFetch, который создаётся раньше по файлу.
+// 8с: p95 сервера 185 мс (замер 25.07), запас сорокакратный. Весь цикл из 3 попыток
+// с паузами 1с+2с укладывается в ~27с вместо 48с.
+const SB_TIMEOUT_MS = 8000;
 
 // Lava назад не редиректит -> сохраняем order_reference (=invoice.id) в localStorage при уходе на оплату,
 // по возвращении мост "Я оплатил" скармливает его в существующий поток resolve-paid-order -> пароль.
@@ -105,8 +110,17 @@ const els = {
 };
 
 // supabase-js клиент (только auth-экраны). Гард: если CDN не загрузился, чекаут не ломаем.
+// global.fetch с таймаутом: supabase-js ходит в сеть своим fetch (мимо sbFetch), и без
+// таймаута зависший refresh токена держит экран бесконечно. Только таймаут, БЕЗ повтора -
+// повторять signUp/signInWithPassword нельзя.
+function sbAuthFetch(input, init) {
+  const ctrl = new AbortController();
+  const tm = setTimeout(() => ctrl.abort(), SB_TIMEOUT_MS);
+  return fetch(input, Object.assign({}, init || {}, { signal: ctrl.signal }))
+    .finally(() => clearTimeout(tm));
+}
 const sb = (window.supabase && window.supabase.createClient)
-  ? window.supabase.createClient(SUPABASE_URL, PUBLISHABLE_KEY)
+  ? window.supabase.createClient(SUPABASE_URL, PUBLISHABLE_KEY, { global: { fetch: sbAuthFetch } })
   : null;
 
 // --- URL <-> state (тариф переживает перезагрузку, пригодится шагу оплаты) ---
@@ -156,6 +170,127 @@ function clearErrors() {
 const EMAIL_HINT = "Проверьте адрес почты. Пример: ваша@почта.com";
 const RATE_MSG = "Слишком много попыток. Подождите минуту и попробуйте снова.";
 const NET_MSG = "Не удалось связаться с сервером. Проверьте интернет и попробуйте ещё раз.";
+
+// ===================== СЕТЕВОЙ СЛОЙ: sbFetch =====================
+// Единая обёртка над ВСЕМИ обращениями к Supabase. Логика перенесена из мини-аппов
+// (Desktop/biohack/public/tg-auth.js): isConnectionReason + RETRY_DELAYS_MS.
+// Зачем: доступность Supabase из РФ/РБ плавает. Раньше обрыв связи был неотличим от
+// "подписки нет" -> платящая подписчица видела чекаут и могла заплатить второй раз.
+//
+// Состояния результата (СЕТЕВЫХ - три, как в задаче):
+//   ok          - сервер ответил 2xx
+//   denied      - сервер ответил 401/403: доступа реально нет, повтор не поможет
+//   unreachable - вердикта НЕ было: таймаут, отказ fetch, DNS/TLS, 5xx
+// Плюс четвёртая корзина, НЕ сетевая:
+//   error       - сервер ответил, но это бизнес-ошибка (400 валидация, 429 лимит).
+//                 Нужна, иначе 429 пришлось бы объявить либо denied (ложное "доступа
+//                 нет"), либо unreachable (ложный экран связи) - оба варианта врут.
+const SB_MAX_ATTEMPTS = 3;
+const SB_RETRY_DELAYS_MS = [1000, 2000];   // паузы перед попытками 2 и 3 (как в tg-auth.js)
+
+function sbSleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+// Перенесено из tg-auth.js без изменений. "network_error" и любой "error_5xx" для
+// человека одно и то же: сервер не дал вердикта, совет одинаковый.
+function isConnectionReason(reason) {
+  if (reason === "network_error") return true;
+  // error_500 / error_502 / error_503 ... - сервер жив, но сломался.
+  if (typeof reason === "string" && reason.indexOf("error_5") === 0) return true;
+  return false;
+}
+
+// Одна попытка с таймаутом. Отдаёт {res, data} либо бросает строку-причину.
+async function sbFetchOnce(url, options) {
+  const ctrl = new AbortController();
+  const tm = setTimeout(() => ctrl.abort(), SB_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, Object.assign({}, options || {}, { signal: ctrl.signal }));
+    if (res.status >= 500) throw "error_" + res.status;   // вердикта нет -> ретраибельно
+    let data = {};
+    try { data = await res.json(); } catch { data = {}; }
+    return { res, data };
+  } catch (e) {
+    if (typeof e === "string") throw e;   // уже классифицировано выше
+    throw "network_error";                // abort по таймауту, отказ fetch, DNS, TLS
+  } finally {
+    clearTimeout(tm);
+  }
+}
+
+// Главная обёртка. Никогда не бросает - всегда возвращает объект с полем state.
+// opts.retry=true разрешён ТОЛЬКО для чтения и идемпотентного (см. список в шапке коммита).
+async function sbFetch(url, options, opts) {
+  const attempts = (opts && opts.retry) ? SB_MAX_ATTEMPTS : 1;
+  const onAttempt = opts && opts.onAttempt;
+  let lastReason = "network_error";
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    if (onAttempt) { try { onAttempt(attempt, attempts); } catch (e) {} }
+    try {
+      const r = await sbFetchOnce(url, options);
+      if (r.res.ok) return { state: "ok", res: r.res, data: r.data, status: r.res.status };
+      if (r.res.status === 401 || r.res.status === 403) {
+        return { state: "denied", res: r.res, data: r.data, status: r.res.status };
+      }
+      return { state: "error", res: r.res, data: r.data, status: r.res.status };
+    } catch (reason) {
+      lastReason = reason;
+      if (!isConnectionReason(reason)) return { state: "error", data: {}, status: 0, reason };
+      if (attempt < attempts) await sbSleep(SB_RETRY_DELAYS_MS[attempt - 1]);
+    }
+  }
+  console.warn("sbFetch unreachable:", url, lastReason);
+  return { state: "unreachable", data: {}, status: 0, reason: lastReason };
+}
+
+// supabase-js на обрыве связи часто НЕ бросает, а ВОЗВРАЩАЕТ error (AuthRetryableFetchError,
+// status 0/5xx). Без этой проверки обрыв на входе выглядел бы как "неверная почта или пароль" -
+// то есть человека отправляли бы менять правильный пароль.
+function isAuthNetworkError(err) {
+  if (!err) return false;
+  if (typeof err.status === "number" && err.status >= 500) return true;
+  if (typeof err.status === "number" && err.status !== 0) return false;
+  const n = String(err.name || "");
+  const m = String(err.message || "");
+  if (n.indexOf("AuthRetryableFetchError") === 0) return true;
+  return /fetch|network|aborted|abort|timeout/i.test(m);
+}
+
+// Сессия supabase-js с той же классификацией. getSession обычно читает localStorage
+// БЕЗ сети; в сеть он идёт только когда токен протух и нужен refresh - вот там и
+// возможен обрыв. Отличаем "сессии нет" от "не смогли обновить".
+//   ok          - сессия есть, token отдан
+//   denied      - сохранённой сессии нет вовсе (человек не залогинен)
+//   unreachable - сессия сохранена, но обновить её не вышло из-за связи
+function hasStoredSession() {
+  try { return !!localStorage.getItem("sb-" + PROJECT_REF + "-auth-token"); } catch (e) { return false; }
+}
+async function getSessionState(opts) {
+  if (!sb) return { state: "denied", token: null };
+  const stored = hasStoredSession();
+  const attempts = (opts && opts.retry) ? SB_MAX_ATTEMPTS : 1;
+  const onAttempt = opts && opts.onAttempt;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    if (onAttempt) { try { onAttempt(attempt, attempts); } catch (e) {} }
+    try {
+      const { data, error } = await sb.auth.getSession();
+      const token = data && data.session ? data.session.access_token : null;
+      if (token) return { state: "ok", token };
+      // токена нет: либо человек не залогинен, либо refresh не дошёл до сервера
+      if (!stored) return { state: "denied", token: null };
+      if (error) {
+        if (attempt < attempts) { await sbSleep(SB_RETRY_DELAYS_MS[attempt - 1]); continue; }
+        return { state: "unreachable", token: null };
+      }
+      // сохранённый токен есть, ошибки нет, сессии нет -> она честно истекла
+      return { state: "denied", token: null };
+    } catch (e) {
+      if (!stored) return { state: "denied", token: null };
+      if (attempt < attempts) { await sbSleep(SB_RETRY_DELAYS_MS[attempt - 1]); continue; }
+      return { state: "unreachable", token: null };
+    }
+  }
+  return { state: "unreachable", token: null };
+}
 
 // ===================== НОВЫЙ ПОТОК ОПЛАТЫ (экраны 2/3/4 + заглушка вкладки + опрос) =====================
 let payPollTimer = null, payPollStart = 0;
