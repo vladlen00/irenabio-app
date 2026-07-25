@@ -292,6 +292,61 @@ async function getSessionState(opts) {
   return { state: "unreachable", token: null };
 }
 
+// Видимый статус на каркасе дома, пока идут попытки. Без него человек смотрит в пустой
+// каркас до ~27 секунд и уходит раньше, чем отработает ретрай.
+function homeProgress(attempt, total) {
+  if (homeEls && homeEls.loading) {
+    homeEls.loading.textContent = "Проверяем доступ, попытка " + attempt + " из " + total;
+  }
+}
+
+// ===================== ЭКРАН «НЕ ПОЛУЧИЛОСЬ ПОДКЛЮЧИТЬСЯ» =====================
+// Показывается там, где раньше молча уходили в чекаут или в общий catch.
+// Кнопка «Повторить» вызывает то действие, которое не прошло.
+let connRetryFn = null;
+// Подсказка про VPN - ВТОРЫМ шагом: главный текст остаётся нейтральным, а совет
+// появляется только после того, как «Повторить» уже не помогло. Флаг сбрасывается
+// перезагрузкой страницы (по факту - удачным входом, дальше экран не показывается).
+let connRetryUsed = false;
+function showConnection(retryFn) {
+  connRetryFn = typeof retryFn === "function" ? retryFn : null;
+  hidePayFlowExtra();
+  hideEntryViews();
+  hideContentViews();
+  if (siteHeader) siteHeader.hidden = false;
+  if (siteFooter) siteFooter.hidden = false;
+  els.viewCheckout.hidden = true;
+  els.viewPassword.hidden = true;
+  els.viewAccess.hidden = true;
+  if (els.viewLavaReturn) els.viewLavaReturn.hidden = true;
+  const btn = document.getElementById("conn-retry");
+  if (btn) { btn.disabled = false; btn.textContent = "Повторить"; }
+  // Контакты из единой константы SUPPORT, как на остальных экранах.
+  const support = document.getElementById("conn-support");
+  if (support) support.innerHTML = "Не проходит совсем? Напишите нам: " + supportContactsHtml();
+  const vpn = document.getElementById("conn-vpn");
+  if (vpn) vpn.hidden = !connRetryUsed;
+  const v = document.getElementById("view-connection");
+  if (v) v.hidden = false;
+  window.scrollTo(0, 0);
+}
+function hideConnection() {
+  const v = document.getElementById("view-connection");
+  if (v) v.hidden = true;
+}
+(function wireConnection() {
+  const btn = document.getElementById("conn-retry");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    btn.disabled = true; btn.textContent = "Пробуем...";
+    connRetryUsed = true;   // следующий показ экрана уже с подсказкой про VPN
+    const fn = connRetryFn;
+    hideConnection();
+    if (fn) await fn();
+    else await routeHomeOrCheckout();
+  });
+})();
+
 // ===================== НОВЫЙ ПОТОК ОПЛАТЫ (экраны 2/3/4 + заглушка вкладки + опрос) =====================
 let payPollTimer = null, payPollStart = 0;
 const PAY_POLL_INTERVAL_MS = 4000;
