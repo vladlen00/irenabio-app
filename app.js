@@ -25,6 +25,132 @@ const PROJECT_REF = "kjzxrpwqyyjcykwbqskn";
 // с паузами 1с+2с укладывается в ~27с вместо 48с.
 const SB_TIMEOUT_MS = 8000;
 
+// ===================== МАРШРУТ ДО БЭКЕНДА =====================
+// Зачем: у части подписчиц (РФ, РБ) прямой путь к supabase.co ложится, и ложится НЕ
+// навсегда, а полосами. Замер с одного телефона 26.07: в 16:54 прямой путь мёртв, через
+// минуту жив, при этом запасной маршрут отвечал в оба прогона (297-1670 мс). Поэтому
+// маршрут не константа, а состояние: определяется, запоминается, умеет переключиться
+// посреди сессии.
+//
+// Запасной маршрут - ОТДЕЛЬНЫЙ проект ir-sb-web (rewrite -> supabase.co), не та дверь,
+// через которую ходят телеграм-мини-аппы: иначе авария или лимит на одном адресе положат
+// сразу обе ветки. Проксируются только functions/v1 и auth/v1, остальное отдаёт 404.
+// Origin запросов при этом НЕ меняется (браузер ставит туда адрес страницы), поэтому
+// allow-list'ы edge-функций остаются довольны: проверено курлом на всех 14 функциях 26.07.
+const SB_PROXY_BASE = "https://ir-sb-web.vercel.app/sb";
+const ROUTE_KEY = "irenabio_route";
+const ROUTE_TTL_MS = 24 * 60 * 60 * 1000;   // сутки, потом дешёвая перепроверка прямого пути
+const ROUTE_PROBE_MS = 4000;                // первый заход без памяти: не ждём все 8 секунд
+const ROUTE_RECHECK_MS = 2500;              // раз в сутки пробуем вернуться на прямой путь
+
+// Память маршрута. Пишем ТОЛЬКО "proxy": отсутствие записи и есть "прямой путь".
+function readRoute() {
+  try {
+    const j = JSON.parse(localStorage.getItem(ROUTE_KEY) || "null");
+    if (!j || j.route !== "proxy") return null;
+    const ts = j.ts || 0;
+    return { route: "proxy", ts, reason: j.reason || "", stale: (Date.now() - ts) > ROUTE_TTL_MS };
+  } catch (e) { return null; }
+}
+function writeRoute(reason) {
+  try { localStorage.setItem(ROUTE_KEY, JSON.stringify({ route: "proxy", ts: Date.now(), reason: reason || "" })); } catch (e) {}
+}
+function clearRoute() { try { localStorage.removeItem(ROUTE_KEY); } catch (e) {} }
+
+// Индикатор на время определения маршрута: проба занимает до 12 секунд (4 прямой плюс
+// до 8 запасной), без надписи человек смотрит в пустой каркас. Пишем в тот же элемент,
+// что и homeProgress. try/catch: на прогреве может быть вызвана до инициализации homeEls.
+function routeProbeStatus(text) {
+  try {
+    if (!homeEls || !homeEls.loading) return;
+    homeEls.loading.textContent = text;
+  } catch (e) {}
+}
+
+// Одна попытка достучаться, со своим таймаутом и без повторов. Любой ОТВЕТ сервера
+// (health отдаёт 401 без ключа) = путь живой; нам нужен факт ответа, а не тело.
+// Отказ fetch = путь мёртвый, причём и таймаут, и мгновенный обрыв: в замере 26.07
+// первая попытка падала за 1576 мс, то есть соединение рвут активно, а не тянут до конца.
+async function routeAlive(base, timeoutMs) {
+  const url = base + "/auth/v1/health?_=" + Date.now() + "-" + Math.random().toString(36).slice(2);
+  const ctrl = new AbortController();
+  const tm = setTimeout(() => ctrl.abort(), timeoutMs);
+  try { await fetch(url, { method: "GET", cache: "no-store", signal: ctrl.signal }); return true; }
+  catch (e) { return false; }
+  finally { clearTimeout(tm); }
+}
+
+let sbRoute = null;          // "direct" | "proxy" - решение на текущую загрузку страницы
+let sbRoutePromise = null;   // чтобы не пробивать путь по разу на каждый запрос
+
+// Запрос упал. Если он шёл ПО ПРОКСИ, память больше ничего не доказывает: она означает
+// "прокси работал", а не "прокси навсегда". Стираем её и пробиваем оба пути заново.
+// Без этого при аварии прокси человек заперт на нём до истечения суток - и заперт вместе
+// со ВСЕМИ, кто переключился, потому что прокси у них общий: одна точка отказа меняется
+// на другую, и худшую (у прямого пути хотя бы полосы, а тут глухие сутки).
+// Одна лишняя проба дешевле суток без доступа, поэтому стираем даже на разовом обрыве.
+function routeFailed(usedRoute) {
+  if (usedRoute === "proxy") clearRoute();
+  sbRoute = null;
+}
+
+// Решаем маршрут ДО отправки. Это принципиально: signUp и signInWithPassword повторять
+// нельзя (см. комментарий у sbAuthFetch), а схема "отправить и переслать на другой
+// маршрут" именно это и делает - оборванный запрос мог дойти до сервера.
+// force=true (решаем заново после падения) ОБЯЗАН пробивать пути, а не отвечать из памяти:
+// иначе получается залипание на мёртвом прокси.
+async function ensureRoute(force) {
+  if (sbRoute && !force) return sbRoute;
+  if (sbRoutePromise && !force) return sbRoutePromise;
+  sbRoutePromise = (async () => {
+    const mem = readRoute();
+    if (mem && !mem.stale && !force) return (sbRoute = "proxy");   // память свежая: проб нет
+    routeProbeStatus("Проверяем доступ…");
+    // Прямой путь пробуем ВСЕГДА, когда решаем заново. Если память была - проба дешёвая.
+    if (await routeAlive(SUPABASE_URL, mem ? ROUTE_RECHECK_MS : ROUTE_PROBE_MS)) {
+      clearRoute();
+      return (sbRoute = "direct");
+    }
+    // прямой молчит -> проверяем запасной ПЕРЕД тем, как что-то на него посылать
+    if (await routeAlive(SB_PROXY_BASE, SB_TIMEOUT_MS)) {
+      writeRoute("direct_unreachable");
+      return (sbRoute = "proxy");
+    }
+    // Молчат оба. Запоминать нечего, память СТИРАЕМ - чтобы не залипнуть на мёртвом прокси.
+    // Запрос отдаст unreachable, человек увидит экран связи, следующая попытка пробьёт заново.
+    clearRoute();
+    return (sbRoute = "direct");
+  })();
+  try { return await sbRoutePromise; } finally { sbRoutePromise = null; }
+}
+
+// Подмена базы. SUPABASE_URL НЕ меняется: supabase-js держит сессию под ключом
+// sb-<PROJECT_REF>-auth-token (см. hasStoredSession), он от хоста не зависит, поэтому
+// смена маршрута не выкидывает из аккаунта.
+function routeUrl(url) {
+  const s = String(url);
+  if (sbRoute !== "proxy") return s;
+  return s.indexOf(SUPABASE_URL) === 0 ? SB_PROXY_BASE + s.slice(SUPABASE_URL.length) : s;
+}
+function routeInput(input) {
+  if (typeof input === "string") return routeUrl(input);
+  if (typeof URL !== "undefined" && input instanceof URL) return routeUrl(String(input));
+  if (input && typeof input.url === "string") return new Request(routeUrl(input.url), input);
+  return input;
+}
+
+// Ручной тумблер для поддержки, по образцу неприметного переключателя хранилища:
+//   ?route=proxy  - принудительно запасной маршрут (запоминается на сутки)
+//   ?route=direct - принудительно прямой (память стирается)
+// На экране ничего не рисуем: это инструмент поддержки, а не настройка для подписчицы.
+(function applyRouteOverride() {
+  try {
+    const p = new URLSearchParams(location.search).get("route");
+    if (p === "proxy") { writeRoute("manual"); sbRoute = "proxy"; }
+    else if (p === "direct") { clearRoute(); sbRoute = "direct"; }
+  } catch (e) {}
+})();
+
 // Lava назад не редиректит -> сохраняем order_reference (=invoice.id) в localStorage при уходе на оплату,
 // по возвращении мост "Я оплатил" скармливает его в существующий поток resolve-paid-order -> пароль.
 const LAVA_RETURN_KEY = "irenabio_lava_return";
@@ -113,11 +239,21 @@ const els = {
 // global.fetch с таймаутом: supabase-js ходит в сеть своим fetch (мимо sbFetch), и без
 // таймаута зависший refresh токена держит экран бесконечно. Только таймаут, БЕЗ повтора -
 // повторять signUp/signInWithPassword нельзя.
-function sbAuthFetch(input, init) {
+// Маршрут выбираем ЗДЕСЬ и ДО отправки, поэтому пересылать ничего не нужно.
+async function sbAuthFetch(input, init) {
+  const used = await ensureRoute();
   const ctrl = new AbortController();
   const tm = setTimeout(() => ctrl.abort(), SB_TIMEOUT_MS);
-  return fetch(input, Object.assign({}, init || {}, { signal: ctrl.signal }))
-    .finally(() => clearTimeout(tm));
+  try {
+    return await fetch(routeInput(input), Object.assign({}, init || {}, { signal: ctrl.signal }));
+  } catch (e) {
+    // Запрос НЕ пересылаем. Сбрасываем решение (а если падали ПО ПРОКСИ - и память),
+    // чтобы СЛЕДУЮЩИЙ запрос, включая авто-обновление токена, пробил пути заново.
+    routeFailed(used);
+    throw e;
+  } finally {
+    clearTimeout(tm);
+  }
 }
 const sb = (window.supabase && window.supabase.createClient)
   ? window.supabase.createClient(SUPABASE_URL, PUBLISHABLE_KEY, { global: { fetch: sbAuthFetch } })
@@ -220,13 +356,14 @@ async function sbFetchOnce(url, options) {
 // Главная обёртка. Никогда не бросает - всегда возвращает объект с полем state.
 // opts.retry=true разрешён ТОЛЬКО для чтения и идемпотентного (см. список в шапке коммита).
 async function sbFetch(url, options, opts) {
+  await ensureRoute();
   const attempts = (opts && opts.retry) ? SB_MAX_ATTEMPTS : 1;
   const onAttempt = opts && opts.onAttempt;
   let lastReason = "network_error";
   for (let attempt = 1; attempt <= attempts; attempt++) {
     if (onAttempt) { try { onAttempt(attempt, attempts); } catch (e) {} }
     try {
-      const r = await sbFetchOnce(url, options);
+      const r = await sbFetchOnce(routeUrl(url), options);
       if (r.res.ok) return { state: "ok", res: r.res, data: r.data, status: r.res.status };
       if (r.res.status === 401 || r.res.status === 403) {
         return { state: "denied", res: r.res, data: r.data, status: r.res.status };
@@ -239,6 +376,17 @@ async function sbFetch(url, options, opts) {
     }
   }
   console.warn("sbFetch unreachable:", url, lastReason);
+  // Маршрут пересматриваем ВСЕГДА: следующие вызовы уйдут по живому пути.
+  // А сам запрос повторяем на новом маршруте ТОЛЬКО если вызов уже объявлен идемпотентным
+  // (opts.retry) и маршрут реально сменился. Ровно один раз: во вложенном вызове retry:false,
+  // поэтому второй пересылки быть не может. Для неидемпотентных вызовов (создание оплаты)
+  // пересылки нет ни в одном сценарии.
+  const usedRoute = sbRoute;
+  routeFailed(usedRoute);                     // память значит "работал", а не "навсегда"
+  const routeAfter = await ensureRoute(true);
+  if (routeAfter !== usedRoute && opts && opts.retry) {
+    return sbFetch(url, options, { retry: false, onAttempt: onAttempt });
+  }
   return { state: "unreachable", data: {}, status: 0, reason: lastReason };
 }
 
@@ -1941,6 +2089,11 @@ function openSprint() {
     if (sd && !sd.classList.contains("locked")) { openDay(sd.getAttribute("data-day-id")); return; }
   });
 })();
+
+// Прогрев маршрута: решение должно быть готово ДО того, как женщина нажмёт "Войти",
+// иначе проба ляжет в критический путь входа. Здесь, а не выше по файлу, потому что
+// индикатору нужен уже инициализированный homeEls.
+ensureRoute();
 
 // --- старт: ветвление возврат-после-оплаты / дом / чекаут ---
 const startParams = new URLSearchParams(location.search);
