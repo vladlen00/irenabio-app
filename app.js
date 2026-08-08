@@ -1720,21 +1720,54 @@ async function routeHomeOrCheckout() {
 let homeData = null;
 let currentDayId = null;
 
+// ===================== АВТОФОЛБЭК ХРАНИЛИЩА ЗВУКА =====================
+// Гео-выбор хранилища в get-day идёт по cf-connecting-ip. При работе через прокси
+// Cloudflare видит IP Vercel, а не телефон подписчицы -> россиянку может увести в
+// MinIO Алматы, который у неё мёртв (замер 05.08: Timeweb 329мс OK, MinIO 8004мс FAIL).
+// Лечим по факту: не загрузилось -> сами повторяем get-day с другим force_host.
+
+const AUDIO_WATCHDOG_MS  = 4000;  // тишина дольше -> хост считаем мёртвым (живой отвечает за ~0.3с)
+const AUDIO_SPINNER_MS   = 800;   // раньше не мигаем, позже тишина читается как "сломалось"
+const AUDIO_FAST_FAIL_MS = 2000;  // отказ быстрее -> похоже на протухшую подпись, а не на мёртвый хост
+const AUDIO_HOST_KEY     = "irenabio_audio_host";
+
+// sessionStorage, НЕ localStorage: женщина включает и выключает VPN, ездит. Прибитый
+// навсегда хост однажды окажется мёртвым. Память значит "работал", а не "навсегда".
+function rememberedAudioHost() {
+  try { const v = sessionStorage.getItem(AUDIO_HOST_KEY); return (v === "timeweb" || v === "minio") ? v : null; }
+  catch (e) { return null; }
+}
+function rememberAudioHost(h) {
+  if (h !== "timeweb" && h !== "minio") return;
+  try { sessionStorage.setItem(AUDIO_HOST_KEY, h); } catch (e) {}
+}
+// blockId -> {tried:Set, refreshed:Set}. Держит лестницу от качелей: больше двух хостов не бывает.
+const audioTries = new Map();
+function resetAudioTries() { audioTries.clear(); }
+
 // ===================== ГЛОБАЛЬНЫЙ ПЛЕЕР (один <audio> над экранами + мини-плеер) =====================
 // track = {dayId, blockId, title, url, host, duration}. Блок дня и мини-плеер управляют ОДНИМ аудио.
 const player = (function () {
   let audio = null, track = null;
+  let wdTimer = null, spinTimer = null, aliveSeen = false, srcAt = 0, failedOnce = false;
+  let onFailure = null, onAlive = null;
   const g = (id) => document.getElementById(id);
   function fmt(x) { x = Math.max(0, Math.floor(Number(x) || 0)); const m = Math.floor(x / 60), s = x % 60; return m + ":" + String(s).padStart(2, "0"); }
   function playTrack(t) {
     if (!audio || !t || !t.url) return;
     if (track && track.blockId === t.blockId) { toggle(); return; }
-    track = t; audio.src = t.url; audio.play().catch(() => {}); show(); renderAll();
+    // Осознанный тап = свежий шанс: если лестница по этому блоку уже исчерпана,
+    // а связь с тех пор починилась, повторное нажатие не должно сдаваться молча.
+    audioTries.delete(t.blockId);
+    track = t; audio.src = t.url; armWatchdog();
+    // NotAllowedError - политика автоплея, а не отказ хранилища. Хостом это не считаем.
+    audio.play().catch((e) => { if (e && e.name !== "NotAllowedError") failNow("play_rejected"); });
+    show(); renderAll();
   }
   function toggle() { if (!audio || !track) return; if (audio.paused) audio.play().catch(() => {}); else audio.pause(); }
   function seek(d) { if (!audio || !track) return; const dur = isFinite(audio.duration) ? audio.duration : (track.duration || 1e9); audio.currentTime = Math.max(0, Math.min(dur, audio.currentTime + d)); }
   function seekTo(ratio) { if (!audio || !track || !isFinite(audio.duration)) return; audio.currentTime = ratio * audio.duration; }
-  function dismiss() { if (!audio) return; audio.pause(); track = null; hide(); renderAll(); }
+  function dismiss() { if (!audio) return; clearWatchdog(); audio.pause(); track = null; hide(); renderAll(); }
   function show() { const m = g("mini-player"); if (m) { m.hidden = false; document.body.classList.add("has-mini"); } }
   function hide() { const m = g("mini-player"); if (m) { m.hidden = true; document.body.classList.remove("has-mini"); } }
   function renderMini() {
@@ -1765,9 +1798,48 @@ const player = (function () {
     if (!audio || !track || track.blockId !== blockId || !newUrl || audio.src === newUrl) return;
     const pos = audio.currentTime, wasPlaying = !audio.paused;
     track.url = newUrl; track.host = newHost; audio.src = newUrl;
+    armWatchdog();   // новый источник тоже может оказаться мёртвым - сторож нужен и здесь
     const once = () => { try { audio.currentTime = pos; } catch (e) {} if (wasPlaying) audio.play().catch(() => {}); audio.removeEventListener("loadedmetadata", once); };
     audio.addEventListener("loadedmetadata", once);
   }
+
+  // ---- сторож тишины ----
+  // Мёртвый хост НЕ бросает error, он молчит (замер: 8с без единого байта). Поэтому
+  // отказ ловим не событием, а отсутствием признаков жизни. Любой байт сбрасывает сторож,
+  // поэтому медленный-но-живой хост не пострадает и женщину с него не уведут.
+  function setLoading(on) {
+    const card = track && document.querySelector('#day-blocks .blk-audio[data-block-id="' + track.blockId + '"]');
+    if (card) card.classList.toggle("loading", !!on);
+    const mp = g("mini-player"); if (mp) mp.classList.toggle("loading", !!on);
+  }
+  function armWatchdog() {
+    clearWatchdog();
+    aliveSeen = false; failedOnce = false; srcAt = Date.now();
+    spinTimer = setTimeout(() => { if (!aliveSeen) setLoading(true); }, AUDIO_SPINNER_MS);
+    wdTimer = setTimeout(() => { if (!aliveSeen) failNow("silence"); }, AUDIO_WATCHDOG_MS);
+  }
+  function clearWatchdog() {
+    if (wdTimer) clearTimeout(wdTimer);
+    if (spinTimer) clearTimeout(spinTimer);
+    wdTimer = null; spinTimer = null;
+    setLoading(false);
+  }
+  function markAlive() {
+    if (aliveSeen) return;
+    aliveSeen = true; clearWatchdog();
+    if (track && onAlive) onAlive({ blockId: track.blockId, host: track.host });
+  }
+  function failNow(reason) {
+    if (!track || failedOnce) return;   // сторож и error могут прийти оба - лестницу запускаем один раз
+    failedOnce = true;
+    const elapsed = Date.now() - srcAt;
+    clearWatchdog();
+    const info = { dayId: track.dayId, blockId: track.blockId, host: track.host, reason: reason, elapsed: elapsed };
+    if (onFailure) onFailure(info);
+  }
+  // оба хранилища мертвы: не оставляем вид "играет", когда не играет
+  function failStop() { clearWatchdog(); if (audio) audio.pause(); renderAll(); }
+  function setHandlers(h) { onFailure = h && h.onFailure; onAlive = h && h.onAlive; }
   function init() {
     audio = g("app-audio"); if (!audio) return;
     audio.addEventListener("play", renderAll);
@@ -1775,6 +1847,14 @@ const player = (function () {
     audio.addEventListener("ended", renderAll);
     audio.addEventListener("loadedmetadata", renderAll);
     audio.addEventListener("timeupdate", renderDayBlock);
+    // признаки жизни хранилища: любой из них снимает сторож
+    ["progress", "loadedmetadata", "canplay", "playing", "timeupdate"].forEach((ev) => audio.addEventListener(ev, markAlive));
+    // MEDIA_ERR_ABORTED (code 1) прилетает от НАШЕЙ же подмены src в swapCurrentUrl.
+    // Считать это отказом хранилища значит запустить лестницу на себя же.
+    audio.addEventListener("error", () => {
+      if (audio.error && audio.error.code === 1) return;
+      failNow("error");
+    });
     const bind = (id, fn) => { const e = g(id); if (e) e.addEventListener("click", (ev) => { ev.preventDefault(); fn(); }); };
     bind("mp-play", toggle);
     bind("mp-back", () => seek(-15));
@@ -1783,8 +1863,11 @@ const player = (function () {
     bind("mp-title", () => { if (track) openDay(track.dayId); });
   }
   init();
-  return { playTrack, toggle, seek, seekTo, dismiss, renderAll, swapCurrentUrl, current: () => track };
+  return { playTrack, toggle, seek, seekTo, dismiss, renderAll, swapCurrentUrl, current: () => track, setHandlers, failStop };
 })();
+
+// Лестница фолбэка. Функции объявлены ниже по файлу (function declaration -> подняты).
+player.setHandlers({ onFailure: onAudioFailure, onAlive: onAudioAlive });
 
 // Токен для внутренних экранов. Сохранена прежняя сигнатура (null = токена нет),
 // но теперь вызывающий может отличить "сессии нет" от "не смогли обновить" через
@@ -1876,18 +1959,19 @@ function renderBlock(b) {
 function wireBlocks(root) {
   root.querySelectorAll(".blk-audio").forEach((card) => {
     const bid = card.getAttribute("data-block-id");
-    const url = card.getAttribute("data-url");
-    const host = card.getAttribute("data-host");
     const title = card.getAttribute("data-title");
     const duration = Number(card.getAttribute("data-duration")) || 0;
-    const trackOf = () => ({ dayId: currentDayId, blockId: bid, title, url, host, duration });
+    // url и host читаем из DOM В МОМЕНТ КЛИКА, а не при навешивании: автофолбэк
+    // подменяет их прямо в атрибутах, и замороженное в замыкании значение играло бы мёртвое.
+    const urlNow = () => card.getAttribute("data-url");
+    const trackOf = () => ({ dayId: currentDayId, blockId: bid, title, url: urlNow(), host: card.getAttribute("data-host"), duration });
     const playBtn = card.querySelector(".audio-play");
-    if (playBtn) playBtn.addEventListener("click", () => { if (url) player.playTrack(trackOf()); });
+    if (playBtn) playBtn.addEventListener("click", () => { if (urlNow()) player.playTrack(trackOf()); });
     card.querySelectorAll(".audio-seek").forEach((sb) => sb.addEventListener("click", () => {
       const d = Number(sb.getAttribute("data-seek")) || 0;
       const cur = player.current();
       if (cur && cur.blockId === bid) player.seek(d);
-      else if (url) { player.playTrack(trackOf()); player.seek(d); }
+      else if (urlNow()) { player.playTrack(trackOf()); player.seek(d); }
     }));
     const bar = card.querySelector(".audio-bar");
     if (bar) bar.addEventListener("click", (e) => {
@@ -1904,6 +1988,11 @@ function wireBlocks(root) {
       const other = used === "timeweb" ? "minio" : "timeweb";
       hint.classList.add("busy");
       hint.textContent = "Переключаем, попробуйте ещё раз…";
+      // Женщина сама подтвердила выбор -> запоминаем на сессию. Счётчики попыток
+      // сбрасываем, иначе исчерпанная лестница молча съест следующий отказ.
+      rememberAudioHost(other);
+      resetAudioTries();
+      console.log("[audio] ручное переключение на " + other);
       openDay(currentDayId, other);
     });
   });
@@ -1951,6 +2040,91 @@ function renderDay(data) {
   setDoneState(doneBtn, completed.has(day.id));
 }
 
+// ===================== ЛЕСТНИЦА ФОЛБЭКА ЗВУКА =====================
+// Тихий перезапрос дня: НЕ трогает DOM и не показывает "загрузка". Намеренно не
+// переиспользует openDay - тот чистит блоки и перерисовывает день, то есть мигает.
+async function fetchDaySilently(dayId, forceHost) {
+  const s = await getSessionState({ retry: true });
+  if (s.state !== "ok") return null;
+  const r = await sbFetch(GET_DAY_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + s.token },
+    body: JSON.stringify({ day_id: dayId, force_host: forceHost }),
+  }, { retry: true });   // get-day - чтение, идемпотентно
+  const data = r.data || {};
+  return (r.state === "ok" && data.access) ? data : null;
+}
+
+// Подменяем ссылки во ВСЕХ аудио-карточках дня, а не только в упавшей: следующий
+// подкаст должен открыться с живого хранилища сразу, без ещё одного сторожа.
+function patchDayAudio(data, dayId) {
+  if (currentDayId !== dayId) return;   // женщина уже ушла на другой день
+  const root = document.getElementById("day-blocks");
+  if (!root) return;
+  for (const b of (data.blocks || [])) {
+    if (!b || !b.url || b.block_type !== "audio") continue;
+    const card = root.querySelector('.blk-audio[data-block-id="' + b.id + '"]');
+    if (!card) continue;
+    card.setAttribute("data-url", b.url);
+    card.setAttribute("data-host", b.host || "");
+    // подсказку тоже: иначе ручное переключение после автоподмены уведёт не туда
+    const hint = card.querySelector(".audio-hosthint");
+    if (hint) hint.setAttribute("data-host", b.host || "");
+  }
+}
+
+async function retryAudioWithHost(info, host) {
+  const data = await fetchDaySilently(info.dayId, host);
+  if (!data) return false;
+  patchDayAudio(data, info.dayId);
+  const blk = (data.blocks || []).find((b) => b && b.id === info.blockId);
+  if (!blk || !blk.url) return false;
+  // сохраняет позицию и play/pause и сам заводит сторож на новый источник
+  player.swapCurrentUrl(info.blockId, blk.url, blk.host || host);
+  return true;
+}
+
+function audioGiveUp(blockId) {
+  player.failStop();
+  const root = document.getElementById("day-blocks");
+  const card = root && root.querySelector('.blk-audio[data-block-id="' + blockId + '"]');
+  const hint = card && card.querySelector(".audio-hosthint");
+  if (hint) { hint.classList.remove("busy"); hint.textContent = "Звук не загрузился. Проверьте связь или нажмите здесь."; }
+}
+
+function onAudioAlive(info) {
+  console.log("[audio] играет с " + info.host);
+  rememberAudioHost(info.host);
+  audioTries.delete(info.blockId);
+}
+
+// Лестница: 1) как есть -> 2) то же хранилище со свежей ссылкой (только на быстрый
+// отказ: presign живёт 3600с и протухает) -> 3) другое хранилище -> 4) сдаёмся.
+async function onAudioFailure(info) {
+  let st = audioTries.get(info.blockId);
+  if (!st) { st = { tried: new Set(), refreshed: new Set() }; audioTries.set(info.blockId, st); }
+  st.tried.add(info.host);
+
+  const fastFail = (info.reason === "error" || info.reason === "play_rejected") && info.elapsed < AUDIO_FAST_FAIL_MS;
+  if (fastFail && !st.refreshed.has(info.host)) {
+    st.refreshed.add(info.host);
+    console.log("[audio] быстрый отказ " + info.host + " за " + info.elapsed + "мс (" + info.reason + ") -> свежая ссылка того же хранилища");
+    if (await retryAudioWithHost(info, info.host)) return;
+  }
+
+  const other = info.host === "timeweb" ? "minio" : "timeweb";
+  if (st.tried.has(other)) {
+    console.log("[audio] оба хранилища не отвечают, сдаёмся");
+    audioGiveUp(info.blockId);
+    return;
+  }
+  console.log("[audio] " + info.host + " не отвечает (" + info.reason + ", " + info.elapsed + "мс) -> переключаемся на " + other);
+  if (!(await retryAudioWithHost(info, other))) {
+    console.log("[audio] переключиться на " + other + " не удалось");
+    audioGiveUp(info.blockId);
+  }
+}
+
 // Открыть день: get-day -> рендер блоков. forceHost (timeweb|minio) - ручное переключение хранилища.
 async function openDay(dayId, forceHost) {
   currentDayId = dayId;
@@ -1966,7 +2140,10 @@ async function openDay(dayId, forceHost) {
   if (s.state === "unreachable") { loading.hidden = true; showConnection(() => openDay(dayId, forceHost)); return; }
   if (s.state !== "ok") { loading.hidden = true; errEl.textContent = "Сессия истекла. Обновите страницу."; errEl.hidden = false; return; }
   const body = { day_id: dayId };
-  if (forceHost) body.force_host = forceHost;
+  // Запомненное за сессию живое хранилище подставляем сами: иначе на каждом подкасте
+  // придётся заново ждать сторож. Явный ручной выбор всегда сильнее памяти.
+  const host = forceHost || rememberedAudioHost();
+  if (host) body.force_host = host;
   // get-day - чтение, идемпотентно -> автоповтор разрешён
   const r = await sbFetch(GET_DAY_URL, {
     method: "POST",

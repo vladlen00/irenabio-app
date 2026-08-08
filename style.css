@@ -323,6 +323,18 @@ a:hover { text-decoration: underline; }
 .audio-hosthint { margin-top: 10px; text-align: center; font-size: 11px; color: var(--hosthint); cursor: pointer; }
 .audio-hosthint:hover { color: var(--muted-home); text-decoration: underline; }
 .audio-hosthint.busy { opacity: .6; pointer-events: none; }
+/* Спиннер загрузки звука. Класс висит на КАРТОЧКЕ, а не на иконке: renderDayBlock
+   переписывает класс у <i> на каждом кадре и затёр бы спиннер. */
+.blk-audio.loading .audio-play i,
+#mini-player.loading #mp-play i { visibility: hidden; }
+.blk-audio.loading .audio-play::after,
+#mini-player.loading #mp-play::after {
+  content: ""; position: absolute; width: 20px; height: 20px; border-radius: 50%;
+  border: 2px solid var(--on-accent); border-top-color: transparent;
+  animation: audioSpin .8s linear infinite;
+}
+.blk-audio.loading .audio-play, #mini-player.loading #mp-play { position: relative; }
+@keyframes audioSpin { to { transform: rotate(360deg); } }
 
 /* --- блок text + "читать дальше" --- */
 .blk-text { margin-bottom: 16px; }
