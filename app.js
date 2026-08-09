@@ -1033,7 +1033,6 @@ function showHomeShell() {
 // Ответ get-home бывает двух форм: старой (sprint + days) и новой (sprints[]).
 // Сворачиваем обе к одному списку, чтобы остальной код о разнице не знал.
 let currentSprintId = null;   // спринт, показанный на доме
-let sprintBackTo = "home";    // куда возвращает стрелка с экрана спринта
 
 function homeSprints(data) {
   if (!data) return [];
@@ -1058,6 +1057,7 @@ function pickCurrentSprint(sprints, completed) {
 // Рендер дома из ответа get-home (реальные данные)
 function renderHome(data) {
   homeData = data;   // сохраняем для экранов спринт/день и обновления прогресса
+  navStack = [];     // дом - основание стека: пришли сюда, история пройдена
   const completed = new Set((data.progress && data.progress.completed_day_ids) || []);
   const sprint = pickCurrentSprint(homeSprints(data), completed);
   currentSprintId = sprint ? sprint.id : null;
@@ -1719,7 +1719,10 @@ async function routeHomeOrCheckout() {
   showHomeShell(); // чекаут скрыт, показываем загрузку дома, пока проверяем доступ
   const s = await getSessionState({ retry: true, onAttempt: homeProgress });
   if (s.state === "unreachable") { showConnection(routeHomeOrCheckout); return; }
-  if (s.state !== "ok") { showCheckout(); return; }   // сессия честно истекла
+  // Сессия честно истекла. НЕ чекаут: у платящей женщины ключ в localStorage есть,
+  // поэтому ранняя ветка showStart выше не сработала, и она упиралась в предложение
+  // купить второй раз - без единой кнопки "Войти". Старт даёт обе двери сразу.
+  if (s.state !== "ok") { if (readLavaReturn()) showPayWait(); else showStart(); return; }
 
   // get-home - чтение, идемпотентно -> автоповтор разрешён
   const r = await sbFetch(GET_HOME_URL, {
@@ -1887,7 +1890,7 @@ const player = (function () {
     bind("mp-back", () => seek(-15));
     bind("mp-fwd", () => seek(15));
     bind("mp-close", dismiss);
-    bind("mp-title", () => { if (track) openDay(track.dayId); });
+    bind("mp-title", () => { if (track) navTo("day", track.dayId); });
   }
   init();
   return { playTrack, toggle, seek, seekTo, dismiss, renderAll, swapCurrentUrl, current: () => track, setHandlers, failStop };
@@ -2315,28 +2318,52 @@ function openSprints() {
   window.scrollTo(0, 0);
 }
 
+// ===================== СТЕК ЭКРАНОВ =====================
+// Возврат ведёт на ПРЕДЫДУЩИЙ экран, а не всегда на дом. Кадр = {view, arg}.
+// Дом - основание: пустой стек значит "мы дома", отдельным кадром он не лежит.
+// Новый экран стоит одной строки в NAV_VIEWS.
+const NAV_VIEWS = {
+  sprints: function () { openSprints(); },
+  sprint:  function (id) { openSprint(id); },
+  day:     function (id) { openDay(id); },
+};
+let navStack = [];
+function navTo(view, arg) {
+  const top = navStack[navStack.length - 1];
+  // повторный переход на тот же экран (напр. тап по мини-плееру на своём же дне)
+  // кадр не плодит, иначе "назад" вернёт туда же
+  if (!top || top.view !== view || top.arg !== arg) navStack.push({ view: view, arg: arg });
+  NAV_VIEWS[view](arg);
+}
+function navBack() {
+  navStack.pop();
+  const prev = navStack[navStack.length - 1];
+  if (!prev) { backToHome(); return; }
+  NAV_VIEWS[prev.view](prev.arg);
+}
+
 // Навигация: клики дома -> день/спринт, кнопки "назад", "пройдено" (делегирование + статичные кнопки).
 (function wireNav() {
   const dayBack = document.getElementById("day-back");
   const sprintBack = document.getElementById("sprint-back");
   const sprintsBack = document.getElementById("sprints-back");
   const dayDone = document.getElementById("day-done");
-  if (dayBack) dayBack.addEventListener("click", backToHome);
-  // Со спринта возврат туда, откуда пришли: дом или библиотека.
-  if (sprintBack) sprintBack.addEventListener("click", () => { if (sprintBackTo === "sprints") openSprints(); else backToHome(); });
-  if (sprintsBack) sprintsBack.addEventListener("click", backToHome);
+  // Все три стрелки - один навык: шаг назад по стеку.
+  if (dayBack) dayBack.addEventListener("click", navBack);
+  if (sprintBack) sprintBack.addEventListener("click", navBack);
+  if (sprintsBack) sprintsBack.addEventListener("click", navBack);
   if (dayDone) dayDone.addEventListener("click", markDone);
   document.addEventListener("click", (e) => {
     const cta = e.target.closest(".home-cta[data-day-id]");
-    if (cta) { openDay(cta.getAttribute("data-day-id")); return; }
+    if (cta) { navTo("day", cta.getAttribute("data-day-id")); return; }
     const all = e.target.closest("#home-alldays");
-    if (all) { sprintBackTo = "home"; openSprint(currentSprintId); return; }
+    if (all) { navTo("sprint", currentSprintId); return; }
     const arch = e.target.closest(".t5-archive");
-    if (arch) { openSprints(); return; }
+    if (arch) { navTo("sprints"); return; }
     const sc = e.target.closest(".sprints-card[data-sprint-id]");
-    if (sc) { sprintBackTo = "sprints"; openSprint(sc.getAttribute("data-sprint-id")); return; }
+    if (sc) { navTo("sprint", sc.getAttribute("data-sprint-id")); return; }
     const sd = e.target.closest(".sprint-day[data-day-id]");
-    if (sd && !sd.classList.contains("locked")) { openDay(sd.getAttribute("data-day-id")); return; }
+    if (sd && !sd.classList.contains("locked")) { navTo("day", sd.getAttribute("data-day-id")); return; }
   });
 })();
 
