@@ -1740,8 +1740,16 @@ async function routeHomeOrCheckout() {
   // Раньше тут стоял "безопасный дефолт: чекаут", и платящая подписчица при обрыве
   // видела экран оплаты и могла заплатить второй раз.
   if (r.state === "unreachable") { showConnection(routeHomeOrCheckout); return; }
-  // denied (401/403) или бизнес-ошибка -> сервер ответил, доступа нет -> чекаут
-  showCheckout();
+  // sbFetch схлопывает 401 и 403 в одно "denied", а get-home их различает строго:
+  //   403 - токен живой, вердикт "доступа нет" (no_account / no_subscription / expired) -> чекаут;
+  //   401 - токен пуст или не принят GoTrue, то есть СЕССИЯ МЕРТВА -> нужна кнопка "Войти".
+  // Без этого деления платящая женщина с протухшим токеном снова упирается в оплату:
+  // getSessionState отдаёт "ok" (токен в хранилище есть), и ранняя развилка не срабатывает.
+  if (r.state === "denied" && r.status === 403) { showCheckout(); return; }
+  if (r.state === "denied") { if (readLavaReturn()) showPayWait(); else showStart(); return; }
+  // Всё остальное - неожиданный 4xx, кривой ответ - это НЕ вердикт о подписке.
+  // По правилу v57: нет вердикта - нет чекаута.
+  showConnection(routeHomeOrCheckout);
 }
 
 // ===================== ЭКРАНЫ ДЕНЬ / СПРИНТ =====================
