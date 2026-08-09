@@ -11,7 +11,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png?v=1">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=1">
   <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=1">
-  <link rel="stylesheet" href="style.css?v=43">
+  <link rel="stylesheet" href="style.css?v=44">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -189,7 +189,7 @@
             <div class="t5" data-app="relax" role="button" style="cursor:pointer"><i class="ti ti-flower"></i><div class="t5n">Расслабление</div><div class="t5s">медитации, дыхание</div></div>
             <div class="t5" data-group="trackers" role="button" style="cursor:pointer"><i class="ti ti-chart-line"></i><div class="t5n">Трекеры</div><div class="t5s">здоровье и цикл</div></div>
             <div class="t5"><i class="ti ti-bookmarks"></i><div class="t5n">Справочники</div><div class="t5s">добавки, анализы</div></div>
-            <div class="t5 t5-archive"><i class="ti ti-layout-grid"></i><div class="t5n">Все спринты</div><div class="t5s">архив</div></div>
+            <div class="t5 t5-archive" role="button" style="cursor:pointer"><i class="ti ti-layout-grid"></i><div class="t5n">Все спринты</div><div class="t5s">библиотека</div></div>
           </div>
 
           <div class="card home-sub" id="home-sub-card" role="button">
@@ -225,6 +225,23 @@
             <div class="sprint-progress"><div class="sprint-progress-bar" id="sprint-bar"></div></div>
           </div>
           <div id="sprint-days"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ЭКРАН ВСЕ СПРИНТЫ: библиотека (текущий + остальные) -->
+    <section id="view-sprints" hidden>
+      <div class="day">
+        <div class="day-hero">
+          <div class="day-topbar">
+            <div class="day-back" id="sprints-back" role="button" aria-label="Назад"><i class="ti ti-arrow-left"></i></div>
+            <span class="day-kicker">БИБЛИОТЕКА</span>
+          </div>
+          <div class="day-title">Все спринты</div>
+          <div class="sprint-sub">Берите то, что нужно сейчас. Порядок не важен.</div>
+        </div>
+        <div class="day-body">
+          <div id="sprints-list"></div>
         </div>
       </div>
     </section>
@@ -501,6 +518,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=59"></script>
+  <script src="app.js?v=60"></script>
 </body>
 </html>

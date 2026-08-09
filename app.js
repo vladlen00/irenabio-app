@@ -1029,12 +1029,39 @@ function showHomeShell() {
   homeEls.content.hidden = true;
 }
 
+// ===================== БИБЛИОТЕКА СПРИНТОВ =====================
+// Ответ get-home бывает двух форм: старой (sprint + days) и новой (sprints[]).
+// Сворачиваем обе к одному списку, чтобы остальной код о разнице не знал.
+let currentSprintId = null;   // спринт, показанный на доме
+let sprintBackTo = "home";    // куда возвращает стрелка с экрана спринта
+
+function homeSprints(data) {
+  if (!data) return [];
+  if (Array.isArray(data.sprints) && data.sprints.length) return data.sprints;
+  if (data.sprint) return [Object.assign({}, data.sprint, { days: data.days || [] })];
+  return [];
+}
+// Текущий = идущий спринт. Если идущего нет (библиотека из одних архивных) -
+// тот, в котором женщина остановилась на середине, иначе первый по порядку.
+function pickCurrentSprint(sprints, completed) {
+  const active = sprints.find((s) => s.status === "active");
+  if (active) return active;
+  let best = null, bestDone = -1;
+  for (const s of sprints) {
+    const days = s.days || [];
+    const done = days.filter((d) => completed.has(d.id)).length;
+    if (done > 0 && done < days.length && done > bestDone) { best = s; bestDone = done; }
+  }
+  return best || sprints[0] || null;
+}
+
 // Рендер дома из ответа get-home (реальные данные)
 function renderHome(data) {
   homeData = data;   // сохраняем для экранов спринт/день и обновления прогресса
-  const sprint = data.sprint || null;
-  const days = Array.isArray(data.days) ? data.days.slice().sort((a, b) => a.day_number - b.day_number) : [];
   const completed = new Set((data.progress && data.progress.completed_day_ids) || []);
+  const sprint = pickCurrentSprint(homeSprints(data), completed);
+  currentSprintId = sprint ? sprint.id : null;
+  const days = sprint && Array.isArray(sprint.days) ? sprint.days.slice().sort((a, b) => a.day_number - b.day_number) : [];
   const completedVisible = days.filter((d) => completed.has(d.id)).length;
   const nextDay = days.find((d) => !completed.has(d.id)) || null;
   const sprintTitle = sprint ? sprint.title : "";
@@ -1878,6 +1905,7 @@ async function getToken() {
 }
 function hideContentViews() {
   els.viewHome.hidden = true;
+  const vss = document.getElementById("view-sprints"); if (vss) vss.hidden = true;
   const vs = document.getElementById("view-sprint"); if (vs) vs.hidden = true;
   const vd = document.getElementById("view-day"); if (vd) vd.hidden = true;
   const vsub = document.getElementById("view-subscription"); if (vsub) vsub.hidden = true;
@@ -2212,16 +2240,16 @@ function dayShortTitle(title) {
 }
 
 // Экран спринта: список дней из homeData (доступные по publish_at уже отфильтрованы get-home).
-function openSprint() {
-  if (!homeData || !homeData.sprint) return;
+function openSprint(sprintId) {
+  const sprint = homeSprints(homeData).find((s) => s.id === sprintId) || null;
+  if (!sprint) return;
   hideContentViews();
   document.getElementById("view-sprint").hidden = false;
-  const sprint = homeData.sprint;
-  const days = (homeData.days || []).slice().sort((a, b) => a.day_number - b.day_number);
+  const days = (sprint.days || []).slice().sort((a, b) => a.day_number - b.day_number);
   const completed = new Set((homeData.progress && homeData.progress.completed_day_ids) || []);
   const completedVisible = days.filter((d) => completed.has(d.id)).length;
   const nextDay = days.find((d) => !completed.has(d.id)) || null;
-  document.getElementById("sprint-kicker").textContent = "СПРИНТ";
+  document.getElementById("sprint-kicker").textContent = sprint.status === "active" ? "СПРИНТ" : "АРХИВ";
   setHeadline(document.getElementById("sprint-title"), sprint.title || "");
   document.getElementById("sprint-sub").textContent = "Авторская методика · проходите в своём темпе";
   const denom = sprint.estimated_days || days.length || 0;
@@ -2249,19 +2277,64 @@ function openSprint() {
   window.scrollTo(0, 0);
 }
 
+// Экран "Все спринты": текущий сверху, ниже остальные от свежих к старым.
+function sprintCardHtml(s, completed, kicker) {
+  const days = s.days || [];
+  const done = days.filter((d) => completed.has(d.id)).length;
+  const denom = s.estimated_days || days.length || 0;
+  const tilde = s.status === "active" ? "~" : "";
+  const pct = denom > 0 ? Math.max(2, Math.min(100, Math.round(done / denom * 100))) : 2;
+  const started = done > 0 && done < days.length;
+  return '<div class="card sprints-card" data-sprint-id="' + escapeHtml(s.id) + '" role="button">' +
+    (kicker ? '<div class="sprints-kicker">' + escapeHtml(kicker) + '</div>' : '') +
+    '<div class="sprints-top">' +
+      '<div class="sprints-title">' + escapeHtml(s.title || "") + '</div>' +
+      '<div class="sprints-badge">' + done + ' из ' + tilde + denom + '</div>' +
+    '</div>' +
+    '<div class="home-progress"><div class="home-progress-bar" style="width:' + pct + '%"></div></div>' +
+    (started ? '<div class="sprints-note">Продолжить</div>' : '') +
+    '</div>';
+}
+
+function openSprints() {
+  const completed = new Set((homeData && homeData.progress && homeData.progress.completed_day_ids) || []);
+  const all = homeSprints(homeData);
+  const current = pickCurrentSprint(all, completed);
+  const rest = all.filter((s) => !current || s.id !== current.id)
+                  .slice().sort((a, b) => (b.order_index || 0) - (a.order_index || 0));
+  hideContentViews();
+  document.getElementById("view-sprints").hidden = false;
+  let html = "";
+  if (current) html += sprintCardHtml(current, completed, current.status === "active" ? "ИДЁТ СЕЙЧАС" : "ВЫ ОСТАНОВИЛИСЬ ЗДЕСЬ");
+  if (rest.length) {
+    html += '<div class="sprints-group">ОСТАЛЬНЫЕ</div>';
+    for (const s of rest) html += sprintCardHtml(s, completed, "");
+  }
+  if (!html) html = '<p class="home-loading">Пока ни одного спринта.</p>';
+  document.getElementById("sprints-list").innerHTML = html;
+  window.scrollTo(0, 0);
+}
+
 // Навигация: клики дома -> день/спринт, кнопки "назад", "пройдено" (делегирование + статичные кнопки).
 (function wireNav() {
   const dayBack = document.getElementById("day-back");
   const sprintBack = document.getElementById("sprint-back");
+  const sprintsBack = document.getElementById("sprints-back");
   const dayDone = document.getElementById("day-done");
   if (dayBack) dayBack.addEventListener("click", backToHome);
-  if (sprintBack) sprintBack.addEventListener("click", backToHome);
+  // Со спринта возврат туда, откуда пришли: дом или библиотека.
+  if (sprintBack) sprintBack.addEventListener("click", () => { if (sprintBackTo === "sprints") openSprints(); else backToHome(); });
+  if (sprintsBack) sprintsBack.addEventListener("click", backToHome);
   if (dayDone) dayDone.addEventListener("click", markDone);
   document.addEventListener("click", (e) => {
     const cta = e.target.closest(".home-cta[data-day-id]");
     if (cta) { openDay(cta.getAttribute("data-day-id")); return; }
     const all = e.target.closest("#home-alldays");
-    if (all) { openSprint(); return; }
+    if (all) { sprintBackTo = "home"; openSprint(currentSprintId); return; }
+    const arch = e.target.closest(".t5-archive");
+    if (arch) { openSprints(); return; }
+    const sc = e.target.closest(".sprints-card[data-sprint-id]");
+    if (sc) { sprintBackTo = "sprints"; openSprint(sc.getAttribute("data-sprint-id")); return; }
     const sd = e.target.closest(".sprint-day[data-day-id]");
     if (sd && !sd.classList.contains("locked")) { openDay(sd.getAttribute("data-day-id")); return; }
   });
