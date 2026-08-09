@@ -1441,6 +1441,31 @@ function openSheetByGroup(group) {
   });
 })();
 
+// ===================== ССЫЛКИ-МЕТКИ ВНУТРИ ДНЯ =====================
+// В текстах дней из канала остались кнопки вида "ОТКРЫТЬ ТРЕКЕР" и "ОТКРЫТЬ
+// В ПРИЛОЖЕНИИ" со ссылками на t.me - для веб-подписчицы это тупик. Вместо них
+// ставим обычную ссылку на свой же домен с меткой и ловим её здесь: женщина
+// попадает туда же, куда ведёт плитка на доме, вместе с токеном доступа.
+//
+// Новый тип блока НЕ нужен: mdLite уже делает ссылку из [текст](https://...),
+// база, content-admin, get-day и upload.mjs не меняются.
+// Старый бандл метку не поймает и просто откроет дом - это не тупик.
+const DAY_LINK_PREFIX = "https://app.irenabio.com/#/";
+const DAY_LINK_ROUTES = {
+  relax:     (el) => openMiniApp("relax", el),   // Студия: медитации, дыхание, плеер
+  trainings: () => openSheetByGroup("trainings"),
+  trackers:  () => openSheetByGroup("trackers"),
+};
+document.addEventListener("click", (e) => {
+  const a = e.target.closest('a[href^="' + DAY_LINK_PREFIX + '"]');
+  if (!a) return;
+  const key = a.getAttribute("href").slice(DAY_LINK_PREFIX.length).replace(/[/?#].*$/, "");
+  const go = DAY_LINK_ROUTES[key];
+  if (!go) return;   // незнакомая метка - пусть работает как обычная ссылка
+  e.preventDefault();
+  go(a);
+});
+
 // ===================== ЭКРАНЫ СТАРТ / ВХОД =====================
 // Незалогиненного встречает СТАРТ (выбор: войти / оформить), а не сразу checkout.
 function hideEntryViews() {
