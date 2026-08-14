@@ -1375,6 +1375,8 @@ const MINI_APPS = {
   zdorovie: { url: "https://biohack-tracker-blond.vercel.app/", v: "1", q: "startapp=checkin" },
   cycle: { url: "https://vladlen00.github.io/cycle/", v: "2" },
   relax: { url: "https://vladlen00.github.io/studio/", v: "8" },
+  // Тест «Возраст тела»: плитки на доме нет, открывается меткой из текста дня.
+  bodyage: { url: "https://vladlen00.github.io/bodyage/", v: "1" },
 };
 
 async function openMiniApp(appKey, tileEl) {
@@ -1455,6 +1457,7 @@ const DAY_LINK_ROUTES = {
   relax:     (el) => openMiniApp("relax", el),   // Студия: медитации, дыхание, плеер
   trainings: () => openSheetByGroup("trainings"),
   trackers:  () => openSheetByGroup("trackers"),
+  bodyage:   (el) => openMiniApp("bodyage", el), // тест «Возраст тела», день 1 спринта «Омоложение изнутри»
 };
 document.addEventListener("click", (e) => {
   const a = e.target.closest('a[href^="' + DAY_LINK_PREFIX + '"]');
