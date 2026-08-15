@@ -15,7 +15,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png?v=1">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=1">
   <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=1">
-  <link rel="stylesheet" href="style.css?v=45">
+  <link rel="stylesheet" href="style.css?v=46">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. У обоих есть кириллица
@@ -188,13 +188,23 @@
           </div>
 
           <div class="home-tools-h">Твои инструменты</div>
+
+          <!-- Подружка вынесена из сетки в широкую карточку на брендовом градиенте (макет).
+               data-app читает тот же делегат, что и плитки. -->
+          <div class="home-wide" data-app="podruzhka" role="button">
+            <i class="ti ti-sparkles home-wide-ic"></i>
+            <div class="home-wide-txt">
+              <b>Подружка</b>
+              <span class="home-wide-sub">спроси про добавки, цикл, самочувствие</span>
+            </div>
+          </div>
+
+          <!-- Сетка 2x2. Справочники убраны: аппа не существует, плитка вела в никуда. -->
           <div class="home-tools">
-            <div class="t5" data-group="trainings" role="button" style="cursor:pointer"><i class="ti ti-barbell"></i><div class="t5n">Тренировки</div><div class="t5s">и упражнения</div></div>
-            <div class="t5" data-app="podruzhka" role="button" style="cursor:pointer"><i class="ti ti-sparkles"></i><div class="t5n">Подружка</div><div class="t5s">AI-помощник</div></div>
-            <div class="t5" data-app="relax" role="button" style="cursor:pointer"><i class="ti ti-flower"></i><div class="t5n">Расслабление</div><div class="t5s">медитации, дыхание</div></div>
-            <div class="t5" data-group="trackers" role="button" style="cursor:pointer"><i class="ti ti-chart-line"></i><div class="t5n">Трекеры</div><div class="t5s">здоровье и цикл</div></div>
-            <div class="t5"><i class="ti ti-bookmarks"></i><div class="t5n">Справочники</div><div class="t5s">добавки, анализы</div></div>
-            <div class="t5 t5-archive" role="button" style="cursor:pointer"><i class="ti ti-layout-grid"></i><div class="t5n">Все спринты</div><div class="t5s">библиотека</div></div>
+            <div class="t5" data-group="trainings" role="button"><i class="ti ti-barbell"></i><div class="t5n">Тренировки</div><div class="t5s">и упражнения</div></div>
+            <div class="t5" data-app="relax" role="button"><i class="ti ti-flower"></i><div class="t5n">Расслабление</div><div class="t5s">медитации, дыхание</div></div>
+            <div class="t5" data-group="trackers" role="button"><i class="ti ti-chart-line"></i><div class="t5n">Трекеры</div><div class="t5s">здоровье и цикл</div></div>
+            <div class="t5 t5-archive" role="button"><i class="ti ti-layout-grid"></i><div class="t5n">Все спринты</div><div class="t5s">библиотека</div></div>
           </div>
 
           <div class="card home-sub" id="home-sub-card" role="button">
@@ -234,19 +244,17 @@
       </div>
     </section>
 
-    <!-- ЭКРАН ВСЕ СПРИНТЫ: библиотека (текущий + остальные) -->
+    <!-- ЭКРАН ВСЕ СПРИНТЫ: полка постеров 2 колонки, один хронологический список.
+         Градиентной шапки здесь нет (макет): заголовок стоит прямо на фоне страницы. -->
     <section id="view-sprints" hidden>
-      <div class="day">
-        <div class="day-hero">
-          <div class="day-topbar">
-            <div class="day-back" id="sprints-back" role="button" aria-label="Назад"><i class="ti ti-arrow-left"></i></div>
-            <span class="day-kicker">БИБЛИОТЕКА</span>
+      <div class="sprint">
+        <div class="lib-body">
+          <div class="lib-head">
+            <div class="lib-back" id="sprints-back" role="button" aria-label="Назад"><i class="ti ti-arrow-left"></i></div>
+            <h1 class="lib-title">Все спринты</h1>
+            <p class="lib-sub">Открыты все. Начни с того, что откликается сейчас</p>
           </div>
-          <div class="day-title">Все спринты</div>
-          <div class="sprint-sub">Все спринты открыты. Начни с того, что откликается сейчас.</div>
-        </div>
-        <div class="day-body">
-          <div id="sprints-list"></div>
+          <div class="shelf" id="sprints-list"></div>
         </div>
       </div>
     </section>
@@ -523,6 +531,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=65"></script>
+  <script src="app.js?v=66"></script>
 </body>
 </html>

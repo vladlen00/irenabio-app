@@ -36,7 +36,9 @@
   --accent-deep: #E4869B;       /* акцент как ТЕКСТ на тёмном = тот же розовый */
   --accent-light: #F0834E;      /* партнёр акцента (тёплый конец градиента) */
   --brand-grad: linear-gradient(100deg,#7B2E9E,#C63C74 52%,#F0834E);
-  --accent-grad-h: linear-gradient(90deg,#7B2E9E,#C63C74 52%,#F0834E);
+  /* Полосы прогресса и аудиобары: розовая пара из макета. Брендовый трёхстоповый
+     градиент на полосе в 6px сжимался в кашу - там нужен именно этот. */
+  --accent-grad-h: linear-gradient(90deg,#F2A0AE,#D4557E);
   --on-accent: #fff;            /* текст/иконки на БРЕНДОВОМ ГРАДИЕНТЕ (тёмный конец) */
   --ink-on-accent: #140A10;     /* текст/иконки на СПЛОШНОЙ светлой заливке (accent/success) */
   --cta-bg: var(--brand-grad);  /* заливка кнопки "Продолжить" */
@@ -48,10 +50,9 @@
   --warning: #F0B27A;           /* предупреждение */
 
   /* --- ФОНЫ/ГРАДИЕНТЫ --- */
-  /* hero: брендовый градиент, растворяющийся в фоне приложения (не плашка в полную силу) */
-  --hero-grad:
-    linear-gradient(152deg, rgba(123,46,158,.60) 0%, rgba(198,60,116,.42) 46%,
-                    rgba(240,131,78,.18) 74%, rgba(11,8,12,0) 100%), #0B080C;
+  /* hero и обложки-заглушки: винный градиент из макета. Подменится настоящей
+     обложкой спринта, когда появится sprints.cover_url. */
+  --hero-grad: linear-gradient(135deg,#4C2038 0%,#7A2E46 45%,#2A121F 100%);
   --task-bg: rgba(240,178,122,.07);       /* блок микрошага */
   --task-border: rgba(240,178,122,.16);
   --task-ink: #F0B27A;
@@ -84,7 +85,7 @@ body {
 /* Заголовки-дисплей: Playfair Display Medium. Мелкие титулы карточек остаются на Onest -
    у Playfair на 13-15px падает читаемость. */
 .checkout h1, .start-card h1, .login-card h1, .pending-card h1,
-.home-headline, .day-title, .home-tools-h {
+.home-headline, .day-title, .lib-title, .poster-info b {
   font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
   font-weight: 500;
   letter-spacing: -0.01em;
@@ -94,7 +95,7 @@ a { color: var(--accent-deep); text-decoration: none; }
 a:hover { text-decoration: underline; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); border: 0; }
 
-.wrap { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 18px; }
+.wrap { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 16px; }
 
 .site-header { padding: 18px 0; border-bottom: 1px solid var(--border); background: var(--surface); }
 .brand { display: flex; align-items: center; gap: 11px; }
@@ -106,7 +107,7 @@ a:hover { text-decoration: underline; }
 }
 .brand-name { font-size: 15px; font-weight: 700; }
 
-.checkout { padding: 30px 18px 10px; }
+.checkout { padding: 30px 16px 10px; }
 .checkout h1 { font-size: 26px; margin: 0 0 8px; text-align: center; }
 .checkout .lead { color: var(--muted); text-align: center; margin: 0 0 26px; font-size: 15px; }
 
@@ -237,15 +238,20 @@ a:hover { text-decoration: underline; }
 
 /* Шапка на радиальном градиенте (Вариант A) */
 .home-hero {
-  padding: 18px 18px 22px;
+  padding: 26px 22px 22px;
   border-radius: 26px;
+  margin-bottom: 12px;
   background: var(--hero-grad);
+  background-size: cover;
+  background-position: center right;
 }
-.home-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
+.home-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .home-hello { font-size: 17px; font-weight: 500; color: var(--ink-strong); }
 .home-menu { position: relative; }
-.home-menu-btn { width: 36px; height: 36px; border-radius: 11px; background: var(--glass); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-.home-menu-btn i { font-size: 19px; color: var(--ink-warm); }
+/* Размер и радиус из макета, но заливка стеклянная: в макете кнопка стоит на фоне
+   страницы, у нас - на градиенте героя, и глухой --surface читался бы дырой. */
+.home-menu-btn { width: 46px; height: 46px; border-radius: 15px; background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.18); display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.home-menu-btn i { font-size: 20px; color: #E7DDE1; }
 .home-menu-panel { position: absolute; right: 0; top: calc(100% + 8px); min-width: 210px; background: var(--menu-bg); border-radius: 14px; box-shadow: var(--shadow-menu); padding: 8px; z-index: 50; }
 .home-menu-panel[hidden] { display: none; }
 .hmenu-sub { padding: 8px 10px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
@@ -258,62 +264,103 @@ a:hover { text-decoration: underline; }
 .hmenu-contacts { padding: 4px 10px 8px; font-size: 13px; line-height: 1.5; }
 
 /* Адаптивная верхняя карточка (новичок/вернувшийся) */
-.home-kicker { font-size: 11px; font-weight: 600; color: var(--kicker); letter-spacing: 1.5px; margin-bottom: 7px; text-transform: uppercase; }
-.home-headline { font-size: 30px; font-weight: 500; line-height: 1.12; margin-bottom: 6px; overflow-wrap: break-word; word-wrap: break-word; }
-.home-headline.long { font-size: 26px; }              /* длинный заголовок -> мельче, 2 строки, БЕЗ многоточия */
-.home-subhead { font-size: 13px; color: var(--ink-warm); margin-bottom: 14px; line-height: 1.4; overflow-wrap: break-word; }
-.home-cta { display: inline-flex; align-items: center; gap: 8px; background: var(--cta-bg); padding: 10px 20px; border-radius: 24px; cursor: pointer; box-shadow: var(--shadow-cta); }
-.home-cta-ic { width: 24px; height: 24px; border-radius: 50%; background: var(--on-accent); display: flex; align-items: center; justify-content: center; }
-.home-cta-ic i { font-size: 13px; color: var(--coral-on-white); }
-.home-cta > span:last-child { font-size: 13px; font-weight: 600; color: var(--on-accent); }
+.home-kicker { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.72); letter-spacing: 2.4px; text-transform: uppercase; }
+.home-headline { font-size: 40px; font-weight: 500; line-height: 1.04; color: #fff; margin: 12px 0 10px; overflow-wrap: break-word; word-wrap: break-word; text-shadow: 0 2px 18px rgba(40,6,24,.55); }
+.home-headline.long { font-size: 30px; }              /* длинное имя дня -> мельче, БЕЗ многоточия */
+.home-subhead { font-size: 13.5px; line-height: 1.5; color: rgba(255,255,255,.8); max-width: 290px; overflow-wrap: break-word; text-shadow: 0 1px 12px rgba(40,6,24,.6); }
+/* Пилюля-плеер из макета. Волны и таймера НЕТ осознанно: get-home не отдаёт ни
+   ссылку на аудио, ни длительность, рисовать их было бы враньём. Ведёт на день. */
+.home-cta {
+  margin-top: 20px; display: inline-flex; align-items: center; gap: 14px; cursor: pointer;
+  background: rgba(20,8,16,.42); border: 1px solid rgba(255,255,255,.14);
+  border-radius: 999px; padding: 7px 24px 7px 7px;
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.home-cta-ic { width: 52px; height: 52px; border-radius: 50%; background: #fff; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
+.home-cta-ic i { font-size: 24px; color: #C9557A; margin-left: 3px; }
+.home-cta > span:last-child { font-size: 13.5px; font-weight: 600; color: rgba(255,255,255,.92); }
 
-.home-body { padding: 16px 0 24px; }
-.home .card { background: var(--card); border: 0.5px solid var(--border); border-radius: 20px; }
+.home-body { padding: 0 0 24px; }
+.home .card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; }
 
-/* Карточка спринта с прогрессом */
-.home-sprint { padding: 14px 16px; margin-bottom: 14px; }
-.home-sprint-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 9px; }
-.home-sprint-title { font-size: 15px; font-weight: 700; overflow-wrap: break-word; }
-.home-sprint-badge { font-size: 11px; font-weight: 600; color: var(--accent-deep); background: var(--accent-wash); padding: 2px 9px; border-radius: 11px; white-space: nowrap; }
-.home-progress { height: 6px; background: var(--track); border-radius: 3px; overflow: hidden; }
-.home-progress-bar { height: 100%; width: 2%; background: var(--accent-grad-h); border-radius: 3px; }
-.home-alldays { display: flex; align-items: center; justify-content: flex-end; gap: 3px; margin-top: 9px; cursor: pointer; }
+/* Карточка спринта с прогрессом. Свой дымок - один тёплый радиал справа сверху. */
+.home-sprint {
+  padding: 18px; margin-bottom: 22px; border-radius: 22px;
+  position: relative; overflow: hidden; isolation: isolate;
+}
+.home-sprint::before {
+  content: ""; position: absolute; inset: -60%; z-index: 0; pointer-events: none;
+  background: radial-gradient(38% 60% at 88% 30%, rgba(228,134,155,.30) 0%, transparent 70%);
+  filter: blur(22px);
+}
+.home-sprint > * { position: relative; z-index: 1; }
+.home-sprint-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 14px; }
+.home-sprint-title { font-size: 15.5px; font-weight: 600; overflow-wrap: break-word; }
+.home-sprint-badge { font-size: 11.5px; font-weight: 500; color: #F0B6C3; background: rgba(228,134,155,.16); padding: 5px 12px; border-radius: 999px; white-space: nowrap; }
+.home-progress { height: 6px; background: rgba(255,255,255,.08); border-radius: 999px; overflow: hidden; }
+.home-progress-bar { height: 100%; width: 2%; background: var(--accent-grad-h); border-radius: 999px; }
+.home-alldays { display: flex; align-items: center; justify-content: flex-end; gap: 3px; margin-top: 12px; cursor: pointer; }
 .home-alldays span { font-size: 12px; font-weight: 500; color: var(--accent-deep); }
 .home-alldays i { font-size: 14px; color: var(--accent-deep); }
 
 /* Твои инструменты (6 плиток-заглушек) */
-.home-tools-h { font-size: 18px; font-weight: 500; margin: 0 2px 11px; }
-.home-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.home-tools-h { font-size: 19px; font-weight: 600; margin: 0 2px 14px; }
 
-/* ДЫМОК В ПЛИТКАХ. Два размытых пятна своего цвета (левое верхнее + по диагонали
-   правое нижнее, blur 20px) и тонкий световой блик по верхней грани.
-   Пятна - псевдоэлементы с z-index:-1: внутри стекающего контекста плитки они
-   ложатся ПОВЕРХ её фона, но ПОД текстом, поэтому контент трогать не нужно.
-   overflow:hidden обрезает размытие по скруглению. */
+/* ПОДРУЖКА - широкая карточка на брендовом градиенте, вынесена из сетки (макет).
+   Свой дымок: три радиала по краям, размытие крупнее плиточного. */
+.home-wide {
+  position: relative; overflow: hidden; isolation: isolate; cursor: pointer;
+  display: flex; align-items: center; gap: 15px;
+  padding: 16px 18px; border-radius: 20px; margin-bottom: 12px;
+  background: var(--brand-grad);
+  box-shadow: 0 16px 34px -18px rgba(217,106,94,.9);
+}
+.home-wide::before {
+  content: ""; position: absolute; inset: -50%; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(42% 78% at 6% 22%, rgba(190,110,255,.75) 0%, transparent 68%),
+    radial-gradient(40% 70% at 52% 96%, rgba(255,90,150,.62) 0%, transparent 70%),
+    radial-gradient(46% 80% at 96% 30%, rgba(255,190,110,.70) 0%, transparent 68%);
+  filter: blur(26px);
+}
+.home-wide > * { position: relative; z-index: 1; }
+.home-wide-ic { font-size: 30px; color: #fff; flex: 0 0 auto; filter: drop-shadow(0 0 8px rgba(255,255,255,.45)); }
+.home-wide-txt { flex: 1; min-width: 0; }
+.home-wide-txt b { display: block; font-size: 16.5px; font-weight: 600; color: #fff; }
+.home-wide-sub { font-size: 12.5px; color: rgba(255,255,255,.82); }
+
+.home-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
 .home .t5 {
-  position: relative; isolation: isolate; overflow: hidden;
-  background: linear-gradient(150deg, rgba(255,255,255,.07) 0%, rgba(255,255,255,0) 42%), var(--tile);
-  border: 0.5px solid var(--border); border-radius: 18px; padding: 16px 10px;
-  display: flex; flex-direction: column; align-items: center; gap: 5px;
-  cursor: pointer; text-align: center;
+  position: relative; isolation: isolate; overflow: hidden; cursor: pointer;
+  background: var(--tile); border: 1px solid var(--border); border-radius: 20px;
+  padding: 16px; min-height: 116px;
+  display: flex; flex-direction: column; justify-content: space-between;
 }
-.home .t5::before, .home .t5::after {
-  content: ""; position: absolute; z-index: -1; border-radius: 50%;
-  filter: blur(20px); pointer-events: none;
+/* ДЫМОК = два РАДИАЛА, гаснущих в прозрачность на 68/72%, а не сплошные круги.
+   Сплошная заливка растекалась на всю плитку и топила подпись в цвете; радиал
+   держит пятно в углу и оставляет середину чистой. Блик - отдельным слоем сверху. */
+.home .t5::before {
+  content: ""; position: absolute; inset: -40%; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(42% 42% at 20% 14%, var(--smoke-a) 0%, transparent 68%),
+    radial-gradient(48% 48% at 84% 88%, var(--smoke-b) 0%, transparent 72%);
+  filter: blur(20px);
 }
-.home .t5::before { width: 92px;  height: 92px;  left: -22px;  top: -30px;    background: var(--smoke-a); }
-.home .t5::after  { width: 104px; height: 104px; right: -26px; bottom: -34px; background: var(--smoke-b); }
+.home .t5::after {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(150deg, rgba(255,255,255,.07), transparent 42%);
+}
+.home .t5 > * { position: relative; z-index: 1; }
 /* Пары цветов из макета. Иконка берёт непрозрачный тон своей плитки. */
 .home .t5[data-group="trainings"] { --smoke-a: rgba(96,196,206,.55);  --smoke-b: rgba(116,84,224,.50); --smoke-ic: #6FD3DC; }
 .home .t5[data-app="relax"]       { --smoke-a: rgba(176,112,240,.58); --smoke-b: rgba(228,96,180,.46); --smoke-ic: #C08CF5; }
 .home .t5[data-group="trackers"]  { --smoke-a: rgba(246,168,92,.52);  --smoke-b: rgba(196,62,96,.50);  --smoke-ic: #F6A85C; }
 .home .t5-archive                 { --smoke-a: rgba(92,142,244,.50);  --smoke-b: rgba(138,82,236,.54); --smoke-ic: #7BA4F7; }
-/* Подружка пары в макете не получила - берёт акцент бренда (розовый + фиолетовый конец градиента).
-   Справочники остаются на нейтральном дефолте из :root: плитка пока без обработчика. */
-.home .t5[data-app="podruzhka"]   { --smoke-a: rgba(228,134,155,.52); --smoke-b: rgba(123,46,158,.50); --smoke-ic: #E4869B; }
-.home .t5 i { font-size: 23px; color: var(--smoke-ic); }
-.home .t5n { font-size: 13px; font-weight: 600; color: var(--text-home); }
-.home .t5s { font-size: 11px; color: var(--muted-home); line-height: 1.2; }
+.home .t5 i { font-size: 30px; color: var(--smoke-ic); }
+/* margin-top:auto прижимает подпись к низу, иконка остаётся сверху: в макете
+   плитка держит высоту 116 и разносит иконку и текст по краям. */
+.home .t5n { font-size: 15px; font-weight: 600; color: var(--text-home); margin-top: auto; }
+.home .t5s { font-size: 11.5px; color: var(--muted-home); line-height: 1.25; margin-top: 2px; }
 
 /* Статус подписки */
 .home-sub { padding: 14px 16px; margin-top: 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
@@ -443,14 +490,48 @@ a:hover { text-decoration: underline; }
 .sprint-day-sub { font-size: 12.5px; color: var(--ink-body-soft); line-height: 1.4; margin-top: 3px; overflow-wrap: break-word; }
 .sprint-day-badge { font-size: 11px; font-weight: 600; color: var(--muted-home); flex: 0 0 auto; }
 
-/* ===================== ЭКРАН ВСЕ СПРИНТЫ ===================== */
-.sprints-group { font-size: 11px; font-weight: 600; color: var(--muted-home); letter-spacing: 0.5px; text-transform: uppercase; margin: 22px 0 10px; }
-.sprints-card { padding: 15px; margin-bottom: 12px; cursor: pointer; }
-.sprints-kicker { font-size: 11px; font-weight: 600; color: var(--accent-deep); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px; }
-.sprints-top { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
-.sprints-title { flex: 1; min-width: 0; font-size: 15px; font-weight: 700; overflow-wrap: break-word; }
-.sprints-badge { flex: 0 0 auto; font-size: 12px; font-weight: 600; color: var(--muted-home); }
-.sprints-note { margin-top: 8px; font-size: 12px; font-weight: 600; color: var(--accent-deep); }
+/* ===================== ЭКРАН ВСЕ СПРИНТЫ: полка постеров =====================
+   Один хронологический список 2 в ряд, без деления на группы: текущий спринт
+   отмечен плашкой "Ты здесь". Градиентной шапки нет - заголовок стоит на фоне
+   страницы. Постеры пока на заглушечном градиенте, обложки поедут отдельно. */
+#view-sprints { max-width: 480px; margin-left: auto; margin-right: auto; }
+.lib-body { padding: 18px 0 28px; }
+.lib-head { margin-bottom: 22px; }
+.lib-back {
+  width: 38px; height: 38px; border-radius: 13px; margin-bottom: 18px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(20,14,20,.6); border: 1px solid rgba(255,255,255,.14);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.lib-back i { font-size: 20px; color: #F2E6EA; }
+/* Селектор с #view-sprints обязателен: экран лежит внутри main.wrap.checkout,
+   а `.checkout h1` (специфичность выше классовой) навязывал 26px и центр. */
+#view-sprints .lib-title { font-size: 32px; font-weight: 500; line-height: 1; color: var(--text); margin: 0; text-align: left; }
+.lib-sub { font-size: 13px; color: var(--muted); margin: 8px 0 0; line-height: 1.5; max-width: 300px; }
+
+.shelf { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.poster {
+  position: relative; border-radius: 22px; overflow: hidden; aspect-ratio: 3 / 4; cursor: pointer;
+  display: flex; flex-direction: column; justify-content: flex-end; padding: 14px;
+  background: var(--hero-grad); background-size: cover; background-position: center right;
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow: 0 14px 30px -16px rgba(120,20,60,.9);
+}
+.poster::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(to top, rgba(14,4,12,.92) 0%, rgba(14,4,12,.45) 42%, transparent 72%);
+}
+.poster-info { position: relative; z-index: 1; }
+.poster-info b { display: block; font-size: 17px; font-weight: 500; color: #fff; line-height: 1.15; }
+.poster-info span { font-size: 11px; color: rgba(255,255,255,.72); }
+.poster-badge {
+  position: absolute; top: 12px; left: 12px; z-index: 1;
+  background: rgba(255,255,255,.92); color: #3A0E22;
+  font-size: 8.5px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase;
+  padding: 4px 9px; border-radius: 999px;
+}
+.poster-empty { background: linear-gradient(160deg,#2A2140,#150E22); border: 1px dashed rgba(255,255,255,.14); }
+.poster-empty .poster-info span { color: rgba(255,255,255,.45); }
 
 /* ===================== ЭКРАНЫ СТАРТ / ВХОД ===================== */
 .start-card {

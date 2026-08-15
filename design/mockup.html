@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<!--
+  ЭТАЛОННЫЙ МАКЕТ РЕДИЗАЙНА app.irenabio.com
+  Это НЕ код приложения. Это источник ЗНАЧЕНИЙ: палитра, отступы,
+  размеры, радиусы, толщины, иерархия. Классы здесь свои, переносить
+  их в приложение НЕ надо - переносить надо числа и композицию.
+
+  Экраны в файле по порядку:
+    1. HOME / Light   - устаревший светлый вариант, ИГНОРИРОВАТЬ
+    2. HOME / Dark    - ДОМ, эталон
+    3. SPRINTS        - библиотека спринтов
+    4. DAY            - экран дня
+    5. DAY LIST       - список дней с переключателем дорожек
+    6. SUBSCRIPTION   - подписка, три состояния
+
+  ЧТО ЗАМЕНЕНО ЗАГЛУШКАМИ (не считать это дизайном):
+  - все картинки: иконки плиток, медальон Подружки, аватар в шапке -
+    заменены прозрачным пикселем, размеры и позиции сохранены
+  - обложки спринтов и герой - заменены плоским градиентом
+  - таб-бар в разметке присутствует, но скрыт через .tabs{display:none}
+    и в приложение НЕ переносится: решение отменить его принято
+
+  ПРАВИЛО СВЕРКИ: сначала выпрямляем то, что задано числами -
+  цвета, шрифты, отступы, радиусы, размеры. Ощущения обсуждаем потом.
+-->
+
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>irenabio · градиентные иконки</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0B080C;
+  --surface:#17121A;
+  --line:rgba(255,255,255,.07);
+  --text:#F7F1F2;
+  --muted:#948890;
+  --accent:#E4869B;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#E9E6E9;font-family:'Onest',system-ui,sans-serif;
+  display:flex;justify-content:center;align-items:flex-start;gap:44px;padding:36px 20px 70px;flex-wrap:wrap}
+
+/* ---------- палитра иконок ---------- */
+.icon{width:26px;height:26px;flex:none}
+.plaque{width:52px;height:52px;border-radius:17px;flex:none;display:grid;place-items:center;
+  border:1px solid rgba(255,255,255,.14);position:relative;overflow:hidden;
+  box-shadow:0 10px 22px -10px rgba(120,25,70,.9), inset 0 1px 0 rgba(255,255,255,.18)}
+.plaque::after{content:"";position:absolute;inset:0;border-radius:inherit;
+  background:linear-gradient(160deg,rgba(255,255,255,.22),rgba(255,255,255,0) 55%)}
+.plaque .icon{position:relative;z-index:1;width:28px;height:28px;
+  filter:drop-shadow(0 0 5px rgba(255,255,255,.35))}
+.tile .icon,.wide .icon{filter:drop-shadow(0 0 7px rgba(255,255,255,.25))}
+
+/* ---------- левая колонка ---------- */
+.legend{display:flex;flex-direction:column;gap:16px;padding-top:20px}
+.legend .row{display:flex;align-items:center;gap:16px}
+.legend span{font-size:14px;color:#4A424A;font-weight:500}
+
+/* ---------- телефон ---------- */
+.phone{width:404px;height:876px;background:var(--bg);border-radius:46px;overflow:hidden;position:relative;
+  display:flex;flex-direction:column;box-shadow:0 34px 80px rgba(30,10,25,.4);border:1px solid rgba(255,255,255,.08)}
+.scroll{flex:1;overflow-y:auto;padding:56px 16px 8px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.brandbox{display:flex;align-items:center;gap:14px}
+.avatar{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;
+  background:radial-gradient(circle at 35% 30%,rgba(228,134,155,.28),rgba(120,40,70,.10));
+  border:1px solid rgba(228,134,155,.35);box-shadow:0 0 22px -6px rgba(228,134,155,.5)}
+.brand{font-size:12px;letter-spacing:3px;color:#D9CBD1;font-weight:500}
+.burger{width:46px;height:46px;border-radius:15px;background:var(--surface);border:1px solid var(--line);
+  display:grid;place-items:center;gap:5px;align-content:center}
+.burger i{width:17px;height:1.6px;background:#E7DDE1;border-radius:2px;display:block}
+
+/* ---------- герой ---------- */
+.hero{position:relative;border-radius:26px;overflow:hidden;padding:26px 22px 22px;margin-bottom:12px;
+  background:linear-gradient(135deg,#4C2038 0%,#7A2E46 45%,#2A121F 100%)}
+.bloom{position:absolute;right:-40px;bottom:-50px;width:290px;height:290px;pointer-events:none}
+.spark{position:absolute;border-radius:50%;background:#FFC9B0;filter:blur(.4px)}
+.hero .kick{font-size:11px;letter-spacing:2.4px;font-weight:600;color:rgba(255,255,255,.72);position:relative}
+.hero h1{font-family:'Playfair Display',serif;font-weight:500;font-size:40px;line-height:1.04;color:#fff;
+  margin:12px 0 10px;position:relative}
+.hero p{font-size:13.5px;line-height:1.5;color:rgba(255,255,255,.8);max-width:290px;position:relative}
+
+.player{margin-top:20px;position:relative;display:flex;align-items:center;gap:14px;
+  background:rgba(20,8,16,.42);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:7px 20px 7px 7px;
+  backdrop-filter:blur(8px)}
+.play{width:52px;height:52px;border-radius:50%;background:#fff;flex:none;display:grid;place-items:center}
+.play::after{content:"";border-left:14px solid #C9557A;border-top:9px solid transparent;border-bottom:9px solid transparent;margin-left:4px}
+.wave{flex:1;display:flex;align-items:center;gap:2.5px;height:34px}
+.wave i{flex:1;background:#fff;border-radius:2px;display:block}
+.ptime{font-size:12.5px;color:rgba(255,255,255,.9);font-weight:500}
+
+/* ---------- прогресс ---------- */
+.prog{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:18px;margin-bottom:22px}
+.prow{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.prow b{font-size:15.5px;color:var(--text);font-weight:600}
+.pill{font-size:11.5px;color:#F0B6C3;background:rgba(228,134,155,.16);padding:5px 12px;border-radius:999px}
+.track{height:6px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
+.track i{display:block;height:100%;width:11%;border-radius:999px;background:linear-gradient(90deg,#F2A0AE,#D4557E)}
+
+h2.sec{font-size:19px;color:var(--text);font-weight:600;margin-bottom:14px}
+
+/* ---------- карточки ---------- */
+.wide{display:flex;align-items:center;gap:15px;padding:16px 18px;border-radius:20px;margin-bottom:12px;
+  background:linear-gradient(105deg,#B8455F 0%,#D96A5E 100%);
+  box-shadow:0 16px 34px -18px rgba(217,106,94,.9)}
+.wide .txt{flex:1}
+.wide b{display:block;font-size:16.5px;color:#fff;font-weight:600}
+.wide span{font-size:12.5px;color:rgba(255,255,255,.82)}
+.chev{color:rgba(255,255,255,.7);font-size:20px;line-height:1}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+.tile{border-radius:20px;padding:16px;border:1px solid var(--line);position:relative;min-height:116px;
+  display:flex;flex-direction:column;justify-content:space-between}
+.tile .head{display:flex;justify-content:space-between;align-items:flex-start}
+.tile b{display:block;font-size:15px;color:var(--text);font-weight:600;margin-top:12px}
+.tile span{font-size:11.5px;color:var(--muted)}
+.tile .chev{color:#6E626C;font-size:18px}
+
+.foot{text-align:center;font-size:12px;color:#8C7F86;padding:4px 0 14px}
+.foot b{color:#C7B9BF;font-weight:500}
+
+/* ---------- табы ---------- */
+.tabs{display:flex;padding:10px 6px 26px;background:rgba(11,8,12,.9);border-top:1px solid var(--line);
+  backdrop-filter:blur(18px)}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;font-size:10.5px;color:#7C6F77;
+  padding:8px 0;border-radius:16px}
+.tab.on{color:#F0B6C3;background:rgba(228,134,155,.12)}
+.tab .icon{width:23px;height:23px}
+
+/* ---------- градиентный дымок внутри плиток ---------- */
+.tile{background:#130F17;overflow:hidden;isolation:isolate}
+.tile::before{content:"";position:absolute;inset:-40%;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(42% 42% at 20% 14%, var(--c1) 0%, transparent 68%),
+    radial-gradient(48% 48% at 84% 88%, var(--c2) 0%, transparent 72%);
+  filter:blur(20px)}
+.tile::after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;border-radius:inherit;
+  background:linear-gradient(150deg,rgba(255,255,255,.07),transparent 42%)}
+.tile > *{position:relative;z-index:1}
+
+/* дымок в широкой карточке Подружки */
+.wide{position:relative;overflow:hidden;isolation:isolate}
+.wide::before{content:"";position:absolute;inset:-50%;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(40% 60% at 12% 20%, rgba(255,170,140,.65) 0%, transparent 66%),
+    radial-gradient(45% 70% at 88% 92%, rgba(150,40,110,.60) 0%, transparent 70%);
+  filter:blur(24px)}
+.wide > *{position:relative;z-index:1}
+
+/* дымок в карточке прогресса */
+.prog{position:relative;overflow:hidden;isolation:isolate}
+.prog::before{content:"";position:absolute;inset:-60%;z-index:0;pointer-events:none;
+  background:radial-gradient(38% 60% at 88% 30%, rgba(228,134,155,.30) 0%, transparent 70%);
+  filter:blur(22px)}
+.prog > *{position:relative;z-index:1}
+
+.wplaque{width:50px;height:50px;border-radius:17px;flex:none;display:grid;place-items:center;position:relative;
+  background:linear-gradient(150deg,rgba(255,255,255,.34),rgba(255,255,255,.10));
+  border:1px solid rgba(255,255,255,.34);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 8px 18px -10px rgba(90,20,50,.9);
+  backdrop-filter:blur(6px)}
+.wplaque .icon{filter:drop-shadow(0 0 6px rgba(255,255,255,.5))}
+
+/* иконки на плитках: крупнее, толще, со своим цветным свечением */
+.tile .icon{width:34px;height:34px;
+  filter:drop-shadow(0 0 7px var(--c1)) drop-shadow(0 0 16px var(--c2))}
+.tile svg.icon *{stroke-width:1.9}
+.tile b{margin-top:14px}
+.hero .bloom{right:-56px;bottom:-64px;width:330px;height:330px;opacity:.98}
+.hero h1{text-shadow:0 2px 18px rgba(40,6,24,.55)}
+.hero p{text-shadow:0 1px 12px rgba(40,6,24,.6)}
+
+/* ---------- картиночные иконки ---------- */
+.imgic{display:none;object-fit:contain}
+body.png .tile svg.icon{display:none}
+body.png .tile .imgic{display:block;width:46px;height:46px;
+  filter:drop-shadow(0 0 10px var(--c1)) drop-shadow(0 0 22px var(--c2))}
+body.png .wplaque{display:none}
+body.png .wide .imgic{display:block;width:56px;height:56px;flex:none;
+  filter:drop-shadow(0 6px 14px rgba(60,10,35,.55))}
+body.png .legend .plaque{background:none !important;border:0;box-shadow:none}
+body.png .legend .plaque::after{display:none}
+body.png .legend .plaque svg.icon{display:none}
+body.png .legend .plaque .imgic{display:block;width:52px;height:52px}
+
+.switch{position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:50;display:flex;gap:6px;
+  background:rgba(20,16,22,.92);border:1px solid rgba(255,255,255,.14);padding:6px;border-radius:999px;
+  backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.switch button{font:inherit;font-size:12px;font-weight:600;color:#9C8F97;background:none;border:0;
+  padding:8px 18px;border-radius:999px;cursor:pointer}
+.switch button.on{background:#F5EBEF;color:#1A1218}
+
+/* ---------- Подружка как медальон ---------- */
+body.png .wide{padding:14px 18px 14px 14px;min-height:104px}
+body.png .wide .imgic{width:80px;height:80px;position:relative;
+  filter:drop-shadow(0 8px 20px rgba(50,6,28,.6))}
+body.png .wide b{font-size:18px}
+body.png .wide::after{content:"";position:absolute;left:8px;top:50%;transform:translateY(-50%);
+  width:92px;height:92px;border-radius:50%;z-index:0;pointer-events:none;
+  background:radial-gradient(circle,rgba(255,190,205,.55) 0%,transparent 68%);filter:blur(10px)}
+
+/* ---------- варианты градиента карточки Подружки ---------- */
+.wide{background:linear-gradient(100deg,#7B2E9E 0%,#C63C74 46%,#F0834E 100%)}
+.wide::before{background:
+    radial-gradient(42% 78% at 6% 22%, rgba(190,110,255,.75) 0%, transparent 68%),
+    radial-gradient(40% 70% at 52% 96%, rgba(255,90,150,.62) 0%, transparent 70%),
+    radial-gradient(46% 80% at 96% 30%, rgba(255,190,110,.70) 0%, transparent 68%) !important;
+  filter:blur(26px)}
+
+body.g2 .wide{background:linear-gradient(105deg,#4E2A8E 0%,#B23A86 42%,#F2705F 78%,#FFB36B 100%)}
+body.g2 .wide::before{background:
+    radial-gradient(44% 80% at 4% 78%, rgba(120,90,255,.75) 0%, transparent 66%),
+    radial-gradient(40% 66% at 46% 8%, rgba(255,120,190,.60) 0%, transparent 70%),
+    radial-gradient(50% 84% at 98% 62%, rgba(255,205,130,.75) 0%, transparent 66%) !important}
+
+body.g3 .wide{background:linear-gradient(110deg,#8E1F5C 0%,#D2445F 40%,#F58A62 72%,#FFD08A 100%)}
+body.g3 .wide::before{background:
+    radial-gradient(46% 84% at 8% 16%, rgba(255,110,160,.70) 0%, transparent 66%),
+    radial-gradient(38% 62% at 58% 92%, rgba(180,40,110,.65) 0%, transparent 70%),
+    radial-gradient(48% 80% at 95% 36%, rgba(255,225,170,.72) 0%, transparent 66%) !important}
+
+.switch2{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:50;display:flex;gap:6px;
+  background:rgba(20,16,22,.92);border:1px solid rgba(255,255,255,.14);padding:6px;border-radius:999px;
+  backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.switch2 button{font:inherit;font-size:12px;font-weight:600;color:#9C8F97;background:none;border:0;
+  padding:8px 16px;border-radius:999px;cursor:pointer}
+.switch2 button.on{background:#F5EBEF;color:#1A1218}
+
+/* легенда: плашки остаются и в режиме картинок */
+body.png .legend .plaque{border:1px solid rgba(255,255,255,.14) !important;
+  box-shadow:0 10px 22px -10px rgba(120,25,70,.9),inset 0 1px 0 rgba(255,255,255,.18) !important}
+body.png .legend .plaque::after{display:block}
+body.png .legend .plaque .imgic{width:34px;height:34px;position:relative;z-index:1;
+  filter:drop-shadow(0 0 6px rgba(255,255,255,.30))}
+
+/* ---------- оптическое выравнивание иконок ---------- */
+body.png .tile .imgic{width:52px;height:52px;object-fit:contain}
+body.png .tile .k-work{transform:scale(1.30)}     /* гантель широкая и низкая */
+body.png .tile .k-track{transform:scale(1.14)}    /* у мишени большой внутренний отступ */
+body.png .tile .k-lib{transform:scale(.96)}
+body.png .tile .k-relax{transform:scale(1.02)}
+
+/* трекеры: подтянуть к неону остальных */
+body.png .tile .k-track{filter:saturate(1.35) brightness(1.15)
+  drop-shadow(0 0 8px rgba(255,120,150,.85)) drop-shadow(0 0 20px rgba(255,80,130,.55))}
+body.png .tile .k-work,body.png .tile .k-relax,body.png .tile .k-lib{
+  filter:drop-shadow(0 0 8px var(--c1)) drop-shadow(0 0 20px var(--c2))}
+
+body.png .legend .k-work{transform:scale(1.28)}
+body.png .legend .k-track{transform:scale(1.12)}
+
+/* ---------- левая колонка ---------- */
+body{align-items:flex-start}
+.legend{order:-1}
+@media (max-width:900px){
+  body{flex-direction:column;align-items:center}
+  .legend{order:0;flex-direction:row;flex-wrap:wrap;justify-content:center;gap:14px 18px;
+    max-width:404px;padding:16px 0 4px}
+  .legend .row{flex-direction:column;gap:7px;width:76px;text-align:center}
+  .legend span{font-size:11px;line-height:1.25}
+}
+
+/* трекеры теперь в общей холодной гамме — спецподкраска не нужна */
+body.png .tile .k-track{filter:drop-shadow(0 0 8px var(--c1)) drop-shadow(0 0 20px var(--c2));
+  transform:scale(1.10)}
+body.png .legend .k-home{transform:scale(1.06)}
+body.png .legend .k-hand{transform:scale(1.04)}
+
+/* иконки во вкладках */
+body.png .tabs svg.icon{display:none}
+body.png .tabs .tabimg{display:block;width:25px;height:25px;object-fit:contain}
+body.png .tab:not(.on) .tabimg{filter:grayscale(.75) brightness(.85);opacity:.6}
+body.png .tab.on .tabimg{filter:drop-shadow(0 0 8px rgba(228,134,155,.6))}
+
+/* Подружка: линейная иконка вместо портрета-медальона */
+body.png .wide .imgic{width:66px;height:66px}
+body.png .wide::after{width:78px;height:78px;left:12px;
+  background:radial-gradient(circle,rgba(255,255,255,.28) 0%,transparent 66%)}
+body.png .wide .k-friend{filter:drop-shadow(0 0 10px rgba(255,255,255,.55))}
+body.png .legend .k-friend{transform:scale(1.02)}
+
+body.png .avatar svg{display:none}
+body.png .avatar .avaimg{display:block;width:38px;height:38px;object-fit:contain;
+  filter:drop-shadow(0 0 7px rgba(228,134,155,.55))}
+body.png .avatar{border-color:rgba(255,255,255,.16)}
+body.png .legend .k-prof{transform:scale(1.02)}
+
+/* карточка Подружки: снова портрет-медальон */
+body.png .wide .k-medal{width:80px;height:80px;
+  filter:drop-shadow(0 8px 20px rgba(50,6,28,.6))}
+body.png .wide::after{width:92px;height:92px;left:8px;
+  background:radial-gradient(circle,rgba(255,190,205,.55) 0%,transparent 68%)}
+
+/* стрелки убраны */
+.chev{display:none}
+
+/* аватар в шапке: своё кольцо у иконки, внешнее не нужно */
+body.png .avatar{width:56px;height:56px;background:none;border:0;box-shadow:none}
+body.png .avatar .avaimg{width:56px;height:56px;
+  filter:drop-shadow(0 0 9px rgba(228,134,155,.5))}
+
+/* ---------- обложка спринта в герое ---------- */
+.hero{background-image:
+    linear-gradient(100deg,rgba(24,6,18,.82) 0%,rgba(24,6,18,.55) 34%,rgba(24,6,18,.05) 62%,rgba(24,6,18,0) 100%),
+    linear-gradient(135deg,#4C2038,#7A2E46 45%,#2A121F);
+  background-size:cover,cover;background-position:center,center right}
+.hero .bloom{display:none}
+.hero .player{background:rgba(16,4,14,.5)}
+
+/* ---------- второй экран: библиотека спринтов ---------- */
+.phone2 .scroll{padding-top:56px}
+.libhead{margin-bottom:22px}
+.libtitle{font-family:'Playfair Display',serif;font-weight:500;font-size:32px;color:var(--text);line-height:1}
+.libsub{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.5;max-width:300px}
+.shelf{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.poster{position:relative;border-radius:22px;overflow:hidden;aspect-ratio:3/4;
+  display:flex;flex-direction:column;justify-content:flex-end;padding:14px;
+  background-size:cover;background-position:center right;
+  box-shadow:0 14px 30px -16px rgba(120,20,60,.9);border:1px solid rgba(255,255,255,.08)}
+.poster::before{content:"";position:absolute;inset:0;
+  background:linear-gradient(to top,rgba(14,4,12,.92) 0%,rgba(14,4,12,.45) 42%,transparent 72%)}
+.pinfo{position:relative;z-index:1}
+.pinfo b{display:block;font-family:'Playfair Display',serif;font-weight:500;font-size:17px;color:#fff;line-height:1.15}
+.pinfo span{font-size:11px;color:rgba(255,255,255,.72)}
+.badge{position:absolute;top:12px;left:12px;z-index:1;background:rgba(255,255,255,.92);color:#3A0E22;
+  font-size:8.5px;font-weight:700;letter-spacing:.8px;padding:4px 9px;border-radius:999px}
+.p-lotus{background-image:linear-gradient(135deg,#4C2038,#7A2E46 45%,#2A121F)}
+.p-glutes{background-image:linear-gradient(135deg,#4C2038,#7A2E46 45%,#2A121F)}
+.p-body{background-image:linear-gradient(135deg,#4C2038,#7A2E46 45%,#2A121F)}
+.p-empty{background:linear-gradient(160deg,#2A2140,#150E22);border:1px dashed rgba(255,255,255,.14)}
+.p-empty .pinfo span{color:rgba(255,255,255,.45)}
+
+.p-sleep{background-image:linear-gradient(135deg,#4C2038,#7A2E46 45%,#2A121F);background-position:center 32%;border:1px solid rgba(255,255,255,.08)}
+
+/* ---------- третий экран: день ---------- */
+.phone3 .dayscroll{padding:0 0 8px}
+.daycover{height:210px;position:relative;display:flex;flex-direction:column;justify-content:flex-end;
+  padding:0 18px 18px;background-image:linear-gradient(135deg,#4C2038,#7A2E46 45%,#2A121F);background-size:cover;background-position:center right}
+.daycover::before{content:"";position:absolute;inset:0;
+  background:linear-gradient(to top,rgba(11,8,12,1) 0%,rgba(11,8,12,.55) 40%,rgba(11,8,12,.15) 100%)}
+.backbtn{position:absolute;top:52px;left:16px;z-index:2;width:38px;height:38px;border-radius:13px;
+  background:rgba(20,14,20,.6);border:1px solid rgba(255,255,255,.14);color:#F2E6EA;
+  display:grid;place-items:center;font-size:22px;line-height:1;backdrop-filter:blur(8px)}
+.daymeta{position:relative;z-index:1}
+.daykick{font-size:10px;letter-spacing:1.8px;font-weight:600;color:rgba(255,255,255,.7)}
+.daytitle{font-family:'Playfair Display',serif;font-weight:500;font-size:27px;color:#fff;line-height:1.15;margin-top:9px}
+
+.dayplayer{margin:16px 16px 0;display:flex;align-items:center;gap:14px;padding:14px;border-radius:20px;
+  background:linear-gradient(120deg,rgba(160,50,110,.32),rgba(23,18,26,.9));border:1px solid rgba(255,255,255,.08)}
+.dayplayer .play{width:48px;height:48px}
+.dayplayer .play::after{border-left-color:#B8365F}
+.pmeta{flex:1}
+.pmeta b{display:block;font-size:13px;color:#F4EAEE;font-weight:600;margin-bottom:9px}
+.ptrack{height:4px;border-radius:999px;background:rgba(255,255,255,.13);overflow:hidden}
+.ptrack i{display:block;height:100%;width:33%;border-radius:999px;background:linear-gradient(90deg,#F3A0B4,#D14C7C)}
+.ptimes{display:flex;justify-content:space-between;font-size:10.5px;color:#8E8288;margin-top:6px}
+
+.daytext{padding:22px 18px 4px}
+.daytext p{font-size:15.5px;line-height:1.78;color:#E6DBDF;margin-bottom:15px}
+.callout{border-left:2px solid #D4557E;background:rgba(212,85,126,.10);border-radius:0 14px 14px 0;
+  padding:14px 16px;margin:20px 0}
+.cotitle{font-size:10px;letter-spacing:1.6px;font-weight:600;color:#F0A6BC;text-transform:uppercase}
+.callout p{margin:8px 0 0;font-size:14.5px;line-height:1.7;color:#EFE3E7}
+
+.videocard,.filecard{margin:12px 16px 0;display:flex;align-items:center;gap:14px;padding:12px;
+  border-radius:18px;background:#17121A;border:1px solid rgba(255,255,255,.07)}
+.vthumb{width:88px;height:60px;border-radius:12px;flex:none;position:relative;
+  background:linear-gradient(150deg,rgba(176,112,240,.45),rgba(60,20,50,.9))}
+.vplay{position:absolute;inset:0;margin:auto;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.92)}
+.vplay::after{content:"";position:absolute;inset:0;margin:auto;width:0;height:0;
+  border-left:8px solid #B8365F;border-top:5px solid transparent;border-bottom:5px solid transparent;left:3px}
+.vtime{position:absolute;right:6px;bottom:5px;font-size:9px;color:#fff;background:rgba(0,0,0,.55);
+  padding:2px 5px;border-radius:5px}
+.vinfo b,.finfo b{display:block;font-size:14px;color:#F2E8EC;font-weight:600}
+.vinfo span,.finfo span{font-size:11.5px;color:#8E8288}
+.ficon{width:48px;height:48px;border-radius:14px;flex:none;display:grid;place-items:center;
+  font-size:10px;font-weight:700;letter-spacing:.5px;color:#F6C8D4;
+  background:linear-gradient(150deg,rgba(200,70,120,.35),rgba(40,16,32,.9));border:1px solid rgba(255,255,255,.10)}
+
+.taskcard{margin:18px 16px 0;padding:16px 18px;border-radius:20px;
+  background:linear-gradient(140deg,rgba(120,60,190,.26),rgba(23,18,26,.9));border:1px solid rgba(255,255,255,.09)}
+.tasklbl{font-size:10px;letter-spacing:1.6px;font-weight:600;color:#C9A6F0;text-transform:uppercase}
+.taskcard p{margin-top:9px;font-size:14.5px;line-height:1.7;color:#EDE3EA}
+
+.donebtn{display:block;width:calc(100% - 32px);margin:22px 16px 0;padding:17px;border:0;border-radius:18px;
+  font:inherit;font-size:15px;font-weight:600;color:#fff;cursor:pointer;
+  background:linear-gradient(100deg,#7B2E9E,#C63C74 52%,#F0834E);
+  box-shadow:0 14px 30px -14px rgba(198,60,116,.9)}
+
+.p-chaos{background-image:linear-gradient(135deg,#4C2038,#7A2E46 45%,#2A121F);background-position:center 40%}
+
+/* карточка Подружки: плоская, поля по медальону */
+body.png .wide{padding:8px 18px 8px 8px;min-height:0}
+body.png .wide .k-medal{width:66px;height:66px}
+body.png .wide::after{width:76px;height:76px;left:4px}
+body.png .wide b{font-size:16.5px}
+body.png .wide span{font-size:12px;line-height:1.35;display:block}
+.wide{gap:12px}
+
+.p-gut{background-image:linear-gradient(135deg,#4C2038,#7A2E46 45%,#2A121F);background-position:center 26%}
+
+/* ---------- четвёртый экран: список дней с дорожками ---------- */
+.phone4 .listscroll{padding:0 0 8px}
+.listcover{height:186px;position:relative;display:flex;flex-direction:column;justify-content:flex-end;
+  padding:0 18px 16px;background-image:linear-gradient(135deg,#4C2038,#7A2E46 45%,#2A121F);background-size:cover;background-position:70% center}
+.listcover::before{content:"";position:absolute;inset:0;
+  background:linear-gradient(to top,rgba(11,8,12,1) 0%,rgba(11,8,12,.6) 42%,rgba(11,8,12,.2) 100%)}
+
+.tracks{display:flex;gap:7px;padding:16px 16px 0;flex-wrap:wrap}
+.tr{font:inherit;font-size:12px;font-weight:500;color:#9C8F97;cursor:pointer;
+  background:#17121A;border:1px solid rgba(255,255,255,.09);padding:9px 14px;border-radius:999px}
+.tr.on{color:#fff;border-color:transparent;
+  background:linear-gradient(100deg,#7B2E9E,#C63C74 60%,#F0834E);
+  box-shadow:0 10px 22px -12px rgba(198,60,116,.9)}
+.trackhint{padding:11px 18px 0;font-size:11.5px;color:#8E8288;line-height:1.5}
+
+.listprog{margin:18px 16px 0;padding:15px 18px;border-radius:20px;background:#17121A;
+  border:1px solid rgba(255,255,255,.07)}
+.lprow{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.lprow b{font-size:14.5px;color:#F3E9ED;font-weight:600}
+
+.days{padding:18px 16px 0;display:flex;flex-direction:column;gap:8px}
+.dayrow{display:flex;align-items:center;gap:14px;padding:13px 15px;border-radius:18px;
+  background:#141018;border:1px solid rgba(255,255,255,.06)}
+.dnum{width:30px;height:30px;flex:none;border-radius:11px;display:grid;place-items:center;
+  font-size:13px;font-weight:600;color:#B9A9B2;background:rgba(255,255,255,.06)}
+.dinfo{flex:1;min-width:0}
+.dinfo b{display:block;font-size:14px;color:#EFE4E9;font-weight:600;line-height:1.3}
+.dinfo span{font-size:11px;color:#847780}
+.dmark{color:#7FCB9B;font-size:14px}
+.dayrow.done .dinfo b{color:#B3A5AC}
+.dayrow.done .dnum{color:#7FCB9B;background:rgba(127,203,155,.13)}
+.dayrow.cur{background:linear-gradient(110deg,rgba(160,50,110,.30),rgba(20,16,24,.95));
+  border-color:rgba(228,134,155,.30)}
+.dayrow.cur .dnum{color:#fff;background:linear-gradient(140deg,#C63C74,#F0834E)}
+.dnow{font-size:10px;font-weight:600;letter-spacing:.6px;color:#F5B9C8;text-transform:uppercase}
+
+.p-food{background-image:linear-gradient(135deg,#4C2038,#7A2E46 45%,#2A121F);background-position:74% center}
+
+/* ---------- экраны подписки ---------- */
+.phone5 .subscroll{padding:54px 16px 8px}
+.subhead{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.backbtn.st{position:static;top:auto;left:auto}
+.subhead span{font-size:17px;font-weight:600;color:var(--text)}
+
+.statuscard{border-radius:24px;padding:20px;margin-bottom:12px;position:relative;overflow:hidden;isolation:isolate}
+.statuscard::before{content:"";position:absolute;inset:-50%;z-index:0;filter:blur(24px)}
+.statuscard > *{position:relative;z-index:1}
+.statuscard.ok{background:#16111A;border:1px solid rgba(255,255,255,.08)}
+.statuscard.ok::before{background:radial-gradient(42% 70% at 88% 20%,rgba(228,134,155,.55),transparent 70%),
+  radial-gradient(40% 60% at 10% 90%,rgba(150,80,220,.45),transparent 72%)}
+.statuscard.off{background:#141018;border:1px solid rgba(255,255,255,.09)}
+.statuscard.off::before{background:radial-gradient(40% 60% at 90% 16%,rgba(140,130,150,.35),transparent 70%)}
+.statuscard.bad{background:#1A1014;border:1px solid rgba(240,140,120,.28)}
+.statuscard.bad::before{background:radial-gradient(44% 70% at 88% 18%,rgba(240,140,90,.45),transparent 70%)}
+.stlabel{font-size:11px;letter-spacing:1.6px;font-weight:600;color:rgba(255,255,255,.72);text-transform:uppercase}
+.stdate{display:block;font-family:'Playfair Display',serif;font-weight:500;font-size:25px;color:#fff;
+  line-height:1.15;margin:10px 0 10px}
+.stnote{font-size:13px;line-height:1.6;color:#B9AAB2}
+
+.subrows{background:#16111A;border:1px solid rgba(255,255,255,.07);border-radius:20px;padding:4px 18px;margin-bottom:12px}
+.subrow{display:flex;justify-content:space-between;align-items:center;padding:14px 0;
+  border-bottom:1px solid rgba(255,255,255,.06);font-size:13.5px}
+.subrow:last-child{border-bottom:0}
+.subrow span{color:#8E8288}
+.subrow b{color:#F0E6EA;font-weight:600}
+.subrow b.green{color:#7FCB9B}
+.subrow b.amber{color:#F0B27A}
+
+.inclcard{background:#16111A;border:1px solid rgba(255,255,255,.07);border-radius:20px;padding:18px;margin-bottom:14px}
+.incltitle{font-size:11px;letter-spacing:1.6px;font-weight:600;color:#8E8288;text-transform:uppercase}
+.incl{list-style:none;margin-top:12px;display:flex;flex-direction:column;gap:9px}
+.incl li{font-size:13.5px;color:#DDD1D7;padding-left:20px;position:relative}
+.incl li::before{content:"";position:absolute;left:0;top:7px;width:7px;height:7px;border-radius:50%;
+  background:linear-gradient(140deg,#F0834E,#C63C74)}
+
+.donebtn.sub{width:100%;margin:0 0 14px}
+.ghostbtn{display:block;width:100%;padding:16px;border-radius:18px;font:inherit;font-size:14.5px;font-weight:500;
+  color:#B6A7AF;background:none;border:1px solid rgba(255,255,255,.12);cursor:pointer}
+.ghostbtn.quiet{border:0;color:#8E8288;margin-top:2px}
+.subfoot{font-size:12px;line-height:1.6;color:#7E7279;text-align:center;padding:16px 10px 0}
+
+.sheet{margin-top:26px;background:#1B1520;border:1px solid rgba(255,255,255,.10);border-radius:26px;padding:16px 18px 18px;
+  box-shadow:0 -20px 50px rgba(0,0,0,.5)}
+.sheetgrip{width:38px;height:4px;border-radius:99px;background:rgba(255,255,255,.18);margin:0 auto 16px}
+.sheettitle{display:block;font-size:17px;color:#F5ECEF;font-weight:600;margin-bottom:8px}
+.sheettext{font-size:13.5px;line-height:1.6;color:#A99BA3;margin-bottom:18px}
+
+/* карточка статуса: тот же дымок, что в плитках, только заметнее */
+.statuscard.ok{background:#1A1220;border:1px solid rgba(255,255,255,.10)}
+.statuscard.ok::before{filter:blur(26px);
+  background:
+    radial-gradient(46% 62% at 14% 12%, rgba(176,112,240,.62) 0%, transparent 68%),
+    radial-gradient(50% 66% at 92% 34%, rgba(240,131,78,.55) 0%, transparent 70%),
+    radial-gradient(48% 62% at 56% 104%, rgba(198,60,116,.60) 0%, transparent 72%)}
+.statuscard.ok::after{content:"";position:absolute;inset:0;z-index:0;border-radius:inherit;
+  background:linear-gradient(150deg,rgba(255,255,255,.10),transparent 46%)}
+.statuscard.ok .stnote{color:#D6C6CE}
+.statuscard.ok .stlabel{color:rgba(255,255,255,.82)}
+
+/* ---------- членская карта ---------- */
+.memcard{border-radius:26px;padding:22px;position:relative;overflow:hidden;isolation:isolate;margin-bottom:14px}
+.memcard::before{content:"";position:absolute;inset:-40%;z-index:0;filter:blur(28px)}
+.memcard > *{position:relative;z-index:1}
+.memcard.ok{background:linear-gradient(115deg,#5E2088 0%,#B93A6E 46%,#F0834E 100%);
+  box-shadow:0 22px 44px -20px rgba(190,60,110,.95)}
+.memcard.ok::before{background:radial-gradient(40% 60% at 8% 16%,rgba(190,120,255,.7),transparent 68%),
+  radial-gradient(44% 62% at 94% 78%,rgba(255,200,140,.6),transparent 70%)}
+.memcard.off{background:linear-gradient(115deg,#2E2434 0%,#453745 55%,#5A4550 100%);
+  border:1px solid rgba(255,255,255,.10)}
+.memcard.off::before{background:radial-gradient(44% 62% at 90% 20%,rgba(180,160,190,.30),transparent 70%)}
+.memcard.bad{background:linear-gradient(115deg,#5A1E2E 0%,#963B3F 50%,#D97A4A 100%);
+  box-shadow:0 22px 44px -22px rgba(200,90,70,.85)}
+.memcard.bad::before{background:radial-gradient(44% 62% at 92% 18%,rgba(255,190,130,.55),transparent 70%)}
+
+.mtop{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:34px}
+.mbrand{font-size:10.5px;letter-spacing:2.6px;color:rgba(255,255,255,.85);font-weight:600}
+.mchip{font-size:9.5px;font-weight:700;letter-spacing:.8px;padding:5px 10px;border-radius:99px;
+  background:rgba(255,255,255,.92);color:#4A1230}
+.memcard.off .mchip{background:rgba(255,255,255,.18);color:#EFE6EC}
+.mname{font-family:'Playfair Display',serif;font-size:27px;color:#fff;line-height:1.1}
+.mline{display:flex;justify-content:space-between;align-items:flex-end;margin-top:20px;
+  padding-top:16px;border-top:1px solid rgba(255,255,255,.28)}
+.mline .right{text-align:right}
+.mline span{font-size:10px;letter-spacing:1.4px;color:rgba(255,255,255,.75);text-transform:uppercase}
+.mline b{display:block;font-size:15px;color:#fff;margin-top:5px;font-weight:600}
+.mnote{font-size:13px;line-height:1.65;color:#A99BA3;padding:0 4px 16px}
+
+/* таб-бар отменён: мини-аппы живут на других доменах */
+.tabs{display:none}
+.phone .scroll{padding-bottom:26px}
+</style>
+</head>
+<body class="png">
+<div class="switch">
+  <button id="sw-code">Иконки кодом</button>
+  <button id="sw-png" class="on">Картинки Ирены</button>
+</div>
+
+<!-- ================= ЛЕГЕНДА ИКОНОК ================= -->
+<div class="legend">
+  <div class="row"><div class="plaque" style="background:linear-gradient(150deg,#C0466E 0%,#5E1E42 100%)"><img class="imgic k-home" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
+    <svg class="icon" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="g-home" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse"><stop stop-color="#F7B5B0"/><stop offset="1" stop-color="#C4517A"/></linearGradient></defs>
+    <path d="M4 10.2 12 4l8 6.2V19a1.4 1.4 0 0 1-1.4 1.4H5.4A1.4 1.4 0 0 1 4 19v-8.8Z" stroke="url(#g-home)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M9.6 20.4v-5.2a1 1 0 0 1 1-1h2.8a1 1 0 0 1 1 1v5.2" stroke="url(#g-home)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Главная</span></div>
+
+  <div class="row"><div class="plaque" style="background:linear-gradient(150deg,#A93564 0%,#4B1739 100%)"><img class="imgic k-friend" alt="Подружка" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
+    <svg class="icon" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="g-friend" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse"><stop stop-color="#F9A98F"/><stop offset="1" stop-color="#DE5B8E"/></linearGradient></defs>
+    
+    <path d="M5.6 8.4c-.2-3.1 1.2-5.3 3.2-5.3s3.4 2.2 3.2 5.3" stroke="url(#g-friend)" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="8.8" cy="8.6" r="2.9" stroke="url(#g-friend)" stroke-width="1.6"/>
+    <path d="M5.8 7.8c-.6 1.7-.8 3.2-.5 4.6M11.8 7.8c.6 1.7.8 3.2.5 4.6" stroke="url(#g-friend)" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M7.7 8.5v.7M10 8.5v.7" stroke="url(#g-friend)" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M3.6 20.4c0-3.1 2.3-5.2 5.2-5.2s5.2 2.1 5.2 5.2" stroke="url(#g-friend)" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M14.2 9.6c-.2-2.5 1-4.4 2.6-4.4s2.8 1.9 2.6 4.4" stroke="url(#g-friend)" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="16.8" cy="9.8" r="2.4" stroke="url(#g-friend)" stroke-width="1.6"/>
+    <path d="M19.4 9.2c.5 1.4.6 2.6.4 3.7" stroke="url(#g-friend)" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M15.4 15.6c2.7.4 4.6 2.4 4.6 4.8" stroke="url(#g-friend)" stroke-width="1.6" stroke-linecap="round"/>
+  </svg></div><span>Подружка</span></div>
+
+  <div class="row"><div class="plaque" style="background:linear-gradient(150deg,#8E2E68 0%,#3D1440 100%)"><img class="imgic k-work" alt="Тренировки" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
+    <svg class="icon" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="g-work" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse"><stop stop-color="#79DCD2"/><stop offset="1" stop-color="#4A7FD4"/></linearGradient></defs>
+    <rect x="2.6" y="9.2" width="3.6" height="5.6" rx="1.4" stroke="url(#g-work)" stroke-width="1.75"/>
+    <rect x="17.8" y="9.2" width="3.6" height="5.6" rx="1.4" stroke="url(#g-work)" stroke-width="1.75"/>
+    <rect x="6.2" y="7.4" width="3.4" height="9.2" rx="1.5" stroke="url(#g-work)" stroke-width="1.75"/>
+    <rect x="14.4" y="7.4" width="3.4" height="9.2" rx="1.5" stroke="url(#g-work)" stroke-width="1.75"/>
+    <path d="M9.6 12h4.8" stroke="url(#g-work)" stroke-width="1.75" stroke-linecap="round"/></svg></div><span>Тренировки</span></div>
+
+  <div class="row"><div class="plaque" style="background:linear-gradient(150deg,#7B2E86 0%,#341246 100%)"><img class="imgic k-relax" alt="Расслабление" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
+    <svg class="icon" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="g-relax" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse"><stop stop-color="#C79BF2"/><stop offset="1" stop-color="#E36BB8"/></linearGradient></defs>
+    <path d="M12 4.6c2 2 2.9 4.2 2.9 6.6 0 2.4-1 4.2-2.9 5.6-1.9-1.4-2.9-3.2-2.9-5.6 0-2.4.9-4.6 2.9-6.6Z" stroke="url(#g-relax)" stroke-width="1.75" stroke-linejoin="round"/>
+    <path d="M4.2 10.4c2.5-.3 4.5.4 5.9 1.9 1.1 1.2 1.7 2.8 1.9 4.5-2.6.3-4.6-.4-6-1.9-1.1-1.2-1.6-2.8-1.8-4.5Z" stroke="url(#g-relax)" stroke-width="1.75" stroke-linejoin="round"/>
+    <path d="M19.8 10.4c-2.5-.3-4.5.4-5.9 1.9-1.1 1.2-1.7 2.8-1.9 4.5 2.6.3 4.6-.4 6-1.9 1.1-1.2 1.6-2.8 1.8-4.5Z" stroke="url(#g-relax)" stroke-width="1.75" stroke-linejoin="round"/>
+    <path d="M6.4 18.4c1.6 1.2 3.5 1.8 5.6 1.8s4-.6 5.6-1.8" stroke="url(#g-relax)" stroke-width="1.75" stroke-linecap="round"/></svg></div><span>Расслабление</span></div>
+
+  <div class="row"><div class="plaque" style="background:linear-gradient(150deg,#C2545E 0%,#571A38 100%)"><img class="imgic" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
+    <svg class="icon" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="g-track" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse"><stop stop-color="#F8C878"/><stop offset="1" stop-color="#E2615C"/></linearGradient></defs>
+    <circle cx="11.4" cy="12.6" r="7.6" stroke="url(#g-track)" stroke-width="1.75"/>
+    <circle cx="11.4" cy="12.6" r="3.8" stroke="url(#g-track)" stroke-width="1.75"/>
+    <path d="m11.4 12.6 6.4-6.4M17.8 3.4v2.8h2.8" stroke="url(#g-track)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Трекеры</span></div>
+
+  <div class="row"><div class="plaque" style="background:linear-gradient(150deg,#6A3699 0%,#2C1148 100%)"><img class="imgic" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
+    <svg class="icon" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="g-lib" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse"><stop stop-color="#7FAAF7"/><stop offset="1" stop-color="#8A62F0"/></linearGradient></defs>
+    <rect x="3.4" y="5" width="4.2" height="14" rx="1.3" stroke="url(#g-lib)" stroke-width="1.75"/>
+    <rect x="9.6" y="5" width="4.2" height="14" rx="1.3" stroke="url(#g-lib)" stroke-width="1.75"/>
+    <path d="m16.2 6.6 3.1-.8a1.1 1.1 0 0 1 1.4.8l2.1 9.4" stroke="url(#g-lib)" stroke-width="1.75" stroke-linecap="round" transform="translate(-1.2 1)"/>
+    <path d="M4.6 9.2h1.8M10.8 9.2h1.8" stroke="url(#g-lib)" stroke-width="1.6" stroke-linecap="round"/></svg></div><span>Все спринты</span></div>
+
+  <div class="row"><div class="plaque" style="background:linear-gradient(150deg,#B44468 0%,#54193C 100%)"><img class="imgic k-hand" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
+    <svg class="icon" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="g-hand" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse"><stop stop-color="#F5B7A6"/><stop offset="1" stop-color="#C4517A"/></linearGradient></defs>
+    <path d="M4 5.4A1.4 1.4 0 0 1 5.4 4h5.2a1.4 1.4 0 0 1 1.4 1.4v14.2s-1.4-1.6-4-1.6H5.4A1.4 1.4 0 0 1 4 16.6V5.4Z" stroke="url(#g-hand)" stroke-width="1.75" stroke-linejoin="round"/>
+    <path d="M20 5.4A1.4 1.4 0 0 0 18.6 4h-5.2A1.4 1.4 0 0 0 12 5.4v14.2s1.4-1.6 4-1.6h2.6a1.4 1.4 0 0 0 1.4-1.4V5.4Z" stroke="url(#g-hand)" stroke-width="1.75" stroke-linejoin="round"/></svg></div><span>Справочники</span></div>
+
+  <div class="row"><div class="plaque" style="background:linear-gradient(150deg,#7A3AA8 0%,#301350 100%)"><img class="imgic k-prof" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
+    <svg class="icon" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="g-prof" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse"><stop stop-color="#C4A2F0"/><stop offset="1" stop-color="#7B5BD6"/></linearGradient></defs>
+    <circle cx="12" cy="12" r="8.4" stroke="url(#g-prof)" stroke-width="1.75"/>
+    <circle cx="12" cy="10" r="2.9" stroke="url(#g-prof)" stroke-width="1.75"/>
+    <path d="M6.6 19.1c.7-2.6 2.8-4 5.4-4s4.7 1.4 5.4 4" stroke="url(#g-prof)" stroke-width="1.75" stroke-linecap="round"/></svg></div><span>Профиль</span></div>
+</div>
+
+<!-- ================= ЭКРАН ================= -->
+<div class="phone">
+  <div class="scroll">
+
+    <div class="top">
+      <div class="brandbox">
+        <div class="avatar"><img class="imgic avaimg" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="g-face" x1="4" y1="2" x2="20" y2="22" gradientUnits="userSpaceOnUse"><stop stop-color="#FBC3BC"/><stop offset="1" stop-color="#D0567F"/></linearGradient></defs>
+          <path d="M15.6 3.4c-3.4-.9-6.6 1.1-7.4 4.3-.5 2-.2 3.3-1.1 4.6-.5.8-1.4 1.2-1.4 2 0 .7.7 1 1.5 1.1.3 1.9.4 3.4 1.8 4.5 1.3 1 3.1 1.2 4.8.7" stroke="url(#g-face)" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M15.6 3.4c2.4.8 3.6 3.2 3.2 5.8-.4 2.7-1.8 4.4-2 7.2" stroke="url(#g-face)" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M10.6 11.2c.5.5 1.2.6 1.9.3" stroke="url(#g-face)" stroke-width="1.4" stroke-linecap="round"/></svg>
+        </div>
+        <div class="brand">ИРЕНА БИО</div>
+      </div>
+      <div class="burger"><i></i><i></i><i></i></div>
+    </div>
+
+    <!-- герой -->
+    <div class="hero">
+      <svg class="bloom" viewBox="0 0 320 320" fill="none">
+  <defs>
+    <radialGradient id="core" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#FFF3D2" stop-opacity=".95"/>
+      <stop offset=".35" stop-color="#FFB27A" stop-opacity=".65"/>
+      <stop offset="1" stop-color="#FF5E9C" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="halo" cx="50%" cy="58%" r="52%">
+      <stop offset="0" stop-color="#FF9EC4" stop-opacity=".45"/>
+      <stop offset="1" stop-color="#C13A7E" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="petal" x1="160" y1="80" x2="160" y2="215" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFC2DA" stop-opacity=".18"/>
+      <stop offset=".55" stop-color="#FF74AE" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#FFDCA8" stop-opacity=".92"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="160" y1="80" x2="160" y2="215" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFE1EC" stop-opacity=".85"/>
+      <stop offset="1" stop-color="#FF8FC0" stop-opacity=".25"/>
+    </linearGradient>
+    <radialGradient id="bub" cx="34%" cy="30%" r="72%">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".75"/>
+      <stop offset=".45" stop-color="#FFB6D4" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#FF7FB4" stop-opacity=".05"/>
+    </radialGradient>
+  </defs>
+
+  <circle cx="160" cy="212" r="132" fill="url(#halo)"/>
+
+  <g stroke="url(#edge)" stroke-width="1.4" fill="url(#petal)">
+    <g opacity=".55">
+      <path d="M160 214C124 190 104 158 100 118c34 14 54 46 60 96Z"/>
+      <path d="M160 214c36-24 56-56 60-96-34 14-54 46-60 96Z"/>
+      <path d="M160 216c-42-6-72-24-90-52 34-8 66 8 90 52Z"/>
+      <path d="M160 216c42-6 72-24 90-52-34-8-66 8-90 52Z"/>
+    </g>
+    <g opacity=".8">
+      <path d="M160 214c-24-30-32-64-24-102 26 24 34 60 24 102Z"/>
+      <path d="M160 214c24-30 32-64 24-102-26 24-34 60-24 102Z"/>
+    </g>
+    <path d="M160 214c-16-34-18-70 0-106 18 36 16 72 0 106Z"/>
+  </g>
+
+  <g opacity=".85">
+    <path d="M160 214c-14 8-30 12-48 12 12-14 30-20 48-12Z" fill="url(#petal)" stroke="url(#edge)" stroke-width="1.2"/>
+    <path d="M160 214c14 8 30 12 48 12-12-14-30-20-48-12Z" fill="url(#petal)" stroke="url(#edge)" stroke-width="1.2"/>
+  </g>
+
+  <circle cx="160" cy="206" r="62" fill="url(#core)"/>
+  <circle cx="160" cy="204" r="16" fill="url(#core)"/>
+
+  <g fill="url(#bub)" stroke="rgba(255,214,230,.42)" stroke-width="1">
+    <circle cx="72" cy="58" r="19"/>
+    <circle cx="120" cy="26" r="11"/>
+    <circle cx="36" cy="112" r="8"/>
+    <circle cx="104" cy="86" r="5.5"/>
+    <circle cx="212" cy="40" r="7"/>
+    <circle cx="58" cy="152" r="4"/>
+  </g>
+  <g fill="#FFE3CB">
+    <circle cx="66" cy="52" r="2" opacity=".9"/><circle cx="116" cy="21" r="1.4" opacity=".8"/>
+    <circle cx="150" cy="52" r="1.6" opacity=".7"/><circle cx="238" cy="96" r="1.8" opacity=".65"/>
+    <circle cx="94" cy="140" r="1.3" opacity=".6"/><circle cx="196" cy="70" r="1.5" opacity=".7"/>
+  </g>
+</svg>
+      <div class="kick">СЕГОДНЯ · ДЕНЬ 1</div>
+      <h1>Омоложение<br>изнутри</h1>
+      <p>С чего начинается настоящее омоложение и почему крем тут ни при чём</p>
+      <div class="player">
+        <div class="play"></div>
+        <div class="wave" id="wave"></div>
+        <div class="ptime">12:40</div>
+      </div>
+    </div>
+
+    <!-- прогресс -->
+    <div class="prog">
+      <div class="prow"><b>Омоложение изнутри</b><div class="pill">1 из 28</div></div>
+      <div class="track"><i></i></div>
+    </div>
+
+    <h2 class="sec">Твои инструменты</h2>
+
+    <div class="wide">
+      <img class="imgic k-medal" alt="Подружка" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="><div class="wplaque"><svg class="icon" style="width:30px;height:30px" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="g-friendw" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse"><stop stop-color="#FFF3EC"/><stop offset="1" stop-color="#FFC2C8"/></linearGradient></defs>
+        
+    <path d="M5.6 8.4c-.2-3.1 1.2-5.3 3.2-5.3s3.4 2.2 3.2 5.3" stroke="url(#g-friendw)" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="8.8" cy="8.6" r="2.9" stroke="url(#g-friendw)" stroke-width="1.5"/>
+    <path d="M5.8 7.8c-.6 1.7-.8 3.2-.5 4.6M11.8 7.8c.6 1.7.8 3.2.5 4.6" stroke="url(#g-friendw)" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M7.7 8.5v.7M10 8.5v.7" stroke="url(#g-friendw)" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M3.6 20.4c0-3.1 2.3-5.2 5.2-5.2s5.2 2.1 5.2 5.2" stroke="url(#g-friendw)" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M14.2 9.6c-.2-2.5 1-4.4 2.6-4.4s2.8 1.9 2.6 4.4" stroke="url(#g-friendw)" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="16.8" cy="9.8" r="2.4" stroke="url(#g-friendw)" stroke-width="1.5"/>
+    <path d="M19.4 9.2c.5 1.4.6 2.6.4 3.7" stroke="url(#g-friendw)" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M15.4 15.6c2.7.4 4.6 2.4 4.6 4.8" stroke="url(#g-friendw)" stroke-width="1.5" stroke-linecap="round"/>
+  </svg></div>
+      <div class="txt"><b>Подружка</b><span>спроси про добавки, цикл, самочувствие</span></div>
+      <div class="chev">›</div>
+    </div>
+
+    <div class="grid">
+      <div class="tile" style="--c1:rgba(96,196,206,.55);--c2:rgba(116,84,224,.50)">
+        <div class="head">
+          <img class="imgic k-work" alt="Тренировки" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="><svg class="icon" viewBox="0 0 24 24" fill="none">
+            <rect x="2.6" y="9.2" width="3.6" height="5.6" rx="1.4" stroke="url(#g-work)" stroke-width="1.75"/>
+            <rect x="17.8" y="9.2" width="3.6" height="5.6" rx="1.4" stroke="url(#g-work)" stroke-width="1.75"/>
+            <rect x="6.2" y="7.4" width="3.4" height="9.2" rx="1.5" stroke="url(#g-work)" stroke-width="1.75"/>
+            <rect x="14.4" y="7.4" width="3.4" height="9.2" rx="1.5" stroke="url(#g-work)" stroke-width="1.75"/>
+            <path d="M9.6 12h4.8" stroke="url(#g-work)" stroke-width="1.75" stroke-linecap="round"/></svg>
+          <div class="chev">›</div>
+        </div>
+        <div><b>Тренировки</b><span>и упражнения</span></div>
+      </div>
+
+      <div class="tile" style="--c1:rgba(176,112,240,.58);--c2:rgba(228,96,180,.46)">
+        <div class="head">
+          <img class="imgic k-relax" alt="Расслабление" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="><svg class="icon" viewBox="0 0 24 24" fill="none">
+            <path d="M12 4.6c2 2 2.9 4.2 2.9 6.6 0 2.4-1 4.2-2.9 5.6-1.9-1.4-2.9-3.2-2.9-5.6 0-2.4.9-4.6 2.9-6.6Z" stroke="url(#g-relax)" stroke-width="1.75" stroke-linejoin="round"/>
+            <path d="M4.2 10.4c2.5-.3 4.5.4 5.9 1.9 1.1 1.2 1.7 2.8 1.9 4.5-2.6.3-4.6-.4-6-1.9-1.1-1.2-1.6-2.8-1.8-4.5Z" stroke="url(#g-relax)" stroke-width="1.75" stroke-linejoin="round"/>
+            <path d="M19.8 10.4c-2.5-.3-4.5.4-5.9 1.9-1.1 1.2-1.7 2.8-1.9 4.5 2.6.3 4.6-.4 6-1.9 1.1-1.2 1.6-2.8 1.8-4.5Z" stroke="url(#g-relax)" stroke-width="1.75" stroke-linejoin="round"/>
+            <path d="M6.4 18.4c1.6 1.2 3.5 1.8 5.6 1.8s4-.6 5.6-1.8" stroke="url(#g-relax)" stroke-width="1.75" stroke-linecap="round"/></svg>
+          <div class="chev">›</div>
+        </div>
+        <div><b>Расслабление</b><span>медитации, дыхание</span></div>
+      </div>
+
+      <div class="tile" style="--c1:rgba(246,168,92,.52);--c2:rgba(196,62,96,.50)">
+        <div class="head">
+          <img class="imgic k-track" alt="Трекеры" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="><svg class="icon" viewBox="0 0 24 24" fill="none">
+            <circle cx="11.4" cy="12.6" r="7.6" stroke="url(#g-track)" stroke-width="1.75"/>
+            <circle cx="11.4" cy="12.6" r="3.8" stroke="url(#g-track)" stroke-width="1.75"/>
+            <path d="m11.4 12.6 6.4-6.4M17.8 3.4v2.8h2.8" stroke="url(#g-track)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div class="chev">›</div>
+        </div>
+        <div><b>Трекеры</b><span>здоровье и цикл</span></div>
+      </div>
+
+      <div class="tile" style="--c1:rgba(92,142,244,.50);--c2:rgba(138,82,236,.54)">
+        <div class="head">
+          <img class="imgic k-lib" alt="Все спринты" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="><svg class="icon" viewBox="0 0 24 24" fill="none">
+            <rect x="3.4" y="5" width="4.2" height="14" rx="1.3" stroke="url(#g-lib)" stroke-width="1.75"/>
+            <rect x="9.6" y="5" width="4.2" height="14" rx="1.3" stroke="url(#g-lib)" stroke-width="1.75"/>
+            <path d="m15 7.6 3.1-.8a1.1 1.1 0 0 1 1.4.8l2.1 9.4" stroke="url(#g-lib)" stroke-width="1.75" stroke-linecap="round"/>
+            <path d="M4.6 9.2h1.8M10.8 9.2h1.8" stroke="url(#g-lib)" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <div class="chev">›</div>
+        </div>
+        <div><b>Все спринты</b><span>библиотека</span></div>
+      </div>
+    </div>
+
+    <div class="foot">Подписка активна <b>до 23 сентября</b> · Поддержка</div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab on">
+      <img class="imgic tabimg" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="><svg class="icon" viewBox="0 0 24 24" fill="none">
+        <path d="M4 10.2 12 4l8 6.2V19a1.4 1.4 0 0 1-1.4 1.4H5.4A1.4 1.4 0 0 1 4 19v-8.8Z" stroke="url(#g-home)" stroke-width="1.75" stroke-linejoin="round"/>
+        <path d="M9.6 20.4v-5.2a1 1 0 0 1 1-1h2.8a1 1 0 0 1 1 1v5.2" stroke="url(#g-home)" stroke-width="1.75" stroke-linejoin="round"/></svg>
+      Сегодня</div>
+    <div class="tab">
+      <img class="imgic tabimg" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="><svg class="icon" viewBox="0 0 24 24" fill="none" opacity=".55">
+        <rect x="3.4" y="5" width="4.2" height="14" rx="1.3" stroke="#9E8F98" stroke-width="1.75"/>
+        <rect x="9.6" y="5" width="4.2" height="14" rx="1.3" stroke="#9E8F98" stroke-width="1.75"/>
+        <path d="m15 7.6 3.1-.8a1.1 1.1 0 0 1 1.4.8l2.1 9.4" stroke="#9E8F98" stroke-width="1.75" stroke-linecap="round"/></svg>
+      Спринты</div>
+    <div class="tab">
+      <img class="imgic tabimg" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="><svg class="icon" viewBox="0 0 24 24" fill="none" opacity=".55">
+        <path d="M12 4.6c2 2 2.9 4.2 2.9 6.6 0 2.4-1 4.2-2.9 5.6-1.9-1.4-2.9-3.2-2.9-5.6 0-2.4.9-4.6 2.9-6.6Z" stroke="#9E8F98" stroke-width="1.75" stroke-linejoin="round"/>
+        <path d="M4.2 10.4c2.5-.3 4.5.4 5.9 1.9 1.1 1.2 1.7 2.8 1.9 4.5-2.6.3-4.6-.4-6-1.9-1.1-1.2-1.6-2.8-1.8-4.5Z" stroke="#9E8F98" stroke-width="1.75" stroke-linejoin="round"/>
+        <path d="M19.8 10.4c-2.5-.3-4.5.4-5.9 1.9-1.1 1.2-1.7 2.8-1.9 4.5 2.6.3 4.6-.4 6-1.9 1.1-1.2 1.6-2.8 1.8-4.5Z" stroke="#9E8F98" stroke-width="1.75" stroke-linejoin="round"/></svg>
+      Практики</div>
+    <div class="tab">
+      <img class="imgic tabimg" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="><svg class="icon" viewBox="0 0 24 24" fill="none" opacity=".55">
+        
+    <path d="M5.6 8.4c-.2-3.1 1.2-5.3 3.2-5.3s3.4 2.2 3.2 5.3" stroke="#9E8F98" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="8.8" cy="8.6" r="2.9" stroke="#9E8F98" stroke-width="1.6"/>
+    <path d="M5.8 7.8c-.6 1.7-.8 3.2-.5 4.6M11.8 7.8c.6 1.7.8 3.2.5 4.6" stroke="#9E8F98" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M7.7 8.5v.7M10 8.5v.7" stroke="#9E8F98" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M3.6 20.4c0-3.1 2.3-5.2 5.2-5.2s5.2 2.1 5.2 5.2" stroke="#9E8F98" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M14.2 9.6c-.2-2.5 1-4.4 2.6-4.4s2.8 1.9 2.6 4.4" stroke="#9E8F98" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="16.8" cy="9.8" r="2.4" stroke="#9E8F98" stroke-width="1.6"/>
+    <path d="M19.4 9.2c.5 1.4.6 2.6.4 3.7" stroke="#9E8F98" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M15.4 15.6c2.7.4 4.6 2.4 4.6 4.8" stroke="#9E8F98" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>
+      Подружка</div>
+    <div class="tab">
+      <img class="imgic tabimg" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="><svg class="icon" viewBox="0 0 24 24" fill="none" opacity=".55">
+        <circle cx="12" cy="12" r="8.4" stroke="#9E8F98" stroke-width="1.75"/>
+        <circle cx="12" cy="10" r="2.9" stroke="#9E8F98" stroke-width="1.75"/>
+        <path d="M6.6 19.1c.7-2.6 2.8-4 5.4-4s4.7 1.4 5.4 4" stroke="#9E8F98" stroke-width="1.75" stroke-linecap="round"/></svg>
+      Профиль</div>
+  </div>
+</div>
+
+<div class="phone phone2">
+  <div class="scroll">
+    <div class="libhead">
+      <h1 class="libtitle">Все спринты</h1>
+      <p class="libsub">Открыты все. Начни с того, что откликается сейчас</p>
+    </div>
+
+    <div class="shelf">
+      <div class="poster p-lotus">
+        <span class="badge">ТЫ ЗДЕСЬ</span>
+        <div class="pinfo"><b>Омоложение изнутри</b><span>28 дней</span></div>
+      </div>
+      <div class="poster p-glutes">
+        <div class="pinfo"><b>Биохакинг ягодиц</b><span>49 дней</span></div>
+      </div>
+      <div class="poster p-body">
+        <div class="pinfo"><b>Женское тело</b><span>скоро</span></div>
+      </div>
+      <div class="poster p-sleep">
+        <div class="pinfo"><b>Архитектура сна</b><span>13 дней</span></div>
+      </div>
+      <div class="poster p-chaos">
+        <div class="pinfo"><b>Анти-хаос</b><span>11 дней</span></div>
+      </div>
+      <div class="poster p-gut">
+        <div class="pinfo"><b>Здоровый ЖКТ и женское тело</b><span>31 день</span></div>
+      </div>
+      <div class="poster p-food">
+        <div class="pinfo"><b>Основы питания</b><span>32 дня</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="phone phone3">
+  <div class="scroll dayscroll">
+
+    <div class="daycover">
+      <div class="backbtn">‹</div>
+      <div class="daymeta">
+        <span class="daykick">ОМОЛОЖЕНИЕ ИЗНУТРИ · ДЕНЬ 12</span>
+        <h1 class="daytitle">Коллаген: что работает,<br>а что нет</h1>
+      </div>
+    </div>
+
+    <div class="dayplayer">
+      <div class="play"></div>
+      <div class="pmeta">
+        <b>Подкаст дня</b>
+        <div class="ptrack"><i></i></div>
+        <div class="ptimes"><span>4:12</span><span>12:40</span></div>
+      </div>
+    </div>
+
+    <div class="daytext">
+      <p>Коллаген - самый продаваемый порошок в мире и самый спорный. Разберём, что про него известно, а что придумали маркетологи.</p>
+      <p>В кишечнике коллаген распадается на аминокислоты, как любой другой белок. Съеденный коллаген не едет напрямую в кожу. Но исследования последних лет показывают другое: сами пептиды работают сигналом. Организм видит их и понимает, что где-то идёт распад соединительной ткани, значит надо синтезировать больше своего.</p>
+      <div class="callout">
+        <span class="cotitle">Что важно</span>
+        <p>Без витамина C синтез коллагена не запускается вообще. Это не рекомендация, а биохимия: витамин C нужен на конкретном шаге сборки молекулы.</p>
+      </div>
+      <p>Дозировка, на которой построено большинство исследований, - от 2,5 до 10 граммов в сутки. Меньше 2,5 смысла нет, больше 10 не даёт прироста.</p>
+    </div>
+
+    <div class="videocard">
+      <div class="vthumb"><div class="vplay"></div><span class="vtime">6:20</span></div>
+      <div class="vinfo"><b>Массаж лица для лимфодренажа</b><span>видео · 6 минут</span></div>
+    </div>
+
+    <div class="filecard">
+      <div class="ficon">PDF</div>
+      <div class="finfo"><b>Памятка: как выбрать коллаген</b><span>формы, дозы, с чем сочетать</span></div>
+    </div>
+
+    <div class="taskcard">
+      <span class="tasklbl">Задание на сегодня</span>
+      <p>Проверь состав своей добавки: тип коллагена, граммы на порцию и есть ли витамин C рядом.</p>
+    </div>
+
+    <button class="donebtn">Отметить день пройденным</button>
+    <div style="height:26px"></div>
+  </div>
+</div>
+
+<div class="phone phone4">
+  <div class="scroll listscroll">
+
+    <div class="listcover">
+      <div class="backbtn">‹</div>
+      <div class="daymeta">
+        <span class="daykick">СПРИНТ · 31 ДЕНЬ</span>
+        <h1 class="daytitle">Здоровый ЖКТ<br>и женское тело</h1>
+      </div>
+    </div>
+
+    <div class="tracks">
+      <button class="tr on">Женское тело + ЖКТ</button>
+      <button class="tr">Только ЖКТ</button>
+      <button class="tr">Только тело</button>
+    </div>
+
+    <div class="trackhint">
+      Рекомендую проходить вместе - так результат заметнее.
+    </div>
+
+    <div class="listprog">
+      <div class="lprow"><b>Пройдено 4 из 31</b><span class="pill">13%</span></div>
+      <div class="track"><i style="width:13%"></i></div>
+    </div>
+
+    <div class="days">
+      <div class="dayrow done">
+        <span class="dnum">1</span>
+        <div class="dinfo"><b>С чего начинается пищеварение</b><span>подкаст 11 мин · ЖКТ</span></div>
+        <span class="dmark">✓</span>
+      </div>
+      <div class="dayrow done">
+        <span class="dnum">2</span>
+        <div class="dinfo"><b>Тазовое дно: почему все про него молчат</b><span>подкаст 9 мин · видео · тело</span></div>
+        <span class="dmark">✓</span>
+      </div>
+      <div class="dayrow done">
+        <span class="dnum">3</span>
+        <div class="dinfo"><b>Кислотность желудка</b><span>подкаст 13 мин · ЖКТ</span></div>
+        <span class="dmark">✓</span>
+      </div>
+      <div class="dayrow done">
+        <span class="dnum">4</span>
+        <div class="dinfo"><b>Дыхание животом</b><span>подкаст 8 мин · видео · тело</span></div>
+        <span class="dmark">✓</span>
+      </div>
+      <div class="dayrow cur">
+        <span class="dnum">5</span>
+        <div class="dinfo"><b>Ферменты и вздутие</b><span>подкаст 12 мин · памятка · ЖКТ</span></div>
+        <span class="dnow">сегодня</span>
+      </div>
+      <div class="dayrow">
+        <span class="dnum">6</span>
+        <div class="dinfo"><b>Осанка и живот</b><span>подкаст 10 мин · видео · тело</span></div>
+      </div>
+      <div class="dayrow">
+        <span class="dnum">7</span>
+        <div class="dinfo"><b>Желчный: тихий дирижёр</b><span>подкаст 14 мин · ЖКТ</span></div>
+      </div>
+    </div>
+    <div style="height:26px"></div>
+  </div>
+</div>
+
+<div class="phone phone5">
+  <div class="scroll subscroll">
+    <div class="subhead"><div class="backbtn st">‹</div><span>Подписка</span></div>
+
+    <div class="memcard ok">
+      <div class="mtop"><span class="mbrand">ИРЕНА БИО</span><span class="mchip">АКТИВНА</span></div>
+      <div class="mname">Полный доступ</div>
+      <div class="mline">
+        <div><span>Участница с</span><b>июня 2026</b></div>
+        <div class="right"><span>Действует до</span><b>23.09.2026</b></div>
+      </div>
+    </div>
+    <p class="mnote">23 сентября спишется 11 € за следующий месяц. Напомню за три дня.</p>
+
+    <div class="inclcard">
+      <span class="incltitle">Что входит</span>
+      <ul class="incl"><li>тренировки и упражнения</li><li>трекеры здоровья и цикла</li><li>дневник самочувствия</li><li>медитации</li><li>дыхательные практики</li><li>обучающие материалы</li><li>ежедневные подкасты</li></ul>
+    </div>
+
+    <button class="ghostbtn">Отключить автопродление</button>
+    <p class="subfoot">Вопрос по оплате? Напиши в поддержку - помогу руками.</p>
+    <div style="height:24px"></div>
+  </div>
+</div>
+
+<div class="phone phone5">
+  <div class="scroll subscroll">
+    <div class="subhead"><div class="backbtn st">‹</div><span>Подписка</span></div>
+
+    <div class="memcard off">
+      <div class="mtop"><span class="mbrand">ИРЕНА БИО</span><span class="mchip">БЕЗ ПРОДЛЕНИЯ</span></div>
+      <div class="mname">Полный доступ</div>
+      <div class="mline">
+        <div><span>Участница с</span><b>июня 2026</b></div>
+        <div class="right"><span>Доступ до</span><b>23.09.2026</b></div>
+      </div>
+    </div>
+    <p class="mnote">Всё открыто до этой даты. Дальше списаний не будет и доступ закроется.</p>
+
+    <button class="donebtn sub">Включить продление</button>
+
+    <div class="inclcard">
+      <span class="incltitle">Что потеряешь после 23 сентября</span>
+      <ul class="incl"><li>тренировки и упражнения</li><li>трекеры здоровья и цикла</li><li>дневник самочувствия</li><li>медитации</li><li>дыхательные практики</li><li>обучающие материалы</li><li>ежедневные подкасты</li></ul>
+    </div>
+    <p class="subfoot">Передумаешь позже - можно вернуться в любой момент, прогресс сохранится.</p>
+    <div style="height:24px"></div>
+  </div>
+</div>
+
+<div class="phone phone5">
+  <div class="scroll subscroll">
+    <div class="subhead"><div class="backbtn st">‹</div><span>Подписка</span></div>
+
+    <div class="memcard bad">
+      <div class="mtop"><span class="mbrand">ИРЕНА БИО</span><span class="mchip">ОПЛАТА НЕ ПРОШЛА</span></div>
+      <div class="mname">Полный доступ</div>
+      <div class="mline">
+        <div><span>Участница с</span><b>июня 2026</b></div>
+        <div class="right"><span>Доступ ещё</span><b>3 дня</b></div>
+      </div>
+    </div>
+    <p class="mnote">Банк отклонил списание 23 сентября. Обычно помогает повторить оплату - деньги спишутся один раз.</p>
+
+    <p class="subfoot">Карта не проходит? Напиши в поддержку, откроем доступ вручную и разберёмся со способом оплаты.</p>
+
+    <div class="sheet">
+      <div class="sheetgrip"></div>
+      <b class="sheettitle">Отключить автопродление?</b>
+      <p class="sheettext">Доступ останется до 23 сентября 2026. Списаний больше не будет, прогресс и отметки сохранятся.</p>
+      <button class="donebtn sub">Оставить подписку</button>
+      <button class="ghostbtn quiet">Да, отключить</button>
+    </div>
+    <div style="height:24px"></div>
+  </div>
+</div>
+
+<script>
+const h=[10,16,26,13,30,20,34,17,25,12,29,19,11,23,15,27,16,21,10,24,14,9,19,13,23,11,18,28,15,21,11,17,24,13,20];
+const w=document.getElementById('wave');
+h.forEach((v,i)=>{const b=document.createElement('i');b.style.height=v+'px';b.style.opacity=i<12?'.95':'.4';w.appendChild(b)});
+</script>
+<script>
+const a=document.getElementById('sw-code'), b=document.getElementById('sw-png');
+a.onclick=()=>{document.body.classList.remove('png');a.classList.add('on');b.classList.remove('on')};
+b.onclick=()=>{document.body.classList.add('png');b.classList.add('on');a.classList.remove('on')};
+</script>
+</body>
+</html>

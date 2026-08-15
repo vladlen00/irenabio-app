@@ -990,10 +990,13 @@ function fmtDateDots(iso) {
   return p(d.getDate()) + "." + p(d.getMonth() + 1) + "." + d.getFullYear();
 }
 // Адаптивный заголовок: длинный (>18 символов) -> мельче (23px) и переносится в 2 строки, БЕЗ многоточия.
+// Порог .long поднят с 18 до 26: базовый кегль героя вырос до 40px, и на нём
+// заголовок в 20-25 знаков нормально ложится в две строки. Ронять до 30px имеет
+// смысл только на действительно длинных именах дней, которых в базе хватает.
 function setHeadline(el, text) {
   if (!el) return;
   el.textContent = text;
-  el.classList.toggle("long", (text || "").length > 18);
+  el.classList.toggle("long", (text || "").length > 26);
 }
 
 function showCheckout() {
@@ -1067,26 +1070,31 @@ function renderHome(data) {
   const sprintTitle = sprint ? sprint.title : "";
 
   // --- верхняя адаптивная карточка ---
+  // Кикер несёт номер дня ("СЕГОДНЯ · ДЕНЬ 6"), заголовок - имя дня БЕЗ префикса.
+  // Заголовки в базе физически начинаются с "День N." - без dayShortTitle номер
+  // печатался дважды. Тот же помощник уже работает в списке дней спринта.
+  function heroHtml(day, kicker, cta) {
+    const sub = (day.subtitle || "").trim();
+    return '<div class="home-kicker">' + escapeHtml(kicker) + " · День " + day.day_number + "</div>" +
+      '<div class="home-headline" id="home-hl"></div>' +
+      (sub ? '<div class="home-subhead">' + escapeHtml(sub) + "</div>" : "") +
+      '<div class="home-cta" data-day-id="' + escapeHtml(day.id) + '" role="button">' +
+        '<span class="home-cta-ic"><i class="ti ti-player-play"></i></span>' +
+        "<span>" + escapeHtml(cta) + "</span></div>";
+  }
+
   if (!sprint || days.length === 0) {
     homeEls.herobox.innerHTML =
       '<div class="home-headline">Скоро здесь появятся дни</div>' +
       '<div class="home-subhead">Контент готовится. Загляните чуть позже.</div>';
   } else if (completedVisible === 0) {
     // НОВИЧОК
-    homeEls.herobox.innerHTML =
-      '<div class="home-kicker">Начинаем</div>' +
-      '<div class="home-headline" id="home-hl"></div>' +
-      '<div class="home-cta" data-day-id="' + escapeHtml(days[0].id) + '">' +
-        '<span class="home-cta-ic"><i class="ti ti-player-play"></i></span><span>Начать</span></div>';
-    setHeadline(document.getElementById("home-hl"), days[0].title);
+    homeEls.herobox.innerHTML = heroHtml(days[0], "Начинаем", "Начать");
+    setHeadline(document.getElementById("home-hl"), dayShortTitle(days[0].title));
   } else if (nextDay) {
     // ВЕРНУВШИЙСЯ
-    homeEls.herobox.innerHTML =
-      '<div class="home-kicker">Сегодня</div>' +
-      '<div class="home-headline" id="home-hl"></div>' +
-      '<div class="home-cta" data-day-id="' + escapeHtml(nextDay.id) + '">' +
-        '<span class="home-cta-ic"><i class="ti ti-player-play"></i></span><span>Продолжить</span></div>';
-    setHeadline(document.getElementById("home-hl"), nextDay.title);
+    homeEls.herobox.innerHTML = heroHtml(nextDay, "Сегодня", "Продолжить");
+    setHeadline(document.getElementById("home-hl"), dayShortTitle(nextDay.title));
   } else {
     // все доступные дни пройдены
     homeEls.herobox.innerHTML =
@@ -1363,7 +1371,7 @@ const MINI_APPS = {
 async function openMiniApp(appKey, tileEl) {
   const app = MINI_APPS[appKey];
   if (!app || !tileEl || tileEl.dataset.busy === "1") return;
-  const sub = tileEl.querySelector(".t5s, .sheet-card-sub");
+  const sub = tileEl.querySelector(".t5s, .sheet-card-sub, .home-wide-sub");
   const subText = sub ? sub.textContent : "";
   const flash = (msg) => { if (sub) { sub.textContent = msg; setTimeout(() => { sub.textContent = subText; }, 3000); } };
   tileEl.dataset.busy = "1";
@@ -1405,12 +1413,14 @@ function openSheetByGroup(group) {
 }
 
 (function wireMiniAppTiles() {
-  const tools = document.querySelector(".home-tools");
+  // Делегат висит на .home-body, а не на .home-tools: Подружка уехала из сетки
+  // в широкую карточку и осталась бы без обработчика.
+  const tools = document.querySelector(".home-body");
   if (tools) {
     tools.addEventListener("click", (e) => {
-      const grouped = e.target.closest(".t5[data-group]");
+      const grouped = e.target.closest("[data-group]");
       if (grouped) { openSheetByGroup(grouped.getAttribute("data-group")); return; }
-      const tile = e.target.closest(".t5[data-app]");
+      const tile = e.target.closest("[data-app]");
       if (tile) openMiniApp(tile.getAttribute("data-app"), tile);
     });
   }
@@ -2297,23 +2307,29 @@ function openSprint(sprintId) {
   window.scrollTo(0, 0);
 }
 
-// Экран "Все спринты": текущий сверху, ниже остальные от свежих к старым.
-function sprintCardHtml(s, completed, kicker) {
+function plurDays(n) {
+  const t = n % 100, o = n % 10;
+  if (t >= 11 && t <= 14) return n + " дней";
+  if (o === 1) return n + " день";
+  if (o >= 2 && o <= 4) return n + " дня";
+  return n + " дней";
+}
+
+// Библиотека = полка постеров 2 в ряд, ОДИН хронологический список без деления на
+// группы. Текущий спринт помечен плашкой "ТЫ ЗДЕСЬ", а не отдельной секцией.
+// Обложек пока нет: постер едет на заглушечном градиенте, картинка подключится
+// отдельным шагом через sprints.cover_url.
+function posterHtml(s, isCurrent) {
   const days = s.days || [];
-  const done = days.filter((d) => completed.has(d.id)).length;
-  const denom = s.estimated_days || days.length || 0;
-  const tilde = s.status === "active" ? "~" : "";
-  const pct = denom > 0 ? Math.max(2, Math.min(100, Math.round(done / denom * 100))) : 2;
-  const started = done > 0 && done < days.length;
-  return '<div class="card sprints-card" data-sprint-id="' + escapeHtml(s.id) + '" role="button">' +
-    (kicker ? '<div class="sprints-kicker">' + escapeHtml(kicker) + '</div>' : '') +
-    '<div class="sprints-top">' +
-      '<div class="sprints-title">' + escapeHtml(s.title || "") + '</div>' +
-      '<div class="sprints-badge">' + done + ' из ' + tilde + denom + '</div>' +
-    '</div>' +
-    '<div class="home-progress"><div class="home-progress-bar" style="width:' + pct + '%"></div></div>' +
-    (started ? '<div class="sprints-note">Продолжить</div>' : '') +
-    '</div>';
+  const total = s.estimated_days || days.length || 0;
+  const meta = total > 0 ? plurDays(total) : "скоро";
+  return '<div class="poster' + (days.length ? "" : " poster-empty") + '" data-sprint-id="' +
+      escapeHtml(s.id) + '" role="button">' +
+    (isCurrent ? '<span class="poster-badge">Ты здесь</span>' : "") +
+    '<div class="poster-info">' +
+      "<b>" + escapeHtml(s.title || "") + "</b>" +
+      "<span>" + escapeHtml(meta) + "</span>" +
+    "</div></div>";
 }
 
 function openSprints() {
@@ -2321,19 +2337,13 @@ function openSprints() {
   const all = homeSprints(homeData);
   const current = pickCurrentSprint(all, completed);
   // ХРОНОЛОГИЯ КАНАЛА: order_index растёт от самого раннего спринта к позднему, поэтому
-  // сортируем ПО ВОЗРАСТАНИЮ. Было по убыванию ("свежие сверху") - от этого библиотека
-  // читалась задом наперёд. На выбор героя это не влияет: он берётся из pickCurrentSprint
-  // по status === "active", order_index там не участвует.
-  const rest = all.filter((s) => !current || s.id !== current.id)
-                  .slice().sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+  // сортируем ПО ВОЗРАСТАНИЮ. На выбор героя это не влияет: он берётся из
+  // pickCurrentSprint по status === "active", order_index там не участвует.
+  const shelf = all.slice().sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
   hideContentViews();
   document.getElementById("view-sprints").hidden = false;
   let html = "";
-  if (current) html += sprintCardHtml(current, completed, current.status === "active" ? "ИДЁТ СЕЙЧАС" : "ВЫ ОСТАНОВИЛИСЬ ЗДЕСЬ");
-  if (rest.length) {
-    html += '<div class="sprints-group">ОСТАЛЬНЫЕ</div>';
-    for (const s of rest) html += sprintCardHtml(s, completed, "");
-  }
+  for (const s of shelf) html += posterHtml(s, !!current && s.id === current.id);
   if (!html) html = '<p class="home-loading">Пока ни одного спринта.</p>';
   document.getElementById("sprints-list").innerHTML = html;
   window.scrollTo(0, 0);
@@ -2381,7 +2391,7 @@ function navBack() {
     if (all) { navTo("sprint", currentSprintId); return; }
     const arch = e.target.closest(".t5-archive");
     if (arch) { navTo("sprints"); return; }
-    const sc = e.target.closest(".sprints-card[data-sprint-id]");
+    const sc = e.target.closest(".poster[data-sprint-id]");
     if (sc) { navTo("sprint", sc.getAttribute("data-sprint-id")); return; }
     const sd = e.target.closest(".sprint-day[data-day-id]");
     if (sd && !sd.classList.contains("locked")) { navTo("day", sd.getAttribute("data-day-id")); return; }
