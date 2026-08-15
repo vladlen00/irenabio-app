@@ -1,20 +1,26 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- Тема: применяем ДО рендера, чтобы не было вспышки светлого. Дефолт светлый. -->
-  <script>(function(){try{if(localStorage.getItem('irena_theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
+  <meta name="color-scheme" content="dark">
+  <!-- Тема одна - тёмная. Атрибут стоит прямо на <html>, поэтому вспышки нет даже без JS.
+       ОДНОРАЗОВАЯ ЗАТИРКА: у тех, кто раньше переключался тумблером, в localStorage лежит
+       irena_theme='light'. Тумблера больше нет, светлых токенов тоже - ключ снимаем, иначе
+       он вечно висит мусором и путает при отладке. -->
+  <script>(function(){try{document.documentElement.setAttribute('data-theme','dark');if(localStorage.getItem('irena_theme')==='light')localStorage.removeItem('irena_theme');}catch(e){}})();</script>
   <title>Женский биохакинг с Иреной Пол - оформление</title>
   <link rel="icon" href="favicon.ico?v=1" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=1">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png?v=1">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=1">
   <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=1">
-  <link rel="stylesheet" href="style.css?v=44">
+  <link rel="stylesheet" href="style.css?v=45">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Заголовки Playfair Display Medium, интерфейс Onest. У обоих есть кириллица
+       (проверено по ответу fonts.googleapis.com: подмножество cyrillic отдаётся). -->
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css" rel="stylesheet">
 </head>
 <body>
@@ -163,7 +169,6 @@
                   <div class="hmenu-value" id="hmenu-sub-until">активна</div>
                 </div>
                 <button type="button" class="hmenu-item" id="hmenu-subscription"><i class="ti ti-credit-card"></i> Управление подпиской</button>
-                <button type="button" class="hmenu-item" id="hmenu-theme"><i class="ti ti-moon" id="hmenu-theme-ic"></i> <span id="hmenu-theme-label">Тёмная тема</span></button>
                 <button type="button" class="hmenu-item" id="hmenu-support"><i class="ti ti-help-circle"></i> Поддержка</button>
                 <div class="hmenu-contacts" id="hmenu-contacts" hidden></div>
                 <button type="button" class="hmenu-item hmenu-danger" id="hmenu-signout"><i class="ti ti-logout"></i> Выход</button>
@@ -238,7 +243,7 @@
             <span class="day-kicker">БИБЛИОТЕКА</span>
           </div>
           <div class="day-title">Все спринты</div>
-          <div class="sprint-sub">Берите то, что нужно сейчас. Порядок не важен.</div>
+          <div class="sprint-sub">Все спринты открыты. Начни с того, что откликается сейчас.</div>
         </div>
         <div class="day-body">
           <div id="sprints-list"></div>
@@ -518,6 +523,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=64"></script>
+  <script src="app.js?v=65"></script>
 </body>
 </html>

@@ -1337,29 +1337,10 @@ function wireCancelFlow(sub) {
   });
 }
 
-// Тумблер темы в меню профиля. Дефолт светлый; тёмная включается вручную и запоминается в
-// localStorage (тот же ключ, что читает pre-render скрипт в <head>). Меняет только data-theme
-// на <html> -> CSS-токены переопределяются, ТГ-мини-аппы и прочее не затрагиваются.
-(function wireThemeToggle() {
-  const KEY = "irena_theme";
-  const item = document.getElementById("hmenu-theme");
-  const label = document.getElementById("hmenu-theme-label");
-  const ic = document.getElementById("hmenu-theme-ic");
-  const isDark = () => document.documentElement.getAttribute("data-theme") === "dark";
-  function reflect() {
-    const dark = isDark();
-    if (label) label.textContent = dark ? "Светлая тема" : "Тёмная тема";
-    if (ic) ic.className = "ti " + (dark ? "ti-sun" : "ti-moon");
-  }
-  reflect();
-  if (item) item.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const dark = !isDark();
-    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
-    try { localStorage.setItem(KEY, dark ? "dark" : "light"); } catch {}
-    reflect();
-  });
-})();
+// Тумблер темы УДАЛЁН (редизайн, шаг A): схема теперь одна - тёмная. Атрибут data-theme="dark"
+// стоит статикой на <html>, светлых токенов в style.css больше нет, а ключ irena_theme='light'
+// у переключавшихся ранее снимается одноразовой затиркой в <head>. Пункт меню #hmenu-theme
+// убран из index.html - здесь ловить нечего.
 
 // ===================== ПЛИТКИ: мини-аппы (пилот - Тренировки/workout) =====================
 // Клик по плитке -> mint-app-token (сервер проверяет веб-подписку) -> открыть мини-апп на его
@@ -2339,8 +2320,12 @@ function openSprints() {
   const completed = new Set((homeData && homeData.progress && homeData.progress.completed_day_ids) || []);
   const all = homeSprints(homeData);
   const current = pickCurrentSprint(all, completed);
+  // ХРОНОЛОГИЯ КАНАЛА: order_index растёт от самого раннего спринта к позднему, поэтому
+  // сортируем ПО ВОЗРАСТАНИЮ. Было по убыванию ("свежие сверху") - от этого библиотека
+  // читалась задом наперёд. На выбор героя это не влияет: он берётся из pickCurrentSprint
+  // по status === "active", order_index там не участвует.
   const rest = all.filter((s) => !current || s.id !== current.id)
-                  .slice().sort((a, b) => (b.order_index || 0) - (a.order_index || 0));
+                  .slice().sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
   hideContentViews();
   document.getElementById("view-sprints").hidden = false;
   let html = "";
