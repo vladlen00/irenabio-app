@@ -72,7 +72,8 @@
   /* --- ДЫМОК ПЛИТОК: дефолт нейтральный, каждая плитка переопределяет свою пару --- */
   --smoke-a: rgba(148,136,144,.30);
   --smoke-b: rgba(148,136,144,.22);
-  --smoke-ic: #948890;
+  /* --smoke-ic убран вместе с глифами плиток (шаг B, 2026-08-16): цвет иконки
+     задавала картинка, а не токен, и правило .home .t5 i стало недостижимым. */
 }
 
 * { box-sizing: border-box; }
@@ -258,7 +259,12 @@ a:hover { text-decoration: underline; }
   background-position: center right;
 }
 .home-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.home-hello { font-size: 17px; font-weight: 500; color: var(--ink-strong); }
+/* Левая группа нужна, чтобы space-between развёл именно её и меню, а не растащил
+   аватар, приветствие и бургер по трём углам. */
+.home-topbar-left { display: flex; align-items: center; gap: 11px; min-width: 0; }
+/* Ни фона, ни рамки, ни тени: кольцо нарисовано в самой картинке. */
+.home-avatar { width: 56px; height: 56px; display: block; flex: 0 0 auto; }
+.home-hello { font-size: 17px; font-weight: 500; color: var(--ink-strong); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .home-menu { position: relative; }
 /* Размер и радиус из макета, но заливка стеклянная: в макете кнопка стоит на фоне
    страницы, у нас - на градиенте героя, и глухой --surface читался бы дырой. */
@@ -349,7 +355,18 @@ a:hover { text-decoration: underline; }
   filter: blur(26px);
 }
 .home-wide > * { position: relative; z-index: 1; }
-.home-wide-ic { font-size: 30px; color: #fff; flex: 0 0 auto; filter: drop-shadow(0 0 8px rgba(255,255,255,.45)); }
+/* Медальон Подружки. Плашки под ним НЕТ намеренно - у самой картинки своё кольцо,
+   подложка дала бы круг в круге. Файл 198px = @3x к отрисовке 66. */
+.home-wide-ic { width: 66px; height: 66px; display: block; flex: 0 0 auto; }
+/* Мягкое свечение ПОД медальоном: z-index 0 против 1 у контента. ::after рисуется
+   после ::before, то есть ложится поверх дымка карточки, но под картинкой. */
+.home-wide::after {
+  content: ""; position: absolute; z-index: 0; pointer-events: none;
+  left: 8px; top: 50%; transform: translateY(-50%);
+  width: 92px; height: 92px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,190,205,.55) 0%, transparent 70%);
+  filter: blur(10px);
+}
 .home-wide-txt { flex: 1; min-width: 0; }
 .home-wide-txt b { display: block; font-size: 16.5px; font-weight: 600; color: #fff; }
 .home-wide-sub { font-size: 12.5px; color: rgba(255,255,255,.82); }
@@ -376,12 +393,24 @@ a:hover { text-decoration: underline; }
   background: linear-gradient(150deg, rgba(255,255,255,.07), transparent 42%);
 }
 .home .t5 > * { position: relative; z-index: 1; }
-/* Пары цветов из макета. Иконка берёт непрозрачный тон своей плитки. */
-.home .t5[data-group="trainings"] { --smoke-a: rgba(96,196,206,.55);  --smoke-b: rgba(116,84,224,.50); --smoke-ic: #6FD3DC; }
-.home .t5[data-app="relax"]       { --smoke-a: rgba(176,112,240,.58); --smoke-b: rgba(228,96,180,.46); --smoke-ic: #C08CF5; }
-.home .t5[data-group="trackers"]  { --smoke-a: rgba(246,168,92,.52);  --smoke-b: rgba(196,62,96,.50);  --smoke-ic: #F6A85C; }
-.home .t5-archive                 { --smoke-a: rgba(92,142,244,.50);  --smoke-b: rgba(138,82,236,.54); --smoke-ic: #7BA4F7; }
-.home .t5 i { font-size: 30px; color: var(--smoke-ic); }
+/* Пары цветов из макета. Те же токены кормят и дымок, и свечение иконки. */
+.home .t5[data-group="trainings"] { --smoke-a: rgba(96,196,206,.55);  --smoke-b: rgba(116,84,224,.50); }
+.home .t5[data-app="relax"]       { --smoke-a: rgba(176,112,240,.58); --smoke-b: rgba(228,96,180,.46); }
+.home .t5[data-group="trackers"]  { --smoke-a: rgba(246,168,92,.52);  --smoke-b: rgba(196,62,96,.50); }
+.home .t5-archive                 { --smoke-a: rgba(92,142,244,.50);  --smoke-b: rgba(138,82,236,.54); }
+/* Картиночные иконки плиток. Файлы 96px = @3x к отрисовке 32.
+   Свечение берёт ЦВЕТА СВОЕЙ ПЛИТКИ, а не белый: белое даёт ватный ореол, цветное -
+   неон. align-self обязателен - в колоночном флексе картинка иначе тянется по ширине. */
+.home .t5ic {
+  width: 32px; height: 32px; display: block; flex: 0 0 auto; align-self: flex-start;
+  filter: drop-shadow(0 0 7px var(--smoke-a)) drop-shadow(0 0 16px var(--smoke-b));
+}
+/* ОПТИЧЕСКОЕ ВЫРАВНИВАНИЕ. Кегль у файлов один, а вес разный: гантель широкая и
+   низкая, у мишени крупный внутренний отступ. Без подгонки ряд выглядит рваным.
+   scale() меняет только картинку, коробка остаётся 32px и сетка не едет. */
+.home .t5[data-group="trainings"] .t5ic { transform: scale(1.28); }
+.home .t5[data-group="trackers"]  .t5ic { transform: scale(1.12); }
+.home .t5-archive .t5ic           { transform: scale(0.96); }
 /* margin-top:auto прижимает подпись к низу, иконка остаётся сверху: в макете
    плитка держит высоту 116 и разносит иконку и текст по краям. */
 .home .t5n { font-size: 15px; font-weight: 600; color: var(--text-home); margin-top: auto; }

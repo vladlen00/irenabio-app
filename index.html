@@ -17,7 +17,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png?v=1">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=1">
   <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=1">
-  <link rel="stylesheet" href="style.css?v=50">
+  <link rel="stylesheet" href="style.css?v=51">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. У обоих есть кириллица
@@ -162,7 +162,12 @@
       <div id="home-content" class="home" hidden>
         <div class="home-hero" id="home-hero">
           <div class="home-topbar">
-            <span id="home-greeting" class="home-hello">Привет!</span>
+            <!-- Аватар: у самой картинки СВОЁ кольцо, поэтому ни фона, ни рамки
+                 вокруг неё не рисуем - вышел бы круг в круге. -->
+            <div class="home-topbar-left">
+              <img class="home-avatar" src="icons/profile.png?v=1" alt="" width="56" height="56">
+              <span id="home-greeting" class="home-hello">Привет!</span>
+            </div>
             <div class="home-menu" id="home-menu">
               <button class="home-menu-btn" id="home-menu-btn" type="button" aria-label="Меню профиля" aria-haspopup="true" aria-expanded="false"><i class="ti ti-menu-2"></i></button>
               <div class="home-menu-panel" id="home-menu-panel" hidden>
@@ -197,7 +202,7 @@
           <!-- Подружка вынесена из сетки в широкую карточку на брендовом градиенте (макет).
                data-app читает тот же делегат, что и плитки. -->
           <div class="home-wide" data-app="podruzhka" role="button">
-            <i class="ti ti-sparkles home-wide-ic"></i>
+            <img class="home-wide-ic" src="icons/podruzhka-card.png?v=1" alt="" width="66" height="66">
             <div class="home-wide-txt">
               <b>Подружка</b>
               <span class="home-wide-sub">спроси про добавки, цикл, самочувствие</span>
@@ -206,10 +211,10 @@
 
           <!-- Сетка 2x2. Справочники убраны: аппа не существует, плитка вела в никуда. -->
           <div class="home-tools">
-            <div class="t5" data-group="trainings" role="button"><i class="ti ti-barbell"></i><div class="t5n">Тренировки</div><div class="t5s">и упражнения</div></div>
-            <div class="t5" data-app="relax" role="button"><i class="ti ti-flower"></i><div class="t5n">Расслабление</div><div class="t5s">медитации, дыхание</div></div>
-            <div class="t5" data-group="trackers" role="button"><i class="ti ti-chart-line"></i><div class="t5n">Трекеры</div><div class="t5s">здоровье и цикл</div></div>
-            <div class="t5 t5-archive" role="button"><i class="ti ti-layout-grid"></i><div class="t5n">Все спринты</div><div class="t5s">библиотека</div></div>
+            <div class="t5" data-group="trainings" role="button"><img class="t5ic" src="icons/trainings.png?v=1" alt="" width="32" height="32"><div class="t5n">Тренировки</div><div class="t5s">и упражнения</div></div>
+            <div class="t5" data-app="relax" role="button"><img class="t5ic" src="icons/relax.png?v=1" alt="" width="32" height="32"><div class="t5n">Расслабление</div><div class="t5s">медитации, дыхание</div></div>
+            <div class="t5" data-group="trackers" role="button"><img class="t5ic" src="icons/trackers.png?v=1" alt="" width="32" height="32"><div class="t5n">Трекеры</div><div class="t5s">здоровье и цикл</div></div>
+            <div class="t5 t5-archive" role="button"><img class="t5ic" src="icons/sprints.png?v=1" alt="" width="32" height="32"><div class="t5n">Все спринты</div><div class="t5s">библиотека</div></div>
           </div>
 
           <div class="card home-sub" id="home-sub-card" role="button">
@@ -537,6 +542,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=69"></script>
+  <script src="app.js?v=70"></script>
 </body>
 </html>
