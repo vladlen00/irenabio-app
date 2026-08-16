@@ -91,6 +91,37 @@ body {
   font-weight: 500;
   letter-spacing: -0.01em;
 }
+/* ===================== ПЕРЕНОС СТРОК: правило, а не заплатка =====================
+   Тексты приходят из базы, где именно сломается перенос - заранее неизвестно, и
+   ловить висячие слова по одному месту бессмысленно: браузер переносит по единственному
+   правилу «пока влезает», красоту он не оценивает.
+
+   balance - короткие блоки в 2-4 строки (заголовки, подзаголовки, названия): движок
+   выравнивает длину строк и не оставляет одно слово внизу. Особенно нужен там, где мы
+   сами сузили колонку (.home-subhead стоит на 210px ради контраста на обложке) и на
+   крупном кегле, где висячее слово заметнее всего (.home-headline 40px / .long 30px,
+   .day-title 30 / 26).
+   pretty - длинная проза: правит только хвост абзаца, дешевле по разметке.
+   Оба значения старые браузеры игнорируют молча, фолбэк не нужен. */
+.home-headline, .home-subhead,
+.day-title, .day-kicker, .sprint-sub,
+.home-sprint-title, .home-wide-sub, .home-sub-title,
+.home .t5n, .home .t5s,
+.poster-info b,
+.sprint-day-title, .sprint-day-sub,
+.lib-sub,
+.sheet-card-name, .sheet-card-sub,
+.audio-title, .blk-video-title, .blk-task-title {
+  text-wrap: balance;
+}
+.blk-text-body, .blk-task-text, .blk-image-cap, .blk-pdf-cap {
+  text-wrap: pretty;
+}
+/* .home-wide-sub - это <span> внутри обычного div, то есть строчный бокс, а balance
+   применяется к БЛОЧНЫМ контейнерам. Без display:block правило молча не работало бы.
+   Соседний <b> и так display:block, поэтому вид не меняется. */
+.home-wide-sub { display: block; }
+
 input::placeholder { color: var(--muted); opacity: 1; }
 a { color: var(--accent-deep); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -573,7 +604,10 @@ a:hover { text-decoration: underline; }
 /* Селектор с #view-sprints обязателен: экран лежит внутри main.wrap.checkout,
    а `.checkout h1` (специфичность выше классовой) навязывал 26px и центр. */
 #view-sprints .lib-title { font-size: 32px; font-weight: 500; line-height: 1; color: var(--text); margin: 0; text-align: left; }
-.lib-sub { font-size: 13px; color: var(--muted); margin: 8px 0 0; line-height: 1.5; max-width: 300px; }
+/* max-width убран: не хватало ровно одного слова, и «сейчас» висело второй строкой.
+   Сужать тут незачем - текст лежит на ровном тёмном фоне, а не на обложке (в отличие
+   от .home-subhead, где 210px стоят ради контраста на картинке). */
+.lib-sub { font-size: 13px; color: var(--muted); margin: 8px 0 0; line-height: 1.5; }
 
 .shelf { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .poster {
@@ -664,19 +698,35 @@ body.has-mini { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
 .sheet { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: flex-end; justify-content: center; }
 .sheet[hidden] { display: none; }
 .sheet-backdrop { position: absolute; inset: 0; background: var(--backdrop); }
-.sheet-panel { position: relative; width: 100%; max-width: var(--maxw); background: var(--surface); border-radius: 20px 20px 0 0; padding: 18px 18px calc(18px + env(safe-area-inset-bottom, 0px)); box-shadow: var(--shadow-sheet); animation: sheetUp 0.22s ease; }
+/* Шторки приведены к системе дома (2026-08-16): радиус 26 сверху, фон панели меню,
+   карточка внутри = плитка (радиус 20, паддинг 16, --tile, бордер 1px). До этого они
+   остались от прежнего дизайна, и при открытии был виден шов. */
+.sheet-panel { position: relative; width: 100%; max-width: var(--maxw); background: var(--menu-bg); border-radius: 26px 26px 0 0; padding: 18px 18px calc(18px + env(safe-area-inset-bottom, 0px)); box-shadow: var(--shadow-sheet); animation: sheetUp 0.22s ease; }
 @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-.sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.sheet-title { font-size: 16px; font-weight: 700; color: var(--text); }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+/* Тот же кегль и вес, что у «Твои инструменты» на доме. */
+.sheet-title { font-family: 'Onest', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 19px; font-weight: 600; color: var(--text); }
 .sheet-close { border: none; background: transparent; color: var(--muted); cursor: pointer; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
 .sheet-close i { font-size: 20px; pointer-events: none; }
-.sheet-card { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 14px; margin-top: 10px; border: 1.5px solid var(--border); border-radius: 14px; background: var(--surface); cursor: pointer; font-family: inherit; color: var(--text); }
+.sheet-card { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 16px; margin-top: 10px; border: 1px solid var(--border); border-radius: 20px; background: var(--tile); cursor: pointer; font-family: inherit; color: var(--text); }
 .sheet-card:active { background: var(--sheet-card-active); border-color: var(--accent); }
-.sheet-card > .ti:first-child { font-size: 22px; color: var(--accent-deep); flex: 0 0 auto; }
+/* ДЫМКА в карточках шторки НЕТ намеренно: тут список, а не сетка, и четыре дымящиеся
+   строки подряд слились бы в кашу. Цветным остаётся только глиф. */
+.sheet-card > .ti:first-child {
+  font-size: 22px; flex: 0 0 auto; color: var(--sheet-ic);
+  filter: drop-shadow(0 0 7px var(--smoke-a)) drop-shadow(0 0 16px var(--smoke-b));
+}
+/* Акцент каждой карточки. Пары взяты от плиток, из которых шторка открывается:
+   тренировки - бирюза/фиолет, трекеры - оранж/малина; вторая карточка в каждой
+   шторке берёт соседний тон, чтобы строки различались. */
+.sheet-card[data-app="workout"]  { --smoke-a: rgba(96,196,206,.55);  --smoke-b: rgba(116,84,224,.50); --sheet-ic: #6FD3DC; }
+.sheet-card[data-app="glutes"]   { --smoke-a: rgba(228,134,155,.55); --smoke-b: rgba(196,62,116,.50); --sheet-ic: #F0A0B4; }
+.sheet-card[data-app="zdorovie"] { --smoke-a: rgba(246,168,92,.52);  --smoke-b: rgba(196,62,96,.50);  --sheet-ic: #F6A85C; }
+.sheet-card[data-app="cycle"]    { --smoke-a: rgba(176,112,240,.58); --smoke-b: rgba(228,96,180,.46); --sheet-ic: #C08CF5; }
 .sheet-card-body { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .sheet-card-name { font-size: 15px; font-weight: 600; }
-.sheet-card-sub { font-size: 12px; color: var(--muted); }
-.sheet-card-arrow { font-size: 18px; color: var(--muted); flex: 0 0 auto; }
+.sheet-card-sub { font-size: 11.5px; color: #B9ADB4; line-height: 1.25; margin-top: 2px; }
+.sheet-card-arrow { font-size: 18px; color: #6E626C; flex: 0 0 auto; }
 
 /* ===== Экран «Управление подпиской» (только токены -> обе темы автоматически) ===== */
 .sub-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 14px; color: var(--text-home); box-shadow: var(--shadow); }
