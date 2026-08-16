@@ -1491,6 +1491,15 @@ function renderSubscription(sub) {
   const subTs = sub.valid_until ? new Date(sub.valid_until).getTime() : 0;
   const hasAccess = (sub.status === "active" || sub.status === "grace") && subTs && (subTs + SUB_GRACE_MS > Date.now());
   const recurrent = (sub.source === "wayforpay" || sub.source === "lava");
+  // ПРАВДА О ПРАВИЛЕ (только WayForPay): web-subscription отдаёт sub.regular - живой STATUS
+  // либо последний известный кэш (stale). Правило может исчезнуть само: протухла карта, банк
+  // отклонил, кто-то снял в кабинете. Тогда "Автопродление: Включено" было бы враньём.
+  // Нет ни свежего ответа, ни кэша -> sub.regular = null -> ведём себя как раньше.
+  const ruleState = sub.regular && sub.regular.status ? sub.regular.status : null;
+  const ruleDead = ruleState !== null && ruleState !== "Active";
+  const recurrentLive = recurrent && !(sub.source === "wayforpay" && ruleDead);
+  const nextChargeWords = (recurrentLive && sub.regular && sub.regular.next_payment_at)
+    ? fmtDayMonth(sub.regular.next_payment_at) : null;
   const left = daysLeft(sub.valid_until);
   const price = priceText(sub.plan);
 
@@ -1533,18 +1542,25 @@ function renderSubscription(sub) {
   } else {
     // АКТИВНА.
     html += memcardHtml("ok", "АКТИВНА", sub, "Действует до", until || "");
+    // Дата следующего списания - из САМОГО правила, если оно известно; иначе конец периода.
+    const chargeWords = nextChargeWords || untilWords;
     html += '<p class="mnote">' +
-      (recurrent
-        ? (untilWords ? (untilWords + (price ? " спишется " + escapeHtml(price) : " продлится") + " за следующий период. Напомню за три дня.")
+      (recurrentLive
+        ? (chargeWords ? (chargeWords + (price ? " спишется " + escapeHtml(price) : " продлится") + " за следующий период. Напомню за три дня.")
                  : "Продлевается автоматически.")
-        : (until ? "Доступ открыт до " + until + "." : "Доступ открыт.")) + '</p>';
+        : recurrent
+          // Правило не действует: доступ до конца оплаченного периода, дальше тишина.
+          ? ("Доступ открыт" + (untilWords ? " до " + untilWords : "") +
+             ". Автопродление сейчас не действует - следующего списания не будет.")
+          : (until ? "Доступ открыт до " + until + "." : "Доступ открыт.")) + '</p>';
     html += rowsHtml([
       sub.plan ? ["Тариф", planText(sub.plan)] : null,
       ["Способ оплаты", "Банковская карта"],
-      recurrent ? ["Автопродление", "Включено", "green"] : null
+      recurrent ? ["Автопродление", recurrentLive ? "Включено" : "Не действует", recurrentLive ? "green" : null] : null
     ]);
     html += inclHtml("Что входит");
-    if (recurrent) {
+    // Кнопку отключения показываем, только когда есть что отключать.
+    if (recurrentLive) {
       // Слово "отменить" не используем НИГДЕ: женщина читает "отменить подписку" и
       // думает, что теряет доступ сейчас же. Отключается именно автопродление, а
       // доступ остаётся до конца оплаченного периода - это и должно быть видно.
