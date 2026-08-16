@@ -777,12 +777,16 @@ async function enterPaymentReturn(order) {
   // показываются ТОЛЬКО после своей ошибки, а экран открывается повторно в той же вкладке.
   els.btnRetry.hidden = true;
   showPwError("");
+  // Выход "На главную" живёт только в состоянии битой ссылки, см. ветку ошибки ниже.
+  const pwOutReset = document.getElementById("pw-dead-end-out");
+  if (pwOutReset) pwOutReset.hidden = true;
 
   if (!sb) {
     els.pwLoading.hidden = true;
     els.pwSuccess.hidden = true;
     els.pwResolveError.textContent = "Не удалось загрузить вход. Обновите страницу.";
     els.pwResolveError.hidden = false;
+    if (pwOutReset) pwOutReset.hidden = false;   // формы нет -> нужен выход
     return;
   }
   {
@@ -859,6 +863,11 @@ function showPasswordForm(order, email, isLava) {
   els.pwResolveError.hidden = true;
   els.pwSuccess.hidden = false;
   els.pwForm.hidden = false;
+  // Заказ живой, форма показана -> выхода на экране нет: женщина пришла задать пароль.
+  const pwOut2 = document.getElementById("pw-dead-end-out");
+  if (pwOut2) pwOut2.hidden = true;
+  els.btnRetry.hidden = true;
+  showPwError("");
   els.pwEmail.textContent = email;
   fillPwOrder(order);
   const hint = document.getElementById("pw-lava-hint");

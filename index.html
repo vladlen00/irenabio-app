@@ -493,10 +493,10 @@
 
         <!-- ОШИБКА: битая/устаревшая ссылка или сбой проверки. Без зелёного успеха. -->
         <p class="form-error" id="pw-resolve-error" hidden></p>
-        <!-- ЕДИНСТВЕННЫЙ выход с экрана, виден в ОБОИХ состояниях: и когда ссылка битая, и когда
-             в адресе висит чужой/старый ?paid=1&order=. Стоит ВНЕ #pw-form (форма в состоянии
-             ошибки скрыта) и ведёт на СТАРТ: там обе двери, войти и оформить. -->
-        <button class="btn btn-ghost" type="button" id="pw-dead-end-out">Это не мой заказ</button>
+        <!-- Выход ТОЛЬКО для состояния "ссылка недействительна": там форма скрыта и уйти некуда.
+             В обычном состоянии кнопки нет - женщина пришла задать пароль, уходить ей незачем.
+             Стоит ВНЕ #pw-form (в состоянии ошибки форма скрыта) и ведёт на СТАРТ: там обе двери. -->
+        <button class="btn btn-ghost" type="button" id="pw-dead-end-out" hidden>На главную</button>
       </div>
     </section>
 
@@ -585,6 +585,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=83"></script>
+  <script src="app.js?v=84"></script>
 </body>
 </html>
