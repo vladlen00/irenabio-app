@@ -122,6 +122,13 @@ body {
    Соседний <b> и так display:block, поэтому вид не меняется. */
 .home-wide-sub { display: block; }
 
+/* ГЛОБАЛЬНО: hidden ОБЯЗАН скрывать. Атрибут hidden - это всего лишь display:none из
+   UA-стилей, и ЛЮБОЕ авторское правило с display его перебивает. На этом уже дважды
+   ловились точечно (.pay-back[hidden], #mini-player[hidden], .sheet[hidden]), а .btn
+   с display:block не был закрыт - поэтому "Повторить" и "Это не мой заказ" на экране
+   пароля висели ВСЕГДА, хотя JS честно ставил hidden. Замерено в Chromium 2026-08-16. */
+[hidden] { display: none !important; }
+
 input::placeholder { color: var(--muted); opacity: 1; }
 a { color: var(--accent-deep); text-decoration: none; }
 a:hover { text-decoration: underline; }
