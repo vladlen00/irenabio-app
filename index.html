@@ -2,7 +2,9 @@
 <html lang="ru" data-theme="dark">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- viewport-fit=cover ОБЯЗАТЕЛЕН: без него env(safe-area-inset-*) на iOS всегда 0,
+       и вся арифметика с вырезом (герой сверху, мини-плеер и шторка снизу) мертва. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="dark">
   <!-- Тема одна - тёмная. Атрибут стоит прямо на <html>, поэтому вспышки нет даже без JS.
        ОДНОРАЗОВАЯ ЗАТИРКА: у тех, кто раньше переключался тумблером, в localStorage лежит
@@ -15,7 +17,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png?v=1">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=1">
   <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=1">
-  <link rel="stylesheet" href="style.css?v=46">
+  <link rel="stylesheet" href="style.css?v=47">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. У обоих есть кириллица
@@ -183,7 +185,10 @@
               <div class="home-sprint-title" id="home-sprint-title"></div>
               <div class="home-sprint-badge" id="home-sprint-badge"></div>
             </div>
-            <div class="home-progress"><div class="home-progress-bar" id="home-progress-bar"></div></div>
+            <!-- При нуле пройденных полоса скрыта целиком, вместо неё строка-статус:
+                 огрызок в 2% читался как сломанная вёрстка, а не как "ещё не начат". -->
+            <div class="home-progress" id="home-progress"><div class="home-progress-bar" id="home-progress-bar"></div></div>
+            <div class="home-progress-empty" id="home-progress-empty" hidden>Ещё не начат</div>
             <div class="home-alldays" id="home-alldays" role="button"><span>смотреть все дни</span><i class="ti ti-chevron-right"></i></div>
           </div>
 
@@ -237,7 +242,8 @@
         <div class="day-body">
           <div class="sprint-meta">
             <div class="sprint-badge" id="sprint-badge"></div>
-            <div class="sprint-progress"><div class="sprint-progress-bar" id="sprint-bar"></div></div>
+            <div class="sprint-progress" id="sprint-progress"><div class="sprint-progress-bar" id="sprint-bar"></div></div>
+            <div class="sprint-progress-empty" id="sprint-progress-empty" hidden>Ещё не начат</div>
           </div>
           <div id="sprint-days"></div>
         </div>
@@ -531,6 +537,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=66"></script>
+  <script src="app.js?v=67"></script>
 </body>
 </html>

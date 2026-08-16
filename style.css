@@ -95,7 +95,10 @@ a { color: var(--accent-deep); text-decoration: none; }
 a:hover { text-decoration: underline; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); border: 0; }
 
-.wrap { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 16px; }
+/* Боковые max() - страховка от viewport-fit=cover: в альбомной ориентации на
+   телефоне с вырезом иначе текст уезжает под чёлку. В портрете insets = 0 и
+   значение сходится к прежним 16px, то есть вёрстка не меняется. */
+.wrap { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); }
 
 .site-header { padding: 18px 0; border-bottom: 1px solid var(--border); background: var(--surface); }
 .brand { display: flex; align-items: center; gap: 11px; }
@@ -107,7 +110,7 @@ a:hover { text-decoration: underline; }
 }
 .brand-name { font-size: 15px; font-weight: 700; }
 
-.checkout { padding: 30px 16px 10px; }
+.checkout { padding: 30px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
 .checkout h1 { font-size: 26px; margin: 0 0 8px; text-align: center; }
 .checkout .lead { color: var(--muted); text-align: center; margin: 0 0 26px; font-size: 15px; }
 
@@ -237,8 +240,10 @@ a:hover { text-decoration: underline; }
 }
 
 /* Шапка на радиальном градиенте (Вариант A) */
+/* padding-top учитывает вырез: с viewport-fit=cover страница едет под статус-бар,
+   и без env() приветствие с кикером срезало. Фолбэк 0px - для сред без выреза. */
 .home-hero {
-  padding: 26px 22px 22px;
+  padding: calc(26px + env(safe-area-inset-top, 0px)) 22px 22px;
   border-radius: 26px;
   margin-bottom: 12px;
   background: var(--hero-grad);
@@ -278,7 +283,11 @@ a:hover { text-decoration: underline; }
 }
 .home-cta-ic { width: 52px; height: 52px; border-radius: 50%; background: #fff; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
 .home-cta-ic i { font-size: 24px; color: #C9557A; margin-left: 3px; }
-.home-cta > span:last-child { font-size: 13.5px; font-weight: 600; color: rgba(255,255,255,.92); }
+/* Ширина пилюли не должна прыгать между состояниями "Начать" (46px текста) и
+   "Продолжить" (83px): резервируем под подпись фиксированную коробку по длинному
+   варианту с запасом и центруем в ней текст. Сама пилюля остаётся inline-flex -
+   она и так обнимала содержимое, из-за чего ширина и плясала. */
+.home-cta > span:last-child { font-size: 13.5px; font-weight: 600; color: rgba(255,255,255,.92); min-width: 88px; text-align: center; }
 
 .home-body { padding: 0 0 24px; }
 .home .card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; }
@@ -298,7 +307,10 @@ a:hover { text-decoration: underline; }
 .home-sprint-title { font-size: 15.5px; font-weight: 600; overflow-wrap: break-word; }
 .home-sprint-badge { font-size: 11.5px; font-weight: 500; color: #F0B6C3; background: rgba(228,134,155,.16); padding: 5px 12px; border-radius: 999px; white-space: nowrap; }
 .home-progress { height: 6px; background: rgba(255,255,255,.08); border-radius: 999px; overflow: hidden; }
-.home-progress-bar { height: 100%; width: 2%; background: var(--accent-grad-h); border-radius: 999px; }
+/* width задаёт JS. Стартовое 0, а НЕ 2%: до первого рендера полосы быть не должно,
+   иначе на долю секунды мигает та самая "точка слева". */
+.home-progress-bar { height: 100%; width: 0; background: var(--accent-grad-h); border-radius: 999px; }
+.home-progress-empty { font-size: 12.5px; color: var(--muted-home); line-height: 1; padding: 1px 0; }
 .home-alldays { display: flex; align-items: center; justify-content: flex-end; gap: 3px; margin-top: 12px; cursor: pointer; }
 .home-alldays span { font-size: 12px; font-weight: 500; color: var(--accent-deep); }
 .home-alldays i { font-size: 14px; color: var(--accent-deep); }
@@ -360,7 +372,10 @@ a:hover { text-decoration: underline; }
 /* margin-top:auto прижимает подпись к низу, иконка остаётся сверху: в макете
    плитка держит высоту 116 и разносит иконку и текст по краям. */
 .home .t5n { font-size: 15px; font-weight: 600; color: var(--text-home); margin-top: auto; }
-.home .t5s { font-size: 11.5px; color: var(--muted-home); line-height: 1.25; margin-top: 2px; }
+/* Подпись плитки светлее общего --muted-home (#948890): плитка стоит не на голом
+   фоне, а на цветном дымке, и на нём серый уходил на грань читаемости. Токен НЕ
+   трогаем - он обслуживает ещё десяток мест на плоском фоне, там он верный. */
+.home .t5s { font-size: 11.5px; color: #B9ADB4; line-height: 1.25; margin-top: 2px; }
 
 /* Статус подписки */
 .home-sub { padding: 14px 16px; margin-top: 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
@@ -475,7 +490,8 @@ a:hover { text-decoration: underline; }
 .sprint-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .sprint-badge { font-size: 11px; font-weight: 600; color: var(--accent-deep); background: var(--accent-wash); padding: 3px 10px; border-radius: 11px; white-space: nowrap; flex: 0 0 auto; }
 .sprint-progress { flex: 1; height: 6px; background: var(--track); border-radius: 3px; overflow: hidden; }
-.sprint-progress-bar { height: 100%; width: 2%; background: var(--accent-grad-h); border-radius: 3px; }
+.sprint-progress-bar { height: 100%; width: 0; background: var(--accent-grad-h); border-radius: 3px; }
+.sprint-progress-empty { font-size: 12.5px; color: var(--muted-home); }
 .sprint-day { display: flex; align-items: center; gap: 12px; background: var(--card); border: 0.5px solid var(--border); border-radius: 16px; padding: 14px 15px; margin-bottom: 10px; cursor: pointer; }
 .sprint-day.next { border-color: var(--accent); box-shadow: var(--shadow-next); }
 .sprint-day.locked { opacity: .55; cursor: default; }

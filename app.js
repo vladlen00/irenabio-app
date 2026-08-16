@@ -966,7 +966,9 @@ const homeEls = {
   herobox: document.getElementById("home-herobox"),
   sprintTitle: document.getElementById("home-sprint-title"),
   sprintBadge: document.getElementById("home-sprint-badge"),
+  progressTrack: document.getElementById("home-progress"),
   progressBar: document.getElementById("home-progress-bar"),
+  progressEmpty: document.getElementById("home-progress-empty"),
   subUntil: document.getElementById("home-sub-until"),
   supportBtn: document.getElementById("home-support-btn"),
   supportContacts: document.getElementById("home-support-contacts"),
@@ -1108,8 +1110,16 @@ function renderHome(data) {
   const denom = sprint && sprint.estimated_days ? sprint.estimated_days : (days.length || 0);
   const tilde = sprint && sprint.status === "active" ? "~" : "";   // идёт -> "~N", archived -> точное
   homeEls.sprintBadge.textContent = completedVisible + " из " + tilde + denom;
-  const pct = denom > 0 ? Math.max(2, Math.min(100, Math.round((completedVisible / denom) * 100))) : 2;
-  homeEls.progressBar.style.width = pct + "%";
+  // Ноль пройденных -> полосы нет вовсе, вместо неё строка-статус. Math.max(2,…)
+  // остаётся ТОЛЬКО для реального прогресса: один день из 28 - это 4%, но один день
+  // из 90 дал бы 1% и полоса выглядела бы пустой, хотя дело сдвинулось.
+  const started = completedVisible > 0;
+  if (homeEls.progressTrack) homeEls.progressTrack.hidden = !started;
+  if (homeEls.progressEmpty) homeEls.progressEmpty.hidden = started;
+  if (started) {
+    const pct = denom > 0 ? Math.max(2, Math.min(100, Math.round((completedVisible / denom) * 100))) : 100;
+    homeEls.progressBar.style.width = pct + "%";
+  }
 
   // --- статус подписки (карточка + подпись в меню отражают реальное состояние) ---
   // renderHome вызывается только при access=true -> состояние: active / grace / cancelled (не "истекла").
@@ -2285,8 +2295,16 @@ function openSprint(sprintId) {
   const denom = sprint.estimated_days || days.length || 0;
   const tilde = sprint.status === "active" ? "~" : "";
   document.getElementById("sprint-badge").textContent = completedVisible + " из " + tilde + denom;
-  const pct = denom > 0 ? Math.max(2, Math.min(100, Math.round(completedVisible / denom * 100))) : 2;
-  document.getElementById("sprint-bar").style.width = pct + "%";
+  // То же правило, что и на доме: при нуле пройденных полосы нет, есть строка-статус.
+  const started = completedVisible > 0;
+  const track = document.getElementById("sprint-progress");
+  const empty = document.getElementById("sprint-progress-empty");
+  if (track) track.hidden = !started;
+  if (empty) empty.hidden = started;
+  if (started) {
+    const pct = denom > 0 ? Math.max(2, Math.min(100, Math.round(completedVisible / denom * 100))) : 100;
+    document.getElementById("sprint-bar").style.width = pct + "%";
+  }
   let html = "";
   days.forEach((d) => {
     const done = completed.has(d.id);
