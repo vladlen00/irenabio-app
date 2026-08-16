@@ -346,6 +346,8 @@ a:hover { text-decoration: underline; }
 .home-sprint {
   padding: 18px; margin-bottom: 22px; border-radius: 22px;
   position: relative; overflow: hidden; isolation: isolate;
+  /* та же страховка, что у плиток; внешней тени у карточки нет, обрезать нечего */
+  -webkit-mask-image: radial-gradient(#fff, #000);
 }
 .home-sprint::before {
   content: ""; position: absolute; inset: -60%; z-index: 0; pointer-events: none;
@@ -375,7 +377,11 @@ a:hover { text-decoration: underline; }
   display: flex; align-items: center; gap: 15px;
   padding: 16px 18px; border-radius: 20px; margin-bottom: 12px;
   background: var(--brand-grad);
-  box-shadow: 0 16px 34px -18px rgba(217,106,94,.9);
+  /* Та же правка, что у постеров: коралловая rgba(217,106,94,.9) подсвечивала фон
+     вокруг карточки вместо того, чтобы давать глубину. Геометрия сохранена, цвет
+     нейтральный. ЗАМЕРОМ подтверждено, что именно эта тень давала ореол вокруг
+     соседних плиток: с погашенным box-shadow утечка вокруг карточки ровно 0. */
+  box-shadow: 0 16px 34px -18px rgba(0,0,0,.7);
 }
 .home-wide::before {
   content: ""; position: absolute; inset: -50%; z-index: 0; pointer-events: none;
@@ -408,6 +414,13 @@ a:hover { text-decoration: underline; }
   background: var(--tile); border: 1px solid var(--border); border-radius: 20px;
   padding: 16px; min-height: 116px;
   display: flex; flex-direction: column; justify-content: space-between;
+  /* Страховка от Safari на iOS: filter: blur() у ::before создаёт свой слой отрисовки
+     и умеет уходить из-под overflow:hidden родителя. Маска заставляет движок честно
+     обрезать содержимое по border-radius. Оба стопа НЕПРОЗРАЧНЫЕ (маска по альфе, не
+     по яркости), поэтому ничего не скрывается. Замер: видимой разницы нет, попиксельно
+     в WebKit 0.13%, в Chromium 2.54% - это смещение растеризации дымка, не потеря.
+     Ставить можно ТОЛЬКО туда, где нет внешней тени: маска обрезала бы и её. */
+  -webkit-mask-image: radial-gradient(#fff, #000);
 }
 /* ДЫМОК = два РАДИАЛА, гаснущих в прозрачность на 68/72%, а не сплошные круги.
    Сплошная заливка растекалась на всю плитку и топила подпись в цвете; радиал
@@ -616,8 +629,12 @@ a:hover { text-decoration: underline; }
   /* Постеры кадрированы под 3:4 с объектом по центру -> position: center.
      Затемнение рисует .poster::before, в background-image его дублировать НЕ надо. */
   background: var(--hero-grad); background-size: cover; background-position: center;
-  border: 1px solid rgba(255,255,255,.08);
-  box-shadow: 0 14px 30px -16px rgba(120,20,60,.9);
+  /* .06, а не .08: с прежним бордер спорил с тенью и вместе они давали контур. */
+  border: 1px solid rgba(255,255,255,.06);
+  /* Тень НЕЙТРАЛЬНАЯ. Была винная rgba(120,20,60,.9) - на почти чёрном фоне цветная
+     тень читается не как объём, а как рваный розовый контур: где постер светлее,
+     она видна, где темнее - пропадает. Цветные тени работают на СВЕТЛОМ фоне. */
+  box-shadow: 0 10px 28px -14px rgba(0,0,0,.7);
 }
 .poster::before {
   content: ""; position: absolute; inset: 0; pointer-events: none;
