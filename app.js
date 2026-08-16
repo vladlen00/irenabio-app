@@ -697,7 +697,14 @@ window.addEventListener("pageshow", () => {
 
 // ===================== ВОЗВРАТ ПОСЛЕ ОПЛАТЫ: ЭКРАН ПАРОЛЯ =====================
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
-function showPwError(msg) { els.pwError.textContent = msg || ""; els.pwError.hidden = !msg; }
+function showPwError(msg) {
+  els.pwError.textContent = msg || "";
+  els.pwError.hidden = !msg;
+  // Ссылка "Не помню пароль" живёт только вместе с ошибкой про существующий аккаунт,
+  // её включает onEnter отдельно. Любая другая ошибка и любая очистка её гасят.
+  const forgot = document.getElementById("pw-forgot");
+  if (forgot) forgot.hidden = true;
+}
 function pwLoading(on, label) {
   els.btnEnter.disabled = on;
   els.password.disabled = on;
@@ -814,13 +821,20 @@ async function enterPaymentReturn(order) {
 // Выход из ЗАЛИПШЕГО возврата с оплаты. Адрес с ?paid=1&order= читается на КАЖДОМ заходе
 // (startParams в конце файла) и показывает "Оплата прошла" со старым номером - без этого
 // адрес нужно чистить, иначе перезагрузка вернёт тот же экран и женщина снова в ловушке.
-function leavePaymentReturn() {
+// Убрать ?paid=1&order= из адреса, ничего больше не трогая. Зовётся и при успешном
+// открытии доступа, и из кнопки "Это не мой заказ".
+function stripPaidParams() {
   try {
     const url = new URL(location.href);
+    if (!url.searchParams.has("paid") && !url.searchParams.has("order")) return;
     url.searchParams.delete("paid");
     url.searchParams.delete("order");
     history.replaceState(null, "", url);
   } catch {}
+}
+
+function leavePaymentReturn() {
+  stripPaidParams();
   clearLavaReturn();
   state.order = null;
   state.email = null;
@@ -878,6 +892,9 @@ async function onEnter() {
     const r = await signUpOrSignIn(state.email, password);
     if (r.error || !r.session) {
       showPwError("Аккаунт с этой почтой уже есть. Введите пароль от него.");
+      // Без этой ссылки женщина упиралась: пароля не помнит, а уйти в восстановление отсюда некуда.
+      const forgot = document.getElementById("pw-forgot");
+      if (forgot) forgot.hidden = false;
       pwLoading(false);
       return;
     }
@@ -975,6 +992,7 @@ els.form.addEventListener("submit", (e) => {
   bind("pay-go-back", () => showCheckout());           // экран 3 -> назад к тарифам (оплаты ещё не было)
   bind("pw-dead-end-out", () => showStart());          // битая ссылка на пароль -> старт, а не тупик
   bind("pw-not-mine", () => { leavePaymentReturn(); checkoutBackTo = null; showCheckout(); }); // чужой/старый заказ -> к тарифам
+  bind("pw-forgot-link", () => showResetPrefilled(state.email, state.order)); // "не помню пароль" -> восстановление с готовыми полями
   bind("btn-lava-pay", () => showPayGo());             // экран 2 -> экран 3
   bind("btn-pay-go", () => onPayGo());                 // экран 3 -> оплата в той же вкладке (Lava)
   bind("btn-paid-check", () => onPaidCheck());         // экран 4 -> ручная проверка
@@ -1813,6 +1831,14 @@ function showReset() {
   const em = document.getElementById("reset-email"); if (em) em.focus();
   window.scrollTo(0, 0);
 }
+// Восстановление с уже подставленными почтой и номером заказа: оба значения есть на экране
+// пароля, заставлять вводить их заново незачем. Фокус сразу в поле нового пароля.
+function showResetPrefilled(email, order) {
+  showReset();
+  const em = document.getElementById("reset-email"); if (em && email) em.value = email;
+  const or = document.getElementById("reset-order"); if (or && order) or.value = order;
+  const pw = document.getElementById("reset-password"); if (pw) pw.focus();
+}
 function showResetError(msg, html) {
   const el = document.getElementById("reset-error");
   if (!el) return;
@@ -1989,18 +2015,26 @@ async function doClaim() {
 })();
 
 // Роутинг: сессия -> get-home -> ДОМ или ЧЕКАУТ. Нет сессии -> СТАРТ (выбор войти/оформить).
-async function routeHomeOrCheckout() {
+// opts.paidFallback - что делать, если доступа/сессии НЕТ, а в адресе висит ?paid=1&order=:
+// вместо чекаута или старта отдаём женщину экрану пароля (её обычный путь после оплаты).
+// Порядок принципиален: сначала проверяем доступ, и только потом читаем адрес.
+async function routeHomeOrCheckout(opts) {
+  const paidFallback = opts && typeof opts.paidFallback === "function" ? opts.paidFallback : null;
+  const again = () => routeHomeOrCheckout(opts);
+  const noAccess = () => { if (paidFallback) return paidFallback(); checkoutBackTo = null; showCheckout(); };
+  const noSession = () => { if (paidFallback) return paidFallback(); if (readLavaReturn()) showPayWait(); else showStart(); };
+
   // Синхронный пик сохранённой сессии -> прячем чекаут сразу, без мигания.
   // Сессии НЕТ вообще -> человек не залогинен, это не сетевая ситуация -> старт.
-  if (!sb || !hasStoredSession()) { if (readLavaReturn()) showPayWait(); else showStart(); return; }
+  if (!sb || !hasStoredSession()) { noSession(); return; }
 
   showHomeShell(); // чекаут скрыт, показываем загрузку дома, пока проверяем доступ
   const s = await getSessionState({ retry: true, onAttempt: homeProgress });
-  if (s.state === "unreachable") { showConnection(routeHomeOrCheckout); return; }
+  if (s.state === "unreachable") { showConnection(again); return; }
   // Сессия честно истекла. НЕ чекаут: у платящей женщины ключ в localStorage есть,
   // поэтому ранняя ветка showStart выше не сработала, и она упиралась в предложение
   // купить второй раз - без единой кнопки "Войти". Старт даёт обе двери сразу.
-  if (s.state !== "ok") { if (readLavaReturn()) showPayWait(); else showStart(); return; }
+  if (s.state !== "ok") { noSession(); return; }
 
   // get-home - чтение, идемпотентно -> автоповтор разрешён
   const r = await sbFetch(GET_HOME_URL, {
@@ -2010,25 +2044,26 @@ async function routeHomeOrCheckout() {
 
   if (r.state === "ok") {
     const home = r.data || {};
-    if (home.access) { renderHome(home); return; }
-    checkoutBackTo = null;   // сюда привёл маршрут, а не переход женщины - возвращать некуда
-    showCheckout();   // сервер ответил и сказал: доступа нет
+    // Доступ открыт -> чистим ?paid=1&order= СРАЗУ. Иначе адрес живёт в истории и на каждом
+    // заходе снова показывает "Оплата прошла, задайте пароль" залогиненной женщине.
+    if (home.access) { stripPaidParams(); renderHome(home); return; }
+    noAccess();       // сервер ответил и сказал: доступа нет
     return;
   }
   // ГЛАВНОЕ МЕСТО ЗАДАЧИ: вердикта не было -> НИКАКОГО чекаута.
   // Раньше тут стоял "безопасный дефолт: чекаут", и платящая подписчица при обрыве
   // видела экран оплаты и могла заплатить второй раз.
-  if (r.state === "unreachable") { showConnection(routeHomeOrCheckout); return; }
+  if (r.state === "unreachable") { showConnection(again); return; }
   // sbFetch схлопывает 401 и 403 в одно "denied", а get-home их различает строго:
   //   403 - токен живой, вердикт "доступа нет" (no_account / no_subscription / expired) -> чекаут;
   //   401 - токен пуст или не принят GoTrue, то есть СЕССИЯ МЕРТВА -> нужна кнопка "Войти".
   // Без этого деления платящая женщина с протухшим токеном снова упирается в оплату:
   // getSessionState отдаёт "ok" (токен в хранилище есть), и ранняя развилка не срабатывает.
-  if (r.state === "denied" && r.status === 403) { checkoutBackTo = null; showCheckout(); return; }
-  if (r.state === "denied") { if (readLavaReturn()) showPayWait(); else showStart(); return; }
+  if (r.state === "denied" && r.status === 403) { noAccess(); return; }
+  if (r.state === "denied") { noSession(); return; }
   // Всё остальное - неожиданный 4xx, кривой ответ - это НЕ вердикт о подписке.
   // По правилу v57: нет вердикта - нет чекаута.
-  showConnection(routeHomeOrCheckout);
+  showConnection(again);
 }
 
 // ===================== ЭКРАНЫ ДЕНЬ / СПРИНТ =====================
@@ -2747,8 +2782,13 @@ ensureRoute();
 // --- старт: ветвление возврат-после-оплаты / дом / чекаут ---
 const startParams = new URLSearchParams(location.search);
 if (startParams.get("paid") === "1" && startParams.get("order")) {
-  // ?paid приходит только по returnUrl WayForPay (та же вкладка) -> сразу экран пароля.
-  enterPaymentReturn(startParams.get("order"));
+  // ?paid приходит по returnUrl WayForPay, НО адрес остаётся в истории и открывается снова.
+  // Поэтому сначала спрашиваем про доступ, и только если его нет - показываем экран пароля.
+  // Есть сессия -> обычный маршрут (дом + чистка адреса), а экран пароля идёт запасным путём.
+  // Сессии нет -> она только что оплатила, пароль ещё не задан: сразу экран пароля, без лишнего круга.
+  const order = startParams.get("order");
+  if (sb && hasStoredSession()) routeHomeOrCheckout({ paidFallback: () => enterPaymentReturn(order) });
+  else enterPaymentReturn(order);
 } else {
   routeHomeOrCheckout();                           // дом / чекаут / (stash -> экран ожидания)
 }

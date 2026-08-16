@@ -481,6 +481,9 @@
                      placeholder="Повторите пароль" autocapitalize="off" spellcheck="false">
             </div>
             <p class="field-error" id="pw-error" hidden></p>
+            <!-- Появляется только вместе с ошибкой "аккаунт уже есть": почта и номер заказа
+                 на этом экране известны, поэтому в восстановление уходим с заполненными полями. -->
+            <p class="alt-pay" id="pw-forgot" hidden><a href="#" id="pw-forgot-link" role="button">Не помню пароль</a></p>
             <button id="btn-enter" class="btn btn-primary" type="button" disabled>Открыть доступ</button>
             <button id="btn-retry" class="btn btn-ghost" type="button" hidden>Повторить</button>
             <p class="reassure">Забудете пароль - восстановите по почте и номеру заказа (сохраните его выше).</p>
@@ -582,6 +585,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=79"></script>
+  <script src="app.js?v=80"></script>
 </body>
 </html>
