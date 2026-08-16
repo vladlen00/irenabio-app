@@ -16,7 +16,10 @@
        прозрачный PNG на части версий даёт чёрную подложку.
        ?v= бампать ОБЯЗАТЕЛЬНО при любой замене: фавиконы браузеры держат в кэше
        цепче всего остального, старый висит неделями. -->
-  <link rel="icon" href="favicon.ico?v=3" sizes="any">
+  <!-- sizes="any" СНЯТ: в .ico лежит один образ 16x16, и с этим атрибутом браузер
+       считал его пригодным на любой размер и тянул 16px вверх вместо 32px PNG.
+       Без атрибута .ico остаётся запасным для совсем старых браузеров. -->
+  <link rel="icon" href="favicon.ico?v=3">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=3">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png?v=3">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=3">
@@ -32,7 +35,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=54">
+  <link rel="stylesheet" href="style.css?v=55">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. У обоих есть кириллица
@@ -551,12 +554,14 @@
       <button type="button" class="mp-seek" id="mp-back" aria-label="Назад 15 секунд">−15</button>
       <button type="button" class="mp-play" id="mp-play" aria-label="Воспроизвести/пауза"><i class="ti ti-player-play"></i></button>
       <button type="button" class="mp-seek" id="mp-fwd" aria-label="Вперёд 15 секунд">+15</button>
+      <!-- Скорость рядом с перемоткой, но мельче: play и −15/+15 важнее. -->
+      <button type="button" class="mp-rate" id="mp-rate" aria-label="Скорость воспроизведения">1x</button>
     </div>
     <button type="button" class="mp-close" id="mp-close" aria-label="Закрыть"><i class="ti ti-x"></i></button>
   </div>
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=72"></script>
+  <script src="app.js?v=73"></script>
 </body>
 </html>

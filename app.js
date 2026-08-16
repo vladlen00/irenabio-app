@@ -1848,6 +1848,23 @@ const AUDIO_SPINNER_MS   = 800;   // раньше не мигаем, позже 
 const AUDIO_FAST_FAIL_MS = 2000;  // отказ быстрее -> похоже на протухшую подпись, а не на мёртвый хост
 const AUDIO_HOST_KEY     = "irenabio_audio_host";
 
+// ===================== СКОРОСТЬ ВОСПРОИЗВЕДЕНИЯ =====================
+// Записи по 10-15 минут, на 1.5 экономится треть времени. Ниже 1 не нужно, выше 2
+// речь неразборчива.
+// Ключ в localStorage, а НЕ в sessionStorage (в отличие от выбора хранилища): выбор
+// обязан пережить и переход на следующий день, и возврат из мини-аппа - а возврат это
+// полная перезагрузка страницы, потому что уход туда идёт через location.href.
+const AUDIO_RATE_KEY = "irenabio_audio_rate";
+const AUDIO_RATES = [1, 1.25, 1.5, 1.75, 2];
+function readAudioRate() {
+  try {
+    const v = parseFloat(localStorage.getItem(AUDIO_RATE_KEY));
+    return AUDIO_RATES.indexOf(v) >= 0 ? v : 1;   // мусор в ключе -> обычная скорость
+  } catch (e) { return 1; }
+}
+function saveAudioRate(r) { try { localStorage.setItem(AUDIO_RATE_KEY, String(r)); } catch (e) {} }
+function fmtRate(r) { return r + "x"; }
+
 // sessionStorage, НЕ localStorage: женщина включает и выключает VPN, ездит. Прибитый
 // навсегда хост однажды окажется мёртвым. Память значит "работал", а не "навсегда".
 function rememberedAudioHost() {
@@ -1866,6 +1883,9 @@ function resetAudioTries() { audioTries.clear(); }
 // track = {dayId, blockId, title, url, host, duration}. Блок дня и мини-плеер управляют ОДНИМ аудио.
 const player = (function () {
   let audio = null, track = null;
+  // ЕДИНСТВЕННЫЙ источник правды по скорости: и плеер дня, и мини-плеер читают её
+  // отсюда и сюда же пишут, поэтому расходиться им нечем.
+  let rate = readAudioRate();
   let wdTimer = null, spinTimer = null, aliveSeen = false, srcAt = 0, failedOnce = false;
   let onFailure = null, onAlive = null;
   const g = (id) => document.getElementById(id);
@@ -1881,6 +1901,29 @@ const player = (function () {
     audio.play().catch((e) => { if (e && e.name !== "NotAllowedError") failNow("play_rejected"); });
     show(); renderAll();
   }
+  // preservesPitch ОБЯЗАТЕЛЕН. Без него голос Ирены на ускорении уезжает вверх и
+  // становится мультяшным - это главная деталь, из-за которой такие кнопки выходят
+  // плохо. Имён у свойства три: стандартное, вебкитовское (Safari) и старое мозилловское;
+  // ставим все, лишние движок молча проигнорирует.
+  // defaultPlaybackRate тоже обязателен: по спецификации при загрузке НОВОГО источника
+  // playbackRate сбрасывается именно к нему, иначе скорость слетала бы на каждом подкасте.
+  function applyRate() {
+    if (!audio) return;
+    try {
+      audio.preservesPitch = true;
+      audio.webkitPreservesPitch = true;
+      audio.mozPreservesPitch = true;
+      audio.defaultPlaybackRate = rate;
+      audio.playbackRate = rate;
+    } catch (e) {}
+  }
+  function cycleRate() {
+    const i = AUDIO_RATES.indexOf(rate);
+    rate = AUDIO_RATES[(i + 1) % AUDIO_RATES.length];
+    saveAudioRate(rate);
+    applyRate();
+    renderAll();
+  }
   function toggle() { if (!audio || !track) return; if (audio.paused) audio.play().catch(() => {}); else audio.pause(); }
   function seek(d) { if (!audio || !track) return; const dur = isFinite(audio.duration) ? audio.duration : (track.duration || 1e9); audio.currentTime = Math.max(0, Math.min(dur, audio.currentTime + d)); }
   function seekTo(ratio) { if (!audio || !track || !isFinite(audio.duration)) return; audio.currentTime = ratio * audio.duration; }
@@ -1888,6 +1931,9 @@ const player = (function () {
   function show() { const m = g("mini-player"); if (m) { m.hidden = false; document.body.classList.add("has-mini"); } }
   function hide() { const m = g("mini-player"); if (m) { m.hidden = true; document.body.classList.remove("has-mini"); } }
   function renderMini() {
+    // Подпись скорости ставим ДО выхода по "трека нет": иначе после перезагрузки на
+    // кнопке висело бы 1x при реально сохранённых 1.75 - панель скрыта, но состояние врёт.
+    const rb = g("mp-rate"); if (rb && rb.textContent !== fmtRate(rate)) rb.textContent = fmtRate(rate);
     if (!track) { hide(); return; }
     const tt = g("mp-title-text"); if (tt) tt.textContent = track.title || "Аудио";
     const pb = g("mp-play"); const pi = pb && pb.querySelector("i"); if (pi) pi.className = audio.paused ? "ti ti-player-play" : "ti ti-player-pause";
@@ -1899,6 +1945,10 @@ const player = (function () {
       const fill = card.querySelector(".audio-bar-fill");
       const cur = card.querySelector(".audio-cur");
       const dur = card.querySelector(".audio-dur");
+      // Скорость общая, поэтому подпись обновляем на ВСЕХ карточках дня, а не только
+      // на играющей. Сверка с текущим текстом - чтобы не дёргать DOM на каждом timeupdate.
+      const rb = card.querySelector(".audio-rate");
+      if (rb && rb.textContent !== fmtRate(rate)) rb.textContent = fmtRate(rate);
       if (isCur) {
         if (icon) icon.className = audio.paused ? "ti ti-player-play" : "ti ti-player-pause";
         if (isFinite(audio.duration)) { if (fill) fill.style.width = (audio.currentTime / audio.duration * 100) + "%"; if (cur) cur.textContent = fmt(audio.currentTime); if (dur) dur.textContent = fmt(audio.duration); }
@@ -1959,6 +2009,11 @@ const player = (function () {
   function setHandlers(h) { onFailure = h && h.onFailure; onAlive = h && h.onAlive; }
   function init() {
     audio = g("app-audio"); if (!audio) return;
+    applyRate();   // сохранённая скорость действует с первой же секунды первого трека
+    // Новый источник сбрасывает playbackRate к defaultPlaybackRate, а часть движков
+    // забывает и preservesPitch - возвращаем оба на каждой загрузке.
+    audio.addEventListener("loadedmetadata", applyRate);
+    audio.addEventListener("play", applyRate);
     audio.addEventListener("play", renderAll);
     audio.addEventListener("pause", renderAll);
     audio.addEventListener("ended", renderAll);
@@ -1977,10 +2032,13 @@ const player = (function () {
     bind("mp-back", () => seek(-15));
     bind("mp-fwd", () => seek(15));
     bind("mp-close", dismiss);
+    bind("mp-rate", cycleRate);
     bind("mp-title", () => { if (track) navTo("day", track.dayId); });
+    renderMini();   // подпись на кнопке скорости верна ещё до первого трека
   }
   init();
-  return { playTrack, toggle, seek, seekTo, dismiss, renderAll, swapCurrentUrl, current: () => track, setHandlers, failStop };
+  return { playTrack, toggle, seek, seekTo, dismiss, renderAll, swapCurrentUrl, current: () => track, setHandlers, failStop,
+           cycleRate, rate: () => rate };
 })();
 
 // Лестница фолбэка. Функции объявлены ниже по файлу (function declaration -> подняты).
@@ -2031,7 +2089,11 @@ function renderBlock(b) {
         '<div class="audio-title">' + title + '</div>' +
         '<div class="audio-progress-row"><span class="audio-cur">0:00</span>' +
         '<div class="audio-bar"><div class="audio-bar-fill"></div></div>' +
-        '<span class="audio-dur">' + durTxt + '</span></div>' +
+        '<span class="audio-dur">' + durTxt + '</span>' +
+        // Скорость стоит СПРАВА ОТ ТАЙМИНГОВ, а не в ряду управления: play и перемотка
+        // важнее, их ряд трогать нельзя. Подпись проставит renderDayBlock.
+        '<button type="button" class="audio-rate" aria-label="Скорость воспроизведения">1x</button>' +
+        '</div>' +
         '<div class="audio-controls">' +
         '<button type="button" class="audio-seek" data-seek="-15" aria-label="Назад 15 секунд">−15</button>' +
         '<button type="button" class="audio-play" aria-label="Слушать"><i class="ti ti-player-play"></i></button>' +
@@ -2091,6 +2153,9 @@ function wireBlocks(root) {
       if (cur && cur.blockId === bid) player.seek(d);
       else if (urlNow()) { player.playTrack(trackOf()); player.seek(d); }
     }));
+    // Скорость меняется и когда карточка ещё не играет: женщина выставляет её заранее.
+    const rateBtn = card.querySelector(".audio-rate");
+    if (rateBtn) rateBtn.addEventListener("click", (e) => { e.stopPropagation(); player.cycleRate(); });
     const bar = card.querySelector(".audio-bar");
     if (bar) bar.addEventListener("click", (e) => {
       const cur = player.current();

@@ -517,6 +517,16 @@ a:hover { text-decoration: underline; }
 .audio-title { font-size: 14px; font-weight: 700; overflow-wrap: break-word; }
 .audio-progress-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
 .audio-cur, .audio-dur { font-size: 11px; color: var(--muted-home); font-weight: 500; flex: 0 0 auto; }
+/* Скорость воспроизведения. Служебный вид: не спорит с play и перемоткой, но читается.
+   Одна пара правил на плеер дня и мини-плеер - расходиться стилям незачем. */
+.audio-rate, .mp-rate {
+  flex: 0 0 auto; border: none; cursor: pointer; font-family: inherit; font-weight: 600;
+  background: var(--accent-wash); color: var(--accent-deep); border-radius: 10px;
+  -webkit-tap-highlight-color: var(--tap-accent);
+}
+.audio-rate { font-size: 11.5px; padding: 4px 8px; margin-left: 2px; min-width: 40px; }
+.mp-rate { font-size: 10.5px; padding: 5px 6px; min-width: 38px; }   /* в мини-плеере мельче */
+.audio-rate:active, .mp-rate:active { background: var(--accent-wash-active); }
 .audio-bar { flex: 1; height: 5px; background: var(--track); border-radius: 3px; cursor: pointer; overflow: hidden; }
 .audio-bar-fill { height: 100%; width: 0; background: var(--accent-grad-h); border-radius: 3px; }
 /* неприметная строка ручного переключения хранилища (без слов про хостинги) */
