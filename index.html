@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=58">
+  <link rel="stylesheet" href="style.css?v=59">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. У обоих есть кириллица
@@ -455,6 +455,12 @@
             <button type="button" id="pw-order-copy" class="btn btn-ghost pw-order-copy">Скопировать номер</button>
           </div>
 
+          <!-- Письмо со счётом WayForPay шлёт САМ при создании инвойса, до оплаты, и после оплаты
+               его кнопка ведёт на красное "инвойс уже оплачен". Отключить и переписать письмо
+               нельзя (поддержка WFP 16.08.2026), поэтому снимаем тревогу здесь. Только для
+               заказов WayForPay (wfp_...), у Lava своя почта. -->
+          <p class="pw-mail-note" id="pw-mail-note" hidden>На почту придёт письмо от WayForPay со ссылкой на оплату - оно уходит автоматически при выставлении счёта, до оплаты. После успешной оплаты придёт второе письмо, квитанция. Если вы уже оплатили, первое письмо можно не открывать.</p>
+
           <div id="pw-form" hidden>
             <p class="muted login-line">Ваш логин: <strong id="pw-email"></strong></p>
             <div class="pw-field">
@@ -566,6 +572,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=76"></script>
+  <script src="app.js?v=77"></script>
 </body>
 </html>

@@ -708,6 +708,11 @@ function fillPwOrder(order) {
   if (val) val.textContent = order || "";
   if (box) box.hidden = !order;
 
+  // Пояснение про письма показываем ТОЛЬКО заказам WayForPay: у них oref вида wfp_<ts>_<hex>,
+  // у Lava - UUID инвойса, и там своя почта, чужой текст только запутает.
+  const mail = document.getElementById("pw-mail-note");
+  if (mail) mail.hidden = !(order && /^wfp_/i.test(order));
+
   // Кнопка "Скопировать номер": на телефоне выделять текст пальцем неудобно.
   // Обработчик вешаем ОДИН раз (флаг на элементе): экран пароля показывается повторно.
   const btn = document.getElementById("pw-order-copy");
