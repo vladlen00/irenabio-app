@@ -1037,22 +1037,7 @@ async function resumeAttachFromSession() {
   showPwError("Сессия истекла. Обновите страницу и войдите снова.");
 }
 
-// TEST-TARIFF: тариф "test" доступен ТОЛЬКО через ?plan=test, в списке тарифов не показан.
-// Прячем боевые карточки, показываем заметку. state.plan='test' уходит в create-checkout.
-// Удалить после теста (этот блок + #test-note в index.html + строку test в create-checkout).
-const TEST_PLAN = "test";
-function applyTestPlanIfRequested() {
-  if (new URLSearchParams(location.search).get("plan") !== TEST_PLAN) return false;
-  state.plan = TEST_PLAN;
-  els.plans.hidden = true;
-  const note = document.getElementById("test-note");
-  if (note) note.hidden = false;
-  // Lava не принимает тариф test (PLAN_MAP только 1m/6m/12m) -> прячем рублёвый путь, чтобы не вести в тупик.
-  const rub = document.querySelector(".pay-rub-link");
-  if (rub) rub.hidden = true;
-  writePlanToUrl();
-  return true;
-}
+
 
 // ===================== ДОМ (контент-платформа) + РОУТИНГ =====================
 // Развилка ДОБАВЛЕНА перед чекаутом. Оплатная ветка (чекаут/пароль/возврат) НЕ изменена.
@@ -1177,11 +1162,12 @@ function showCheckout() {
   clearLavaReturn();   // ушли на чекаут -> сбрасываем незавершённый Lava-возврат (ложный мост)
   els.viewCheckout.hidden = false;
   // существующая инициализация чекаута (ровно как было на старте) - оплатная ветка не тронута
-  if (!applyTestPlanIfRequested()) {
-    readPlanFromUrl();
-    writePlanToUrl();
-    paintSelected();
-  }
+  // Неизвестный тариф в адресе (в т.ч. старая ссылка ?plan=test) МОЛЧА игнорируется:
+  // readPlanFromUrl подставляет значение, только если оно есть в PLANS, иначе остаётся
+  // тариф по умолчанию. Женщина, открывшая разошедшуюся ссылку, видит обычный чекаут.
+  readPlanFromUrl();
+  writePlanToUrl();
+  paintSelected();
 }
 function showHomeShell() {
   hideEntryViews();
