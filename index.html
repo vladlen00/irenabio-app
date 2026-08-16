@@ -455,19 +455,8 @@
           <p>Придумайте пароль, чтобы входить в приложение.</p>
           <p class="muted lava-hint" id="pw-lava-hint" hidden>Это пароль для входа в ПРИЛОЖЕНИЕ (задаёте здесь). Письмо от lava.top - отдельный кабинет платежей Lava, не наш вход.</p>
 
-          <div class="pw-order-box" id="pw-order-box" hidden>
-            <div class="pw-order-label">Ваш номер заказа</div>
-            <div class="pw-order-value" id="pw-order"></div>
-            <div class="pw-order-note">Сделайте скриншот этого экрана. Номер пригодится, если понадобится помощь с доступом.</div>
-            <button type="button" id="pw-order-copy" class="btn btn-ghost pw-order-copy">Скопировать номер</button>
-          </div>
-
-          <!-- Письмо со счётом WayForPay шлёт САМ при создании инвойса, до оплаты, и после оплаты
-               его кнопка ведёт на красное "инвойс уже оплачен". Отключить и переписать письмо
-               нельзя (поддержка WFP 16.08.2026), поэтому снимаем тревогу здесь. Только для
-               заказов WayForPay (wfp_...), у Lava своя почта. -->
-          <p class="pw-mail-note" id="pw-mail-note" hidden>На почту придёт письмо от WayForPay со ссылкой на оплату - оно уходит автоматически при выставлении счёта, до оплаты. После успешной оплаты придёт второе письмо, квитанция. Если вы уже оплатили, первое письмо можно не открывать.</p>
-
+          <!-- ПОРЯДОК ЭКРАНА: сначала действие (логин, пароли, кнопка), справка НИЖЕ формы.
+               Женщина в этот момент хочет войти, а не читать. -->
           <div id="pw-form" hidden>
             <p class="muted login-line">Ваш логин: <strong id="pw-email"></strong></p>
             <div class="pw-field">
@@ -486,17 +475,30 @@
             <p class="alt-pay" id="pw-forgot" hidden><a href="#" id="pw-forgot-link" role="button">Не помню пароль</a></p>
             <button id="btn-enter" class="btn btn-primary" type="button" disabled>Открыть доступ</button>
             <button id="btn-retry" class="btn btn-ghost" type="button" hidden>Повторить</button>
-            <p class="reassure">Забудете пароль - восстановите по почте и номеру заказа (сохраните его выше).</p>
-            <!-- Выход из залипшего возврата с оплаты: адрес с ?paid=1&order= показывал этот экран
-                 при каждом заходе, со старым номером, и уйти было некуда (проверено вживую 16.08). -->
-            <button id="pw-not-mine" class="btn btn-ghost" type="button">Это не мой заказ, оформить подписку</button>
           </div>
+
+          <!-- СПРАВКА, ниже формы. Номер заказа: сам номер, одна строка зачем он, кнопка копирования.
+               Про скриншот не пишем - кнопка копирования эту просьбу заменяет. -->
+          <div class="pw-order-box" id="pw-order-box" hidden>
+            <div class="pw-order-label">Ваш номер заказа</div>
+            <div class="pw-order-value" id="pw-order"></div>
+            <div class="pw-order-note">Сохраните номер, он нужен для восстановления доступа.</div>
+            <button type="button" id="pw-order-copy" class="btn btn-ghost pw-order-copy">Скопировать номер</button>
+          </div>
+
+          <!-- Письмо со счётом WayForPay уходит автоматически при выставлении счёта, и после оплаты
+               его кнопка ведёт на красное "инвойс уже оплачен". Отключить и переписать письмо нельзя
+               (поддержка WFP 16.08.2026). Женщине нужно понять ровно одно: открывать не надо.
+               Только для заказов WayForPay (wfp_...), у Lava своя почта. -->
+          <p class="pw-mail-note" id="pw-mail-note" hidden>Письмо от WayForPay со ссылкой на оплату можно не открывать.</p>
         </div>
 
         <!-- ОШИБКА: битая/устаревшая ссылка или сбой проверки. Без зелёного успеха. -->
         <p class="form-error" id="pw-resolve-error" hidden></p>
-        <!-- Раньше на этом месте был тупик: только текст ошибки, уйти некуда. -->
-        <button class="btn btn-ghost" type="button" id="pw-dead-end-out" hidden>На главную</button>
+        <!-- ЕДИНСТВЕННЫЙ выход с экрана, виден в ОБОИХ состояниях: и когда ссылка битая, и когда
+             в адресе висит чужой/старый ?paid=1&order=. Стоит ВНЕ #pw-form (форма в состоянии
+             ошибки скрыта) и ведёт на СТАРТ: там обе двери, войти и оформить. -->
+        <button class="btn btn-ghost" type="button" id="pw-dead-end-out">Это не мой заказ</button>
       </div>
     </section>
 
@@ -585,6 +587,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=80"></script>
+  <script src="app.js?v=81"></script>
 </body>
 </html>

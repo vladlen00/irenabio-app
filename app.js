@@ -773,6 +773,10 @@ async function enterPaymentReturn(order) {
   els.pwSuccess.hidden = true;
   els.pwForm.hidden = true;
   els.pwResolveError.hidden = true;
+  // Состояния прошлых заходов не должны залипать: "Повторить" и ссылка "Не помню пароль"
+  // показываются ТОЛЬКО после своей ошибки, а экран открывается повторно в той же вкладке.
+  els.btnRetry.hidden = true;
+  showPwError("");
 
   if (!sb) {
     els.pwLoading.hidden = true;
@@ -990,8 +994,9 @@ els.form.addEventListener("submit", (e) => {
   bind("checkout-back", () => checkoutBack());         // чекаут -> туда, откуда пришли
   bind("lavacur-back", () => showCheckout());          // экран 2 -> назад к тарифам
   bind("pay-go-back", () => showCheckout());           // экран 3 -> назад к тарифам (оплаты ещё не было)
-  bind("pw-dead-end-out", () => showStart());          // битая ссылка на пароль -> старт, а не тупик
-  bind("pw-not-mine", () => { leavePaymentReturn(); checkoutBackTo = null; showCheckout(); }); // чужой/старый заказ -> к тарифам
+  // Единственный выход с экрана пароля: чистит адрес (иначе перезагрузка вернёт сюда же) и ведёт
+  // на старт. Покрывает оба случая - битую ссылку и чужой/старый заказ в адресе.
+  bind("pw-dead-end-out", () => { leavePaymentReturn(); showStart(); });
   bind("pw-forgot-link", () => showResetPrefilled(state.email, state.order)); // "не помню пароль" -> восстановление с готовыми полями
   bind("btn-lava-pay", () => showPayGo());             // экран 2 -> экран 3
   bind("btn-pay-go", () => onPayGo());                 // экран 3 -> оплата в той же вкладке (Lava)
