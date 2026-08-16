@@ -996,8 +996,14 @@ function coverUrl(slug, kind) {
 // Затемнения из макета. На обложку ложится текст, и без подложки белый заголовок
 // на светлой части картинки нечитаем. Картинки нарисованы объектом справа и тёмной
 // левой третью - затемнение слева по ним не бьёт.
-const COVER_SHADE_HOME = "linear-gradient(100deg, rgba(24,6,18,.82) 0%, rgba(24,6,18,.55) 34%, rgba(24,6,18,.05) 62%, transparent)";
+// Стоп .05 стоит на 78%, а не на 62% из макета: числа макета считались под другую,
+// более тёмную слева картинку, на живых обложках (лотос, nutrition, gut-body) свет
+// доходит левее и подзаголовок ложился на светлое. Правка Владлена 2026-08-16.
+const COVER_SHADE_HOME = "linear-gradient(100deg, rgba(24,6,18,.82) 0%, rgba(24,6,18,.55) 34%, rgba(24,6,18,.05) 78%, transparent)";
 const COVER_SHADE_DAY = "linear-gradient(to top, #0B080C 0%, rgba(11,8,12,.55) 40%, rgba(11,8,12,.15) 100%)";
+// У экрана спринта затемнение СВОЁ (.listcover в макете): плотнее дневного, потому
+// что под заголовком сразу идёт строка прогресса, а не воздух.
+const COVER_SHADE_SPRINT = "linear-gradient(to top, #0B080C 0%, rgba(11,8,12,.6) 42%, rgba(11,8,12,.2) 100%)";
 // Красим ВСЕГДА, и при отсутствии слага тоже: пустая строка снимает инлайн-стиль и
 // возвращает градиент-заглушку из CSS. Без этого обложка прошлого экрана залипала бы
 // на спринте, у которого своей картинки ещё нет.
@@ -2328,6 +2334,8 @@ function openSprint(sprintId) {
   const completed = new Set((homeData.progress && homeData.progress.completed_day_ids) || []);
   const completedVisible = days.filter((d) => completed.has(d.id)).length;
   const nextDay = days.find((d) => !completed.has(d.id)) || null;
+  // Обложка спринта в шапке списка дней - широкая картинка ЭТОГО спринта.
+  paintCover(document.getElementById("sprint-hero"), sprint.cover_slug, "wide", COVER_SHADE_SPRINT);
   document.getElementById("sprint-kicker").textContent = sprint.status === "active" ? "СПРИНТ" : "АРХИВ";
   setHeadline(document.getElementById("sprint-title"), sprint.title || "");
   document.getElementById("sprint-sub").textContent = "Авторская методика · проходите в своём темпе";

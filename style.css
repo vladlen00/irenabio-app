@@ -279,7 +279,8 @@ a:hover { text-decoration: underline; }
 .home-kicker { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.72); letter-spacing: 2.4px; text-transform: uppercase; }
 .home-headline { font-size: 40px; font-weight: 500; line-height: 1.04; color: #fff; margin: 12px 0 10px; overflow-wrap: break-word; word-wrap: break-word; text-shadow: 0 2px 18px rgba(40,6,24,.55); }
 .home-headline.long { font-size: 30px; }              /* длинное имя дня -> мельче, БЕЗ многоточия */
-.home-subhead { font-size: 13.5px; line-height: 1.5; color: rgba(255,255,255,.8); max-width: 290px; overflow-wrap: break-word; text-shadow: 0 1px 12px rgba(40,6,24,.6); }
+/* 270, а не 290: строка не должна дотягиваться до светлой части живой обложки. */
+.home-subhead { font-size: 13.5px; line-height: 1.5; color: rgba(255,255,255,.8); max-width: 270px; overflow-wrap: break-word; text-shadow: 0 1px 12px rgba(40,6,24,.6); }
 /* Пилюля-плеер из макета. Волны и таймера НЕТ осознанно: get-home не отдаёт ни
    ссылку на аудио, ни длительность, рисовать их было бы враньём. Ведёт на день. */
 .home-cta {
@@ -414,6 +415,10 @@ a:hover { text-decoration: underline; }
   background: var(--hero-grad);
   background-size: cover; background-position: center right;
 }
+/* У экрана спринта в макете (.listcover) СВОЯ подача обложки: кадр смещён к 70%,
+   а не прижат вправо, и затемнение плотнее дневного (.6 на 42%, .2 внизу). Правило
+   скоупим по #view-sprint - ту же разметку .day-hero носят экран дня и подписка. */
+#view-sprint .day-hero { background-position: 70% center; }
 .day-topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
 .day-back { width: 34px; height: 34px; border-radius: 10px; background: var(--glass); display: flex; align-items: center; justify-content: center; cursor: pointer; flex: 0 0 auto; }
 .day-back i { font-size: 18px; color: var(--ink-warm); }
