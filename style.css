@@ -279,8 +279,13 @@ a:hover { text-decoration: underline; }
 .home-kicker { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.72); letter-spacing: 2.4px; text-transform: uppercase; }
 .home-headline { font-size: 40px; font-weight: 500; line-height: 1.04; color: #fff; margin: 12px 0 10px; overflow-wrap: break-word; word-wrap: break-word; text-shadow: 0 2px 18px rgba(40,6,24,.55); }
 .home-headline.long { font-size: 30px; }              /* длинное имя дня -> мельче, БЕЗ многоточия */
-/* 270, а не 290: строка не должна дотягиваться до светлой части живой обложки. */
-.home-subhead { font-size: 13.5px; line-height: 1.5; color: rgba(255,255,255,.8); max-width: 270px; overflow-wrap: break-word; text-shadow: 0 1px 12px rgba(40,6,24,.6); }
+/* 210 - выбрано ЗАМЕРОМ, не на глаз: только на этой ширине первая строка перестаёт
+   доставать до светлых лепестков лотоса и контраст берёт порог AA 4.5 на всех семи
+   обложках (на 270 и 240 - 2.37 и 3.92). Затемнением это не лечилось в принципе.
+   ПОД НАБЛЮДЕНИЕМ: 210 - это чуть больше половины ширины экрана; если на живом
+   телефоне строка станет похожа на узкий колодец, решать иначе - например увести
+   подзаголовок вниз под пилюлю, где фон и так тёмный. */
+.home-subhead { font-size: 13.5px; line-height: 1.5; color: rgba(255,255,255,.8); max-width: 210px; overflow-wrap: break-word; text-shadow: 0 1px 12px rgba(40,6,24,.6); }
 /* Пилюля-плеер из макета. Волны и таймера НЕТ осознанно: get-home не отдаёт ни
    ссылку на аудио, ни длительность, рисовать их было бы враньём. Ведёт на день. */
 .home-cta {
