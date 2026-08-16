@@ -373,6 +373,13 @@
           <input id="email" type="email" inputmode="email" autocomplete="email"
                  placeholder="ваша@почта.com" autocapitalize="off" spellcheck="false">
         </label>
+        <!-- Второе поле: опечатка в адресе стоит доступа - почта это логин, по ней же идут
+             квитанция и восстановление по паре "почта + номер заказа". Вставку НЕ запрещаем. -->
+        <label class="field" for="email2">
+          <span class="field-label">Повторите почту</span>
+          <input id="email2" type="email" inputmode="email" autocomplete="email"
+                 placeholder="ещё раз, чтобы не ошибиться" autocapitalize="off" spellcheck="false">
+        </label>
         <p class="field-error" id="email-error" hidden></p>
 
         <button id="btn-pay" class="btn btn-primary" type="submit" data-method="wayforpay">
@@ -575,6 +582,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=78"></script>
+  <script src="app.js?v=79"></script>
 </body>
 </html>

@@ -208,6 +208,7 @@ const els = {
   form: document.getElementById("checkout-form"),
   plans: document.getElementById("plans"),
   email: document.getElementById("email"),
+  email2: document.getElementById("email2"),   // повтор почты, см. readCheckoutEmail
   emailError: document.getElementById("email-error"),
   formError: document.getElementById("form-error"),
   btnPay: document.getElementById("btn-pay"),
@@ -288,6 +289,18 @@ function normalizeEmail(raw) {
 }
 function emailValid(email) {
   return email.length >= 6 && email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+// Почта на чекауте вводится ДВАЖДЫ. Возвращает нормализованный адрес или null (с показанной
+// ошибкой). Вставку во второе поле НЕ запрещаем: кто копирует из первого, обычно копирует
+// верный адрес, а запрет получили бы все.
+function readCheckoutEmail() {
+  const email = normalizeEmail(els.email.value);
+  if (!emailValid(email)) { showEmailError(EMAIL_HINT); els.email.focus(); return null; }
+  const again = normalizeEmail(els.email2 ? els.email2.value : "");
+  if (!again) { showEmailError("Повторите почту во втором поле."); if (els.email2) els.email2.focus(); return null; }
+  if (email !== again) { showEmailError("Адреса не совпадают - проверьте оба поля."); if (els.email2) els.email2.focus(); return null; }
+  return email;
 }
 
 // --- сообщения об ошибке ---
@@ -531,8 +544,8 @@ function hideCoreViews() {
 // WFP вернётся по returnUrl -> ?paid=1&order= -> enterPaymentReturn (пароль). ---
 async function goCheckoutSubmit() {
   clearErrors();
-  const email = normalizeEmail(els.email.value);
-  if (!emailValid(email)) { showEmailError(EMAIL_HINT); els.email.focus(); return; }
+  const email = readCheckoutEmail();
+  if (!email) return;
   state.method = "wayforpay";
   state.email = email;
   clearLavaReturn();   // WFP не использует stash; чистим, чтобы бут на возврате не ушёл в заглушку
@@ -547,6 +560,8 @@ async function goCheckoutSubmit() {
   if (r.state === "ok" && data.ok && data.invoiceUrl) { window.location.href = data.invoiceUrl; return; }
   if (r.state === "unreachable") showFormError(NET_MSG);
   else if (r.status === 429) showFormError(RATE_MSG);
+  // Домен не принимает почту (проверка MX на сервере) - это почти всегда опечатка в домене.
+  else if (data.error === "invalid_email_domain") showEmailError("Проверьте адрес: домен не принимает почту. Опечатка?");
   else if (r.status === 400 || data.error === "invalid_email") showEmailError(EMAIL_HINT);
   else showFormError("Не удалось открыть оплату. Попробуйте ещё раз.");
   if (btn) { btn.disabled = false; btn.textContent = "Оплатить"; }
@@ -554,8 +569,8 @@ async function goCheckoutSubmit() {
 // --- экран 1 -> ссылка "Оплатить в рублях": та же валидация, дальше экран 2 (выбор валюты) ---
 function goLavaCurrency() {
   clearErrors();
-  const email = normalizeEmail(els.email.value);
-  if (!emailValid(email)) { showEmailError(EMAIL_HINT); els.email.focus(); return; }
+  const email = readCheckoutEmail();
+  if (!email) return;
   state.method = "lava";
   state.email = email;
   showLavaCurrency();
@@ -971,6 +986,7 @@ els.form.addEventListener("submit", (e) => {
   });
 }
 els.email.addEventListener("input", () => showEmailError(""));
+if (els.email2) els.email2.addEventListener("input", () => showEmailError(""));
 
 // слушатели экрана пароля
 els.btnEnter.addEventListener("click", onEnter);
