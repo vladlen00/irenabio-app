@@ -506,13 +506,21 @@ function hidePayFlowExtra() {
   if (els.viewPayGo) els.viewPayGo.hidden = true;
   if (els.viewPayWait) els.viewPayWait.hidden = true;
   if (els.viewPayTabReturn) els.viewPayTabReturn.hidden = true;
+  // Экран подписки гасился ТОЛЬКО через hideContentViews, а его не зовут ни showStart,
+  // ни showCheckout, ни showHomeShell, ни экраны оплаты. Из-за этого подписка оставалась
+  // видимой ПОД ними и экраны накладывались друг на друга (поймано аудитом переходов).
+  // Здесь - самая широкая точка: hidePayFlowExtra зовут все переходы входа и оплаты.
+  const vsub = document.getElementById("view-subscription"); if (vsub) vsub.hidden = true;
   stopPayPoll();
 }
 // Базовое состояние экранов "колонки" (шапка/футер видны, контентные экраны скрыты).
 function hideCoreViews() {
   hideEntryViews();
-  if (siteHeader) siteHeader.hidden = false;
-  if (siteFooter) siteFooter.hidden = false;
+  // Шапку СКРЫВАЕМ: hideCoreViews обслуживает только экраны платёжного пути (валюта,
+  // уход в платёжку, ожидание оплаты). Раньше она здесь показывалась, и шапка от старого
+  // дизайна возвращалась ровно там, где её быть не должно.
+  if (siteHeader) siteHeader.hidden = true;
+  if (siteFooter) siteFooter.hidden = true;
   els.viewCheckout.hidden = true;
   if (els.viewHome) els.viewHome.hidden = true;
   els.viewPassword.hidden = true;
@@ -753,6 +761,10 @@ async function enterPaymentReturn(order) {
       els.pwSuccess.hidden = true;
       els.pwResolveError.innerHTML = "Ссылка недействительна или устарела. Если вы оплачивали и доступ не открылся - напишите нам на почту " + supportEmailHtml() + " или для более быстрого ответа в телеграм " + supportTgHtml() + ", проверим и поможем.";
       els.pwResolveError.hidden = false;
+      // Тупик: до этого на экране был только текст ошибки, уйти было некуда.
+      // Выход ведёт на СТАРТ, где есть и вход, и "оплатили, но ещё не заходили".
+      const pwOut = document.getElementById("pw-dead-end-out");
+      if (pwOut) pwOut.hidden = false;
     }
   }
 }
@@ -900,7 +912,10 @@ els.form.addEventListener("submit", (e) => {
 {
   const bind = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("click", (e) => { e.preventDefault(); fn(e); }); };
   bind("to-lava-currency", goLavaCurrency);            // экран 1 -> экран 2 (валюта Lava)
+  bind("checkout-back", () => checkoutBack());         // чекаут -> туда, откуда пришли
   bind("lavacur-back", () => showCheckout());          // экран 2 -> назад к тарифам
+  bind("pay-go-back", () => showCheckout());           // экран 3 -> назад к тарифам (оплаты ещё не было)
+  bind("pw-dead-end-out", () => showStart());          // битая ссылка на пароль -> старт, а не тупик
   bind("btn-lava-pay", () => showPayGo());             // экран 2 -> экран 3
   bind("btn-pay-go", () => onPayGo());                 // экран 3 -> оплата в той же вкладке (Lava)
   bind("btn-paid-check", () => onPaidCheck());         // экран 4 -> ручная проверка
@@ -1048,11 +1063,30 @@ function setHeadline(el, text) {
   el.classList.toggle("long", (text || "").length > 26);
 }
 
+// КУДА ВЕДЁТ НАЗАД С ЧЕКАУТА. null = пришли СНАРУЖИ (прямая ссылка, первый заход,
+// маршрутизация при отсутствии доступа) - возвращать некуда, кнопки быть не должно.
+// Значение ставят только те переходы, которые ведут на чекаут ИЗНУТРИ приложения.
+// Внутренние возвраты на сам чекаут (с выбора валюты, с ожидания оплаты) его НЕ трогают.
+let checkoutBackTo = null;
+function checkoutBack() {
+  const t = checkoutBackTo;
+  checkoutBackTo = null;
+  if (t === "subscription") { openSubscription(); return; }
+  if (t === "login") { showLogin(); return; }
+  showStart();
+}
+
 function showCheckout() {
   hideEntryViews();
   hidePayFlowExtra();
-  if (siteHeader) siteHeader.hidden = false;
-  if (siteFooter) siteFooter.hidden = false;
+  // Шапка с плашкой "И" - от старого дизайна. На чекауте и дальше по платёжному пути
+  // её нет: экран стал обычным экраном-задачей со своим заголовком и кнопкой назад,
+  // как день, спринт и подписка. На экранах входа она остаётся - там это единственное,
+  // что говорит новому человеку, куда он попал.
+  if (siteHeader) siteHeader.hidden = true;
+  if (siteFooter) siteFooter.hidden = true;
+  const backBtn = document.getElementById("checkout-back");
+  if (backBtn) backBtn.hidden = !checkoutBackTo;
   if (els.viewHome) els.viewHome.hidden = true;
   if (els.viewLavaReturn) els.viewLavaReturn.hidden = true;   // мост Lava не должен висеть под чекаутом
   els.viewPassword.hidden = true;
@@ -1449,7 +1483,7 @@ function renderSubscription(sub) {
   box.innerHTML = html;
   if (wireRenew) {
     const rb = document.getElementById("sub-renew");
-    if (rb) rb.addEventListener("click", function () { hideContentViews(); showCheckout(); });
+    if (rb) rb.addEventListener("click", function () { hideContentViews(); checkoutBackTo = "subscription"; showCheckout(); });
   }
   if (wireCancel) wireCancelFlow(sub);
 }
@@ -1691,7 +1725,7 @@ async function doLogin() {
       const lc = document.getElementById("login-err-claim");
       if (lc) lc.addEventListener("click", (e) => { e.preventDefault(); showClaim(); });
       const l = document.getElementById("login-err-signup");
-      if (l) l.addEventListener("click", (e) => { e.preventDefault(); showCheckout(); });
+      if (l) l.addEventListener("click", (e) => { e.preventDefault(); checkoutBackTo = "login"; showCheckout(); });
       btn.disabled = false; btn.textContent = "Войти";
       return;
     }
@@ -1855,10 +1889,10 @@ async function doClaim() {
 (function wireEntry() {
   const bind = (id, fn) => { const e = document.getElementById(id); if (e) e.addEventListener("click", fn); };
   bind("start-login", (e) => { e.preventDefault(); showLogin(); });
-  bind("start-signup", (e) => { e.preventDefault(); showCheckout(); });
+  bind("start-signup", (e) => { e.preventDefault(); checkoutBackTo = "start"; showCheckout(); });
   bind("btn-login", (e) => { e.preventDefault(); doLogin(); });
   bind("login-back", (e) => { e.preventDefault(); showStart(); });
-  bind("login-to-signup", (e) => { e.preventDefault(); showCheckout(); });
+  bind("login-to-signup", (e) => { e.preventDefault(); checkoutBackTo = "login"; showCheckout(); });
   bind("login-to-reset", (e) => { e.preventDefault(); showReset(); });
   bind("btn-reset", (e) => { e.preventDefault(); doReset(); });
   bind("reset-back", (e) => { e.preventDefault(); showLogin(); });
@@ -1917,6 +1951,7 @@ async function routeHomeOrCheckout() {
   if (r.state === "ok") {
     const home = r.data || {};
     if (home.access) { renderHome(home); return; }
+    checkoutBackTo = null;   // сюда привёл маршрут, а не переход женщины - возвращать некуда
     showCheckout();   // сервер ответил и сказал: доступа нет
     return;
   }
@@ -1929,7 +1964,7 @@ async function routeHomeOrCheckout() {
   //   401 - токен пуст или не принят GoTrue, то есть СЕССИЯ МЕРТВА -> нужна кнопка "Войти".
   // Без этого деления платящая женщина с протухшим токеном снова упирается в оплату:
   // getSessionState отдаёт "ok" (токен в хранилище есть), и ранняя развилка не срабатывает.
-  if (r.state === "denied" && r.status === 403) { showCheckout(); return; }
+  if (r.state === "denied" && r.status === 403) { checkoutBackTo = null; showCheckout(); return; }
   if (r.state === "denied") { if (readLavaReturn()) showPayWait(); else showStart(); return; }
   // Всё остальное - неожиданный 4xx, кривой ответ - это НЕ вердикт о подписке.
   // По правилу v57: нет вердикта - нет чекаута.

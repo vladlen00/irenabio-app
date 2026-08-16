@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=56">
+  <link rel="stylesheet" href="style.css?v=57">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. У обоих есть кириллица
@@ -327,6 +327,9 @@
 
     <!-- ЭКРАН 1: чекаут -->
     <section id="view-checkout" hidden>
+      <!-- Кнопка видна ТОЛЬКО когда есть куда вернуться (пришли изнутри приложения).
+           При заходе по прямой ссылке снаружи showCheckout её прячет. -->
+      <div class="pay-back" id="checkout-back" role="button" aria-label="Назад" hidden><i class="ti ti-arrow-left"></i></div>
       <h1>Оформление подписки</h1>
       <p class="lead">Доступ к приложению и материалам: тренировки, трекеры, дневник, медитации, дыхательные практики, обучающие материалы и подкасты.</p>
       <!-- TEST-TARIFF: заметка тестового тарифа, видна только при ?plan=test. Удалить после теста. -->
@@ -412,6 +415,8 @@
         <div class="pay-addr">app.irenabio.com</div>
         <p class="muted">Доступ откроется сам. Запомните адрес — понадобится, чтобы вернуться после оплаты.</p>
         <button class="btn btn-primary" type="button" id="btn-pay-go">Перейти к оплате</button>
+        <!-- Выход был нужен: оплаты ещё НЕ было, а уйти с экрана было некуда. -->
+        <button class="btn btn-ghost" type="button" id="pay-go-back">Вернуться к тарифам</button>
         <p class="form-error" id="pay-go-error" hidden></p>
       </div>
     </section>
@@ -470,6 +475,8 @@
 
         <!-- ОШИБКА: битая/устаревшая ссылка или сбой проверки. Без зелёного успеха. -->
         <p class="form-error" id="pw-resolve-error" hidden></p>
+        <!-- Раньше на этом месте был тупик: только текст ошибки, уйти некуда. -->
+        <button class="btn btn-ghost" type="button" id="pw-dead-end-out" hidden>На главную</button>
       </div>
     </section>
 
@@ -558,6 +565,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=74"></script>
+  <script src="app.js?v=75"></script>
 </body>
 </html>

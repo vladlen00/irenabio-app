@@ -132,7 +132,11 @@ a:hover { text-decoration: underline; }
    значение сходится к прежним 16px, то есть вёрстка не меняется. */
 .wrap { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); }
 
-.site-header { padding: 18px 0; border-bottom: 1px solid var(--border); background: var(--surface); }
+/* Шапка осталась ТОЛЬКО на экранах входа (старт, вход, восстановление, первый пароль,
+   экран связи) - там это единственное, что говорит новому человеку, куда он попал.
+   С платёжного пути её убирает showCheckout. Полосы из --surface с бордером больше нет:
+   она читалась как чужеродная панель от старого дизайна. Теперь просто строка бренда. */
+.site-header { padding: 18px 0 6px; border-bottom: 0; background: transparent; }
 .brand { display: flex; align-items: center; gap: 11px; }
 .brand-mark {
   width: 36px; height: 36px; border-radius: 11px; flex: 0 0 auto;
@@ -148,6 +152,16 @@ a:hover { text-decoration: underline; }
    max(), а не сумма: на iPhone inset сверху ~47-59px, и 30px+inset дали бы
    лишнюю дыру. Без выреза max(30, 12) = прежние 30px, вёрстка не меняется. */
 .checkout { padding: max(30px, calc(12px + env(safe-area-inset-top, 0px))) max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+/* Кнопка "назад" на экранах платёжного пути. Тот же вид, что у .lib-back и .day-back:
+   38x38, радиус 13, стеклянная. Живёт в потоке, а не абсолютом - над заголовком. */
+.pay-back {
+  width: 38px; height: 38px; border-radius: 13px; margin-bottom: 14px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(20,14,20,.6); border: 1px solid rgba(255,255,255,.14);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.pay-back[hidden] { display: none; }
+.pay-back i { font-size: 20px; color: #F2E6EA; }
 .checkout h1 { font-size: 26px; margin: 0 0 8px; text-align: center; }
 .checkout .lead { color: var(--muted); text-align: center; margin: 0 0 26px; font-size: 15px; }
 
