@@ -1234,7 +1234,7 @@ if (homeEls.supportBtn) {
 
 // ===================== ЭКРАН «УПРАВЛЕНИЕ ПОДПИСКОЙ» (веб) =====================
 // Детали читаются read-only через web-subscription (боевой verify-access-web НЕ трогаем).
-// Блок 1 статус, Блок 2 отмена (роутинг по source, инлайн-подтверждение), Блок 3 поддержка.
+// Членская карта + факты + что входит + отключение автопродления (роутинг по source).
 // ТГ-ветку не касается: экран открывается только в вебе (пункт меню профиля).
 const WEB_SUB_URL = SUPABASE_URL + "/functions/v1/web-subscription";
 const CANCEL_SUB_URL = SUPABASE_URL + "/functions/v1/cancel-subscription";        // WFP
@@ -1288,63 +1288,168 @@ async function openSubscription() {
   if (errEl) { errEl.innerHTML = "Не удалось загрузить данные подписки. Обновите страницу или напишите нам " + supportEmailHtml() + "."; errEl.hidden = false; }
 }
 
-function renderSubscription(sub) {
-  const until = fmtDateDots(sub.valid_until);
-  const statusEl = document.getElementById("sub-status");
-  const actionsEl = document.getElementById("sub-actions");
+// Что даёт подписка. Порядок закреплён макетом, произвольно не менять.
+const SUB_INCLUDES = ["тренировки и упражнения", "трекеры здоровья и цикла", "дневник самочувствия",
+  "медитации", "дыхательные практики", "обучающие материалы", "ежедневные подкасты"];
 
-  // Доступ по ACCESS-CANON (active/grace + valid_until + 3д грейса). Нет доступа -> "истекла".
+const CUR_SIGN = { EUR: "\u20AC", UAH: "\u20B4", RUB: "\u20BD" };
+function priceText(plan) {
+  if (!plan || plan.amount == null) return "";
+  const sign = CUR_SIGN[plan.currency] || plan.currency || "";
+  return sign ? (plan.amount + " " + sign) : "";
+}
+// "1 месяц · 11 €". Сумма может быть неизвестна (у рублёвых заказов expected_amount
+// пустой) - тогда печатаем только период. Ничего не выдумываем, это платёжный экран.
+function planText(plan) {
+  if (!plan) return "";
+  const m = plan.months;
+  const period = m === 1 ? "1 месяц" : m === 6 ? "6 месяцев" : m === 12 ? "12 месяцев" : (m ? m + " мес." : "");
+  return [period, priceText(plan)].filter(Boolean).join(" \u00B7 ");
+}
+// "июня 2026" - именно родительный падеж: "Участница с июня 2026".
+// Формат {month:"long"} без дня даёт ИМЕНИТЕЛЬНЫЙ ("июнь"), поэтому просим дату
+// целиком и отрезаем число - так ICU отдаёт нужную форму на всех движках.
+function fmtMonthYear(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })
+          .replace(/^\d+\s+/, "").replace(/\s*г\.$/, "");
+}
+// "23 сентября" - для прозы. В самой карте даты остаются цифрами (23.09.2026):
+// на карте это реквизит, в тексте - разговор.
+function fmtDayMonth(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+}
+// "23 сентября 2026" - для подтверждения, там год важен.
+function fmtDayMonthYear(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" }).replace(/\s*г\.$/, "");
+}
+function daysLeft(iso) {
+  const t = iso ? new Date(iso).getTime() : 0;
+  if (!t) return null;
+  return Math.max(0, Math.ceil((t - Date.now()) / 86400000));
+}
+function plurDaysLeft(n) {
+  const a = n % 10, b = n % 100;
+  const w = (a === 1 && b !== 11) ? "день" : (a >= 2 && a <= 4 && (b < 10 || b >= 20)) ? "дня" : "дней";
+  return n + " " + w;
+}
+// Членская карта. Внутри ТОЛЬКО бренд, статус и срок - то, что бывает на настоящей
+// карте. Строки без данных не печатаем: пустых подписей на карте быть не должно.
+function memcardHtml(kind, chip, sub, rightLabel, rightValue) {
+  const since = sub.started_at ? fmtMonthYear(sub.started_at) : "";
+  return '<div class="memcard ' + kind + '">' +
+    '<div class="mtop"><span class="mbrand">ИРЕНА БИО</span><span class="mchip">' + escapeHtml(chip) + '</span></div>' +
+    '<div class="mname">Полный доступ</div>' +
+    '<div class="mline">' +
+      (since ? '<div><span>Участница с</span><b>' + escapeHtml(since) + '</b></div>' : '<div></div>') +
+      (rightValue ? '<div class="right"><span>' + escapeHtml(rightLabel) + '</span><b>' + escapeHtml(rightValue) + '</b></div>' : '') +
+    '</div></div>';
+}
+function inclHtml(title) {
+  return '<div class="inclcard"><span class="incltitle">' + escapeHtml(title) + '</span><ul class="incl">' +
+    SUB_INCLUDES.map(function (x) { return '<li>' + escapeHtml(x) + '</li>'; }).join("") + '</ul></div>';
+}
+function rowsHtml(rows) {
+  const body = rows.filter(Boolean).map(function (r) {
+    return '<div class="subrow"><span>' + escapeHtml(r[0]) + '</span><b' + (r[2] ? ' class="' + r[2] + '"' : '') +
+      '>' + escapeHtml(r[1]) + '</b></div>';
+  }).join("");
+  return body ? '<div class="subrows">' + body + '</div>' : "";
+}
+
+function renderSubscription(sub) {
+  const until = fmtDateDots(sub.valid_until);      // в карту, цифрами
+  const untilWords = fmtDayMonth(sub.valid_until); // в текст, словами
+  const untilFull = fmtDayMonthYear(sub.valid_until);
+  const box = document.getElementById("sub-content");
+  if (!box) return;
+
+  // Доступ по ACCESS-CANON (active/grace + valid_until + 3д грейса). Нет доступа -> "закончилась".
   const SUB_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
   const subTs = sub.valid_until ? new Date(sub.valid_until).getTime() : 0;
   const hasAccess = (sub.status === "active" || sub.status === "grace") && subTs && (subTs + SUB_GRACE_MS > Date.now());
+  const recurrent = (sub.source === "wayforpay" || sub.source === "lava");
+  const left = daysLeft(sub.valid_until);
+  const price = priceText(sub.plan);
 
-  // --- Блок 1: статус ---
-  let statusHtml = "";
-  let showRenew = false;
-  let renewLabel = "Продлить";
+  let html = "";
+  let wireCancel = false, wireRenew = false;
+
   if (!hasAccess) {
-    statusHtml = '<div class="sub-status-title">Подписка истекла</div>' +
-                 '<div class="sub-status-sub">Доступ закрыт. Оформите подписку, чтобы вернуться.</div>';
-    showRenew = true; renewLabel = "Оформить";
+    // Доступа уже нет. В макете этого состояния нет, но экран обязан не ломаться.
+    html += memcardHtml("off", "ЗАКОНЧИЛАСЬ", sub, "Закончилась", until || "");
+    html += '<p class="mnote">Доступ закрыт. Прогресс и отметки сохранены - вернутся сразу после оформления.</p>';
+    html += '<button type="button" class="sub-primary" id="sub-renew">Оформить подписку</button>';
+    html += inclHtml("Что откроется снова");
+    wireRenew = true;
   } else if (sub.status === "grace") {
-    statusHtml = '<div class="sub-status-title sub-status-warn">Оплата не прошла</div>' +
-                 '<div class="sub-status-sub">Доступ' + (until ? " до " + until : " активен") + '. Продлите, чтобы не потерять доступ.</div>';
-    showRenew = true;
+    // ОПЛАТА НЕ ПРОШЛА. Кнопка оплаты идёт СРАЗУ под картой: заплатить надо мочь,
+    // не листая экран.
+    html += memcardHtml("bad", "ОПЛАТА НЕ ПРОШЛА", sub, "Доступ ещё", left != null ? plurDaysLeft(left) : "");
+    html += '<p class="mnote">Банк отклонил списание' + (untilWords ? " " + untilWords : "") +
+            '. Обычно помогает повторить оплату - деньги спишутся один раз.</p>';
+    html += '<button type="button" class="sub-primary" id="sub-renew">' +
+            (price ? "Оплатить " + escapeHtml(price) : "Оплатить") + '</button>';
+    html += rowsHtml([
+      sub.plan ? ["Тариф", planText(sub.plan)] : null,
+      ["Способ оплаты", "Банковская карта"]
+    ]);
+    html += inclHtml("Что входит");
+    wireRenew = true;
   } else if (sub.cancelled) {
-    statusHtml = '<div class="sub-status-title">Автопродление отключено</div>' +
-                 '<div class="sub-status-sub">Доступ сохраняется' + (until ? " до " + until : "") + ', дальше списаний не будет. Чтобы продлить - оформите подписку заново.</div>';
+    // БЕЗ ПРОДЛЕНИЯ. Карта гаснет, главная кнопка - вернуть продление.
+    html += memcardHtml("off", "БЕЗ ПРОДЛЕНИЯ", sub, "Доступ до", until || "");
+    html += '<p class="mnote">Всё открыто до этой даты. Дальше списаний не будет и доступ закроется.</p>';
+    html += '<button type="button" class="sub-primary" id="sub-renew">Включить продление</button>';
+    html += rowsHtml([
+      sub.plan ? ["Тариф", planText(sub.plan)] : null,
+      ["Способ оплаты", "Банковская карта"],
+      left != null ? ["Осталось", plurDaysLeft(left)] : null
+    ]);
+    html += inclHtml(untilWords ? "Что потеряешь после " + untilWords : "Что потеряешь");
+    wireRenew = true;
   } else {
-    // "Продлевается автоматически" ТОЛЬКО для рекуррентных source; manual (ручная выдача) не автопродлевается.
-    const autoRenew = (sub.source === "wayforpay" || sub.source === "lava");
-    statusHtml = '<div class="sub-status-title sub-status-ok">Подписка активна</div>' +
-                 '<div class="sub-status-sub">' + (until ? "Действует до " + until : "Активна") + '.' + (autoRenew ? " Продлевается автоматически." : "") + '</div>';
+    // АКТИВНА.
+    html += memcardHtml("ok", "АКТИВНА", sub, "Действует до", until || "");
+    html += '<p class="mnote">' +
+      (recurrent
+        ? (untilWords ? (untilWords + (price ? " спишется " + escapeHtml(price) : " продлится") + " за следующий период. Напомню за три дня.")
+                 : "Продлевается автоматически.")
+        : (until ? "Доступ открыт до " + until + "." : "Доступ открыт.")) + '</p>';
+    html += rowsHtml([
+      sub.plan ? ["Тариф", planText(sub.plan)] : null,
+      ["Способ оплаты", "Банковская карта"],
+      recurrent ? ["Автопродление", "Включено", "green"] : null
+    ]);
+    html += inclHtml("Что входит");
+    if (recurrent) {
+      // Слово "отменить" не используем НИГДЕ: женщина читает "отменить подписку" и
+      // думает, что теряет доступ сейчас же. Отключается именно автопродление, а
+      // доступ остаётся до конца оплаченного периода - это и должно быть видно.
+      html += '<button type="button" class="sub-ghost" id="sub-cancel-btn">Отключить автопродление</button>' +
+        '<div class="sub-confirm" id="sub-confirm" hidden>' +
+          '<div class="sub-confirm-grip"></div>' +
+          '<b class="sub-confirm-title">Отключить автопродление?</b>' +
+          '<p class="sub-confirm-text">Доступ останется' + (untilFull ? " до " + untilFull : "") +
+            '. Списаний больше не будет, прогресс и отметки сохранятся. Текущая цена не закрепляется: ' +
+            'при возврате подписка будет по действующему на тот момент тарифу.</p>' +
+          '<button type="button" class="sub-primary" id="sub-confirm-no">Оставить подписку</button>' +
+          '<button type="button" class="sub-quiet" id="sub-confirm-yes">Да, отключить</button>' +
+        '</div>' +
+        '<div class="sub-result" id="sub-cancel-result" hidden></div>';
+      wireCancel = true;
+    }
   }
-  if (showRenew) statusHtml += '<button type="button" class="btn btn-primary sub-btn" id="sub-renew">' + renewLabel + '</button>';
-  if (statusEl) statusEl.innerHTML = statusHtml;
-  const renewBtn = document.getElementById("sub-renew");
-  if (renewBtn) renewBtn.addEventListener("click", () => { hideContentViews(); showCheckout(); });
 
-  // --- Блок 2: отмена автопродления (единый UX для WFP и Lava; эндпоинт роутится по source в wireCancelFlow) ---
-  let actionsHtml = "";
-  let wireCancel = false;
-  if (hasAccess && (sub.source === "wayforpay" || sub.source === "lava") && !sub.cancelled && sub.status !== "grace") {
-    actionsHtml =
-      '<div class="sub-actions-title">Автопродление</div>' +
-      '<div class="sub-status-sub">Подписка продлевается автоматически. Можно отключить - доступ останется до конца оплаченного периода.</div>' +
-      '<button type="button" class="btn btn-ghost sub-btn sub-danger" id="sub-cancel-btn">Отменить подписку</button>' +
-      '<div class="sub-confirm" id="sub-confirm" hidden>' +
-        '<div class="sub-confirm-title">Прежде чем отменить</div>' +
-        '<div class="sub-confirm-text">Доступ' + (until ? " до " + until : "") + ' сохранится в любом случае. Но текущая цена за вами не сохранится: при возврате подписка будет по действующему на тот момент тарифу.</div>' +
-        '<button type="button" class="btn btn-primary sub-btn" id="sub-confirm-no">Остаться</button>' +
-        '<button type="button" class="sub-cancel-link" id="sub-confirm-yes">Отменить подписку</button>' +
-      '</div>' +
-      '<div class="sub-result" id="sub-cancel-result" hidden></div>';
-    wireCancel = true;
-  }
-  // manual / уже отменённая / grace -> блока действий нет
-  if (actionsEl) {
-    actionsEl.innerHTML = actionsHtml;
-    actionsEl.hidden = !actionsHtml;
+  box.innerHTML = html;
+  if (wireRenew) {
+    const rb = document.getElementById("sub-renew");
+    if (rb) rb.addEventListener("click", function () { hideContentViews(); showCheckout(); });
   }
   if (wireCancel) wireCancelFlow(sub);
 }
@@ -1358,20 +1463,20 @@ function wireCancelFlow(sub) {
   if (btn) btn.addEventListener("click", () => { if (confirmBox) confirmBox.hidden = false; btn.hidden = true; });
   if (no) no.addEventListener("click", () => { if (confirmBox) confirmBox.hidden = true; if (btn) btn.hidden = false; });
   if (yes) yes.addEventListener("click", async () => {
-    yes.disabled = true; if (no) no.disabled = true; yes.textContent = "Отменяем…";
+    yes.disabled = true; if (no) no.disabled = true; yes.textContent = "Отключаем…";
     {
       const token = await getToken();
       if (!token) { routeHomeOrCheckout(); return; }
       const cancelUrl = sub.source === "lava" ? CANCEL_LAVA_URL : CANCEL_SUB_URL;
-      // БЕЗ автоповтора: отмена подписки - действие, повторять молча нельзя.
+      // БЕЗ автоповтора: отключение автопродления - действие, повторять молча нельзя.
       const r = await sbFetch(cancelUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
       });
       if (r.state === "unreachable") {
-        yes.disabled = false; if (no) no.disabled = false; yes.textContent = "Отменить подписку";
+        yes.disabled = false; if (no) no.disabled = false; yes.textContent = "Да, отключить";
         if (result) {
-          result.innerHTML = '<div class="sub-status-sub sub-status-warn">Нет связи - отмена не отправилась, лишнего не списано. Попробуйте ещё раз или чуть позже. Не помогает - напишите ' + supportContactsHtml() + ".</div>";
+          result.innerHTML = '<div class="sub-status-sub sub-status-warn">Нет связи - отключение не отправилось, лишнего не списано. Попробуйте ещё раз или чуть позже. Не помогает - напишите ' + supportContactsHtml() + ".</div>";
           result.hidden = false;
         }
         return;
@@ -1389,15 +1494,15 @@ function wireCancelFlow(sub) {
           const body = cautious
             ? 'Доступ сохраняется' + (untilC ? " до " + untilC : "") + '. Если позже увидите списание - напишите в поддержку, вернём.'
             : 'Дальше списаний не будет, доступ сохраняется' + (untilC ? " до " + untilC : "") + '. Чтобы вернуться - оформите подписку заново.';
-          result.innerHTML = '<div class="sub-status-title">' + (cautious ? "Автопродление отключено" : "Подписка отменена") + '</div>' +
+          result.innerHTML = '<div class="sub-status-title">' + "Автопродление отключено" + '</div>' +
             '<div class="sub-status-sub">' + body + '</div>';
           result.hidden = false;
         }
       } else {
         // ok:false (вкл. 502 rc≠4100/4102) -> честная ошибка + контакты, кнопка остаётся
-        yes.disabled = false; if (no) no.disabled = false; yes.textContent = "Отменить подписку";
+        yes.disabled = false; if (no) no.disabled = false; yes.textContent = "Да, отключить";
         if (result) {
-          result.innerHTML = '<div class="sub-status-sub sub-status-warn">Отмена не прошла - вы всё ещё подписаны, лишнего не списано. Напишите в поддержку: ' + supportContactsHtml() + " - поможем.</div>";
+          result.innerHTML = '<div class="sub-status-sub sub-status-warn">Не получилось отключить - автопродление пока включено, лишнего не списано. Напишите в поддержку: ' + supportContactsHtml() + " - поможем.</div>";
           result.hidden = false;
         }
       }

@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=55">
+  <link rel="stylesheet" href="style.css?v=56">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. У обоих есть кириллица
@@ -308,24 +308,20 @@
     </section>
 
     <!-- ЭКРАН: УПРАВЛЕНИЕ ПОДПИСКОЙ (веб; ТГ его не открывает). Статус + отмена (роутинг по source) + поддержка. -->
+    <!-- ЭКРАН ПОДПИСКИ. Градиентной шапки .day-hero здесь НЕТ (макет): над членской
+         картой она давала два крупных цветных блока подряд. Заголовок обычной строкой. -->
     <section id="view-subscription" hidden>
-      <div class="day">
-        <div class="day-hero">
-          <div class="day-topbar">
-            <div class="day-back" id="sub-back" role="button" aria-label="Назад"><i class="ti ti-arrow-left"></i></div>
-            <span class="day-kicker">ПОДПИСКА</span>
-          </div>
-          <div class="day-title">Управление подпиской</div>
+      <div class="sub">
+        <div class="sub-head">
+          <div class="day-back" id="sub-back" role="button" aria-label="Назад"><i class="ti ti-arrow-left"></i></div>
+          <span>Подписка</span>
         </div>
-        <div class="day-body">
-          <p id="sub-loading" class="day-loading">Загрузка…</p>
-          <div id="sub-content" hidden>
-            <div class="sub-card" id="sub-status"></div>
-            <div class="sub-card" id="sub-actions" hidden></div>
-          </div>
-          <p id="sub-error" class="sub-loaderr" hidden></p>
-          <div class="sub-support" id="sub-support"></div>
-        </div>
+        <p id="sub-loading" class="day-loading">Загрузка…</p>
+        <!-- Порядок блоков РАЗНЫЙ в разных состояниях (в grace кнопка оплаты идёт
+             сразу под картой), поэтому содержимое целиком собирает renderSubscription. -->
+        <div id="sub-content" hidden></div>
+        <p id="sub-error" class="sub-loaderr" hidden></p>
+        <div class="sub-support" id="sub-support"></div>
       </div>
     </section>
 
@@ -562,6 +558,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=73"></script>
+  <script src="app.js?v=74"></script>
 </body>
 </html>
