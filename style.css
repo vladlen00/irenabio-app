@@ -110,7 +110,12 @@ a:hover { text-decoration: underline; }
 }
 .brand-name { font-size: 15px; font-weight: 700; }
 
-.checkout { padding: 30px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+/* Верхний вырез учитываем ЗДЕСЬ, у общего контейнера, а не у отдельных героев:
+   внутри main лежат ВСЕ экраны (дом, день, спринт, библиотека, чекаут, вход), и
+   одно место закрывает их разом, без риска сложить отступ дважды.
+   max(), а не сумма: на iPhone inset сверху ~47-59px, и 30px+inset дали бы
+   лишнюю дыру. Без выреза max(30, 12) = прежние 30px, вёрстка не меняется. */
+.checkout { padding: max(30px, calc(12px + env(safe-area-inset-top, 0px))) max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
 .checkout h1 { font-size: 26px; margin: 0 0 8px; text-align: center; }
 .checkout .lead { color: var(--muted); text-align: center; margin: 0 0 26px; font-size: 15px; }
 
@@ -240,10 +245,12 @@ a:hover { text-decoration: underline; }
 }
 
 /* Шапка на радиальном градиенте (Вариант A) */
-/* padding-top учитывает вырез: с viewport-fit=cover страница едет под статус-бар,
-   и без env() приветствие с кикером срезало. Фолбэк 0px - для сред без выреза. */
+/* Вырез сверху обслуживает .checkout (общий контейнер всех экранов) - здесь его
+   быть НЕ должно, иначе отступ сложится дважды. Заодно карточка героя больше не
+   заезжает под статус-бар: раньше inset был внутри неё, и винный градиент лез
+   под системные часы. */
 .home-hero {
-  padding: calc(26px + env(safe-area-inset-top, 0px)) 22px 22px;
+  padding: 26px 22px 22px;
   border-radius: 26px;
   margin-bottom: 12px;
   background: var(--hero-grad);
@@ -399,9 +406,13 @@ a:hover { text-decoration: underline; }
   font-family: 'Onest', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color: var(--text-home);
 }
+/* Обложка спринта подставляется инлайном (background-image), затемнение зашито
+   ПЕРВЫМ слоем прямо там же - к низу до глухого фона страницы, чтобы белый
+   заголовок дня читался на любой картинке. Без обложки остаётся --hero-grad. */
 .day-hero {
   padding: 18px 18px 22px; border-radius: 26px;
   background: var(--hero-grad);
+  background-size: cover; background-position: center right;
 }
 .day-topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
 .day-back { width: 34px; height: 34px; border-radius: 10px; background: var(--glass); display: flex; align-items: center; justify-content: center; cursor: pointer; flex: 0 0 auto; }
@@ -529,7 +540,9 @@ a:hover { text-decoration: underline; }
 .poster {
   position: relative; border-radius: 22px; overflow: hidden; aspect-ratio: 3 / 4; cursor: pointer;
   display: flex; flex-direction: column; justify-content: flex-end; padding: 14px;
-  background: var(--hero-grad); background-size: cover; background-position: center right;
+  /* Постеры кадрированы под 3:4 с объектом по центру -> position: center.
+     Затемнение рисует .poster::before, в background-image его дублировать НЕ надо. */
+  background: var(--hero-grad); background-size: cover; background-position: center;
   border: 1px solid rgba(255,255,255,.08);
   box-shadow: 0 14px 30px -16px rgba(120,20,60,.9);
 }
@@ -602,8 +615,11 @@ a:hover { text-decoration: underline; }
 .mp-close { border: none; background: transparent; color: var(--muted-home); cursor: pointer; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; margin-left: 2px; -webkit-tap-highlight-color: var(--tap-accent); }
 .mp-close i { font-size: 22px; pointer-events: none; }
 .mp-close:active { color: var(--accent-deep); }
-/* чтобы мини-плеер не перекрывал нижний контент */
-body.has-mini { padding-bottom: 80px; }
+/* чтобы мини-плеер не перекрывал нижний контент.
+   С viewport-fit=cover сама панель выросла на env(safe-area-inset-bottom) (её
+   padding выше), поэтому и запас обязан вырасти на столько же - иначе на iPhone
+   с домашней полоской нижняя кнопка дня оставалась под плеером. */
+body.has-mini { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
 
 /* ===== Лист выбора программы тренировок (bottom sheet) ===== */
 .sheet { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: flex-end; justify-content: center; }

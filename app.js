@@ -966,6 +966,7 @@ const homeEls = {
   herobox: document.getElementById("home-herobox"),
   sprintTitle: document.getElementById("home-sprint-title"),
   sprintBadge: document.getElementById("home-sprint-badge"),
+  hero: document.getElementById("home-hero"),
   progressTrack: document.getElementById("home-progress"),
   progressBar: document.getElementById("home-progress-bar"),
   progressEmpty: document.getElementById("home-progress-empty"),
@@ -979,6 +980,38 @@ function escapeHtml(s) {
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
+// ===================== ОБЛОЖКИ СПРИНТОВ =====================
+// В базе (sprints.cover_slug) лежит ТОЛЬКО слаг - ни пути, ни расширения, ни хоста.
+// Путь собирается здесь, поэтому переезд картинок в Storage или на CDN не потребует
+// правки данных. ?v= обязателен: Pages отдаёт статику с длинным кэшем, и без версии
+// подменённая обложка до подписчиц просто не доедет.
+const COVER_V = 1;
+// Слаг приходит из БД и уезжает в CSS url(...) - пропускаем только безопасный набор.
+// Кавычка или скобка в значении сломала бы правило, а то и подставила чужую картинку.
+function coverUrl(slug, kind) {
+  const s = String(slug == null ? "" : slug);
+  if (!/^[a-z0-9-]{1,40}$/.test(s)) return null;
+  return "covers/" + s + "-" + kind + ".webp?v=" + COVER_V;
+}
+// Затемнения из макета. На обложку ложится текст, и без подложки белый заголовок
+// на светлой части картинки нечитаем. Картинки нарисованы объектом справа и тёмной
+// левой третью - затемнение слева по ним не бьёт.
+const COVER_SHADE_HOME = "linear-gradient(100deg, rgba(24,6,18,.82) 0%, rgba(24,6,18,.55) 34%, rgba(24,6,18,.05) 62%, transparent)";
+const COVER_SHADE_DAY = "linear-gradient(to top, #0B080C 0%, rgba(11,8,12,.55) 40%, rgba(11,8,12,.15) 100%)";
+// Красим ВСЕГДА, и при отсутствии слага тоже: пустая строка снимает инлайн-стиль и
+// возвращает градиент-заглушку из CSS. Без этого обложка прошлого экрана залипала бы
+// на спринте, у которого своей картинки ещё нет.
+function paintCover(el, slug, kind, shade) {
+  if (!el) return;
+  const url = coverUrl(slug, kind);
+  el.style.backgroundImage = url ? (shade ? shade + ", " : "") + "url('" + url + "')" : "";
+}
+// Спринт, которому принадлежит день. get-day отдаёт day.sprint_id, а cover_slug уже
+// лежит в homeData - отдельный запрос за обложкой не нужен.
+function sprintById(id) {
+  return homeSprints(homeData).find((s) => s.id === id) || null;
+}
+
 function fmtDateRu(iso) {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "";
@@ -1070,6 +1103,9 @@ function renderHome(data) {
   const completedVisible = days.filter((d) => completed.has(d.id)).length;
   const nextDay = days.find((d) => !completed.has(d.id)) || null;
   const sprintTitle = sprint ? sprint.title : "";
+
+  // Обложка героя = широкая картинка ТЕКУЩЕГО спринта. Нет слага -> градиент.
+  paintCover(homeEls.hero, sprint && sprint.cover_slug, "wide", COVER_SHADE_HOME);
 
   // --- верхняя адаптивная карточка ---
   // Кикер несёт номер дня ("СЕГОДНЯ · ДЕНЬ 6"), заголовок - имя дня БЕЗ префикса.
@@ -2090,6 +2126,9 @@ function setDoneState(btn, done) {
 
 function renderDay(data) {
   const day = data.day || {};
+  // Шапка дня = широкая обложка ЕГО спринта. Слаг берём из homeData по day.sprint_id.
+  const daySprint = sprintById(day.sprint_id);
+  paintCover(document.getElementById("day-hero"), daySprint && daySprint.cover_slug, "wide", COVER_SHADE_DAY);
   document.getElementById("day-kicker").textContent = ((day.sprint_title || "") + " · ДЕНЬ " + (day.day_number || "")).toUpperCase();
   setHeadline(document.getElementById("day-title"), day.title || "");
   const blocksEl = document.getElementById("day-blocks");
@@ -2335,14 +2374,17 @@ function plurDays(n) {
 
 // Библиотека = полка постеров 2 в ряд, ОДИН хронологический список без деления на
 // группы. Текущий спринт помечен плашкой "ТЫ ЗДЕСЬ", а не отдельной секцией.
-// Обложек пока нет: постер едет на заглушечном градиенте, картинка подключится
-// отдельным шагом через sprints.cover_url.
+// Обложка постера - covers/{slug}-poster.webp. Затемнение под текст рисует
+// .poster::before, в background-image его дублировать не нужно. Нет слага ->
+// остаётся заглушечный градиент из CSS.
 function posterHtml(s, isCurrent) {
   const days = s.days || [];
   const total = s.estimated_days || days.length || 0;
   const meta = total > 0 ? plurDays(total) : "скоро";
+  const cover = coverUrl(s.cover_slug, "poster");
   return '<div class="poster' + (days.length ? "" : " poster-empty") + '" data-sprint-id="' +
-      escapeHtml(s.id) + '" role="button">' +
+      escapeHtml(s.id) + '" role="button"' +
+      (cover ? ' style="background-image: url(\'' + cover + '\')"' : "") + ">" +
     (isCurrent ? '<span class="poster-badge">Ты здесь</span>' : "") +
     '<div class="poster-info">' +
       "<b>" + escapeHtml(s.title || "") + "</b>" +
