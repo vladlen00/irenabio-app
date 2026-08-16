@@ -861,7 +861,10 @@ body.has-mini { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
 .pw-order-box { background: var(--accent-wash); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin: 14px 0; text-align: center; }
 .pw-order-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
 .pw-order-value { font-family: Consolas, "SF Mono", monospace; font-size: 17px; font-weight: 700; color: var(--text); margin: 6px 0; word-break: break-all; user-select: all; -webkit-user-select: all; }
-.pw-order-note { font-size: 12px; color: var(--accent-deep); line-height: 1.5; }
+/* Подпись под номером заказа: приглушённая. Красный держим для настоящих проблем, а тут оплата прошла. */
+.pw-order-note { font-size: 12px; color: var(--muted); line-height: 1.5; }
+/* .btn тянется на всю ширину - кнопке копирования это лишнее, она не должна перевешивать сам номер. */
+.pw-order-copy { width: auto; margin: 12px auto 0; padding: 9px 16px; font-size: 13px; border-radius: 10px; }
 .reset-hint { text-align: left; }
 
 /* ===================== НОВЫЙ ПОТОК ОПЛАТЫ (экраны 2/3/4) ===================== */

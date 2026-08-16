@@ -707,6 +707,28 @@ function fillPwOrder(order) {
   const val = document.getElementById("pw-order");
   if (val) val.textContent = order || "";
   if (box) box.hidden = !order;
+
+  // Кнопка "Скопировать номер": на телефоне выделять текст пальцем неудобно.
+  // Обработчик вешаем ОДИН раз (флаг на элементе): экран пароля показывается повторно.
+  const btn = document.getElementById("pw-order-copy");
+  if (btn && !btn.dataset.bound) {
+    btn.dataset.bound = "1";
+    btn.addEventListener("click", async () => {
+      const text = (val && val.textContent || "").trim();
+      if (!text) return;
+      try {
+        // clipboard API живёт только на https и по жесту пользователя - клик подходит
+        await navigator.clipboard.writeText(text);
+      } catch {
+        // фолбэк для старых webview: выделяем номер, дальше женщина копирует сама
+        const r = document.createRange(); r.selectNodeContents(val);
+        const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      }
+      const was = btn.textContent;
+      btn.textContent = "Скопировано";
+      setTimeout(() => { btn.textContent = was; }, 1600);
+    });
+  }
 }
 
 async function enterPaymentReturn(order) {

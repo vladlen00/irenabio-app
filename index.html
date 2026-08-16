@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=57">
+  <link rel="stylesheet" href="style.css?v=58">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. У обоих есть кириллица
@@ -451,7 +451,8 @@
           <div class="pw-order-box" id="pw-order-box" hidden>
             <div class="pw-order-label">Ваш номер заказа</div>
             <div class="pw-order-value" id="pw-order"></div>
-            <div class="pw-order-note">ВАЖНО: сохраните этот номер. Без него не восстановить доступ, если забудете пароль.</div>
+            <div class="pw-order-note">Сделайте скриншот этого экрана. Номер пригодится, если понадобится помощь с доступом.</div>
+            <button type="button" id="pw-order-copy" class="btn btn-ghost pw-order-copy">Скопировать номер</button>
           </div>
 
           <div id="pw-form" hidden>
@@ -565,6 +566,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=75"></script>
+  <script src="app.js?v=76"></script>
 </body>
 </html>
