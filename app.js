@@ -796,6 +796,22 @@ async function enterPaymentReturn(order) {
   }
 }
 
+// Выход из ЗАЛИПШЕГО возврата с оплаты. Адрес с ?paid=1&order= читается на КАЖДОМ заходе
+// (startParams в конце файла) и показывает "Оплата прошла" со старым номером - без этого
+// адрес нужно чистить, иначе перезагрузка вернёт тот же экран и женщина снова в ловушке.
+function leavePaymentReturn() {
+  try {
+    const url = new URL(location.href);
+    url.searchParams.delete("paid");
+    url.searchParams.delete("order");
+    history.replaceState(null, "", url);
+  } catch {}
+  clearLavaReturn();
+  state.order = null;
+  state.email = null;
+  state.lavaReturn = false;
+}
+
 // Экран пароля с уже известным email (resolve уже прошёл в опросе экрана 4 / onPaidCheck).
 function showPasswordForm(order, email, isLava) {
   state.order = order;
@@ -943,6 +959,7 @@ els.form.addEventListener("submit", (e) => {
   bind("lavacur-back", () => showCheckout());          // экран 2 -> назад к тарифам
   bind("pay-go-back", () => showCheckout());           // экран 3 -> назад к тарифам (оплаты ещё не было)
   bind("pw-dead-end-out", () => showStart());          // битая ссылка на пароль -> старт, а не тупик
+  bind("pw-not-mine", () => { leavePaymentReturn(); checkoutBackTo = null; showCheckout(); }); // чужой/старый заказ -> к тарифам
   bind("btn-lava-pay", () => showPayGo());             // экран 2 -> экран 3
   bind("btn-pay-go", () => onPayGo());                 // экран 3 -> оплата в той же вкладке (Lava)
   bind("btn-paid-check", () => onPaidCheck());         // экран 4 -> ручная проверка

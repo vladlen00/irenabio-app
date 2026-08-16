@@ -477,6 +477,9 @@
             <button id="btn-enter" class="btn btn-primary" type="button" disabled>Открыть доступ</button>
             <button id="btn-retry" class="btn btn-ghost" type="button" hidden>Повторить</button>
             <p class="reassure">Забудете пароль - восстановите по почте и номеру заказа (сохраните его выше).</p>
+            <!-- Выход из залипшего возврата с оплаты: адрес с ?paid=1&order= показывал этот экран
+                 при каждом заходе, со старым номером, и уйти было некуда (проверено вживую 16.08). -->
+            <button id="pw-not-mine" class="btn btn-ghost" type="button">Это не мой заказ, оформить подписку</button>
           </div>
         </div>
 
@@ -572,6 +575,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=77"></script>
+  <script src="app.js?v=78"></script>
 </body>
 </html>
