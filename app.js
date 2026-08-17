@@ -1080,7 +1080,16 @@ function escapeHtml(s) {
 // v2 (2026-08-16): перерисованы обе обложки antichaos под теми же именами. Счётчик
 // ОДИН на все обложки - подмена одной картинки заставляет перекачать и остальные.
 // Это осознанный размен: отдельная версия у каждого файла означала бы 14 констант.
-const COVER_V = 2;
+// v3 (2026-08-17): ШЕСТЬ ПОСТЕРОВ от Ирены, разноцветные (было единой малиновой
+// серией). Заменены ТОЛЬКО {slug}-poster.webp у sleep, antichaos, gut-body,
+// woman-body, nutrition, glutes; широкие версии и лотос rejuvenation не тронуты.
+// Исходники - лендскейпные КАРТОЧКИ (чёрное поле по краям, скруглённые углы, бейдж
+// с глифом в правом верхнем углу), поэтому кроп в два шага: обрезка по содержимому,
+// затем 3:4. У antichaos и nutrition центральный кроп резал мозг и круг тарелки -
+// они вписаны целиком, фон добит размытой копией себя с растушёвкой кромки.
+// woman-body в библиотеке НЕ используется (ЖКТ и тело - один спринт): лежит как
+// ассет под шапку дорожки «только тело».
+const COVER_V = 3;
 // ICON_V здесь СОЗНАТЕЛЬНО НЕТ. Иконки плиток, медальон Подружки и аватар стоят
 // статикой в index.html и версионируются прямо в src (`icons/…png?v=N`). Константа
 // в JS их не касалась бы и стала бы вторым источником правды, который молча
@@ -1207,6 +1216,12 @@ function homeSprints(data) {
 // Текущий = идущий спринт. Если идущего нет (библиотека из одних архивных) -
 // тот, в котором женщина остановилась на середине, иначе первый по порядку.
 function pickCurrentSprint(sprints, completed) {
+  // ЧЕРНОВИКИ ОТСЕИВАЕМ ПЕРВЫМ ДЕЛОМ. С 2026-08-17 get-home отдаёт и draft, а
+  // фолбэк ниже возвращает sprints[0] - незалитый «Анти-хаос» с order_index=12
+  // стоит в списке РАНЬШЕ всех залитых и стал бы «текущим» на доме, ведя женщину
+  // в пустой спринт. Сейчас до фолбэка дело не доходит только потому, что active
+  // существует; это везение, а не гарантия - активного может не оказаться.
+  sprints = sprints.filter((s) => s.status !== "draft");
   const active = sprints.find((s) => s.status === "active");
   if (active) return active;
   let best = null, bestDone = -1;
@@ -2709,15 +2724,25 @@ function plurDays(n) {
 // Обложка постера - covers/{slug}-poster.webp. Затемнение под текст рисует
 // .poster::before, в background-image его дублировать не нужно. Нет слага ->
 // остаётся заглушечный градиент из CSS.
+// НЕЗАЛИТЫЕ (status === "draft") рисуются, но НЕ НАЖИМАЮТСЯ. Признак нажимаемости -
+// сам атрибут data-sprint-id: делегированный обработчик ищет ".poster[data-sprint-id]",
+// поэтому черновику достаточно его не выдавать, и трогать обработчик не нужно.
+// role="button" и курсор тоже снимаем - иначе постер обещает действие, которого нет,
+// а женщина попадала бы в пустой спринт и думала, что сломалось.
+// .poster-empty черновику НЕ вешаем: там background-shorthand, который сбрасывает
+// background-size/position и разваливает кадрирование обложки.
 function posterHtml(s, isCurrent) {
   const days = s.days || [];
+  const isSoon = s.status === "draft";
   const total = s.estimated_days || days.length || 0;
-  const meta = total > 0 ? plurDays(total) : "скоро";
+  const meta = isSoon || total <= 0 ? "скоро" : plurDays(total);
   const cover = coverUrl(s.cover_slug, "poster");
-  return '<div class="poster' + (days.length ? "" : " poster-empty") + '" data-sprint-id="' +
-      escapeHtml(s.id) + '" role="button"' +
+  const cls = "poster" + (isSoon ? " poster-soon" : days.length ? "" : " poster-empty");
+  return '<div class="' + cls + '"' +
+      (isSoon ? ' aria-disabled="true"' : ' data-sprint-id="' + escapeHtml(s.id) + '" role="button"') +
       (cover ? ' style="background-image: url(\'' + cover + '\')"' : "") + ">" +
-    (isCurrent ? '<span class="poster-badge">Ты здесь</span>' : "") +
+    (isSoon ? '<span class="poster-badge poster-badge-soon">Скоро</span>'
+            : isCurrent ? '<span class="poster-badge">Ты здесь</span>' : "") +
     '<div class="poster-info">' +
       "<b>" + escapeHtml(s.title || "") + "</b>" +
       "<span>" + escapeHtml(meta) + "</span>" +

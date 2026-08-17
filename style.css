@@ -688,6 +688,20 @@ a:hover { text-decoration: underline; }
 .poster-empty { background: linear-gradient(160deg,#2A2140,#150E22); border: 1px dashed rgba(255,255,255,.14); }
 .poster-empty .poster-info span { color: rgba(255,255,255,.45); }
 
+/* НЕЗАЛИТЫЙ СПРИНТ (status === "draft"): виден, но не нажимается.
+   Обложка своя, поэтому .poster-empty ему НЕ вешается - там background-shorthand,
+   который сбросил бы background-size/position и развалил кадр.
+   filter действует и на вложенный текст: подпись притухает вместе с картинкой, и это
+   как раз нужный вид - плитка целиком «спит». Контраст заголовка при brightness(.75)
+   остаётся около 10-14 против порога AA 4.5 (замер на новых постерах: худший
+   woman-body 14.2 до фильтра). */
+.poster-soon { cursor: default; filter: saturate(.6) brightness(.75); }
+/* Плашка НЕЙТРАЛЬНАЯ, не белая заливка: белая читается как действие ("Ты здесь"
+   ведёт в спринт), а «Скоро» никуда не ведёт. */
+.poster-badge-soon {
+  background: rgba(255,255,255,.14); color: rgba(255,255,255,.8);
+}
+
 /* ===================== ЭКРАНЫ СТАРТ / ВХОД ===================== */
 .start-card {
   background: var(--surface); border: 1px solid var(--border);
