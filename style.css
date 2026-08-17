@@ -652,9 +652,13 @@ a:hover { text-decoration: underline; }
 
 .shelf { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .poster {
-  position: relative; border-radius: 22px; overflow: hidden; aspect-ratio: 3 / 4; cursor: pointer;
+  position: relative; border-radius: 22px; overflow: hidden; aspect-ratio: 4 / 3; cursor: pointer;
   display: flex; flex-direction: column; justify-content: flex-end; padding: 14px;
-  /* Постеры кадрированы под 3:4 с объектом по центру -> position: center.
+  /* 4:3, а НЕ 3:4 (2026-08-17, по референсу Ирены). Её исходники почти квадратные
+     (1.11-1.25), и портретные 3:4 срезали 32-40% ШИРИНЫ: мозг анти-хаоса не влезал,
+     круглая тарелка питания теряла круг, у ягодиц уезжала DNA-спираль. 4:3 берёт
+     ширину ПОЛНОСТЬЮ и режет 7-18% высоты. Постеры кадрированы под 4:3 объектом по
+     центру -> position: center.
      Затемнение рисует .poster::before, в background-image его дублировать НЕ надо. */
   background: var(--hero-grad); background-size: cover; background-position: center;
   /* ВОТ ОН, розовый контур. По умолчанию background-clip = border-box, то есть
