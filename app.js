@@ -1861,7 +1861,10 @@ const MINI_APPS = {
   podruzhka: { url: "https://biohack-tracker-blond.vercel.app/", v: "1", q: "startapp=ai" },
   zdorovie: { url: "https://biohack-tracker-blond.vercel.app/", v: "1", q: "startapp=checkin" },
   cycle: { url: "https://vladlen00.github.io/cycle/", v: "2", path: "/cycle/" },
-  relax: { url: "https://vladlen00.github.io/studio/", v: "8", path: "/studio/" },
+  // relax БЕЗ path СОЗНАТЕЛЬНО: с нашего origin рвётся возврат из медитаций в студию
+  // (кнопка возврата забирает остаток прошлой сессии и затирает им свежий токен).
+  // Воспроизведено дважды на живом. См. исключение в sw.js.
+  relax: { url: "https://vladlen00.github.io/studio/", v: "8" },
   // Тест «Возраст тела»: плитки на доме нет, открывается меткой из текста дня.
   // bodyage БЕЗ path СОЗНАТЕЛЬНО: общий ключ темы irena_theme, наш index.html его
   // затирает - выбор темы перестал бы запоминаться. См. исключение в sw.js.
