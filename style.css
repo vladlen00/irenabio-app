@@ -105,7 +105,7 @@ body {
    Оба значения старые браузеры игнорируют молча, фолбэк не нужен. */
 .home-headline, .home-subhead,
 .day-title, .day-kicker, .sprint-sub,
-.home-wide-sub, .home-sub-title,
+.home-wide-sub, .home-sub-title, .home-live-title,
 .home .t5n, .home .t5s,
 .poster-info b,
 .sprint-day-title, .sprint-day-sub,
@@ -387,6 +387,29 @@ a:hover { text-decoration: underline; }
 .home-body { padding: 0 0 24px; }
 
 .home .card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; }
+
+/* СВЕЖИЙ ВЫПУСК. Дымок тот же приём, что у плиток, но ВДВОЕ бледнее (.16 против .30):
+   карточка стоит прямо над Подружкой, а она главный акцент экрана - перебивать её
+   нельзя. Маска - страховка от утечки blur за скругление, внешней тени тут нет. */
+.home-live {
+  display: flex; align-items: center; gap: 12px; cursor: pointer;
+  padding: 14px 16px; border-radius: 22px; margin-bottom: 22px;
+  position: relative; overflow: hidden; isolation: isolate;
+  -webkit-mask-image: radial-gradient(#fff, #000);
+}
+.home-live::before {
+  content: ""; position: absolute; inset: -60%; z-index: 0; pointer-events: none;
+  background: radial-gradient(38% 60% at 88% 30%, rgba(228,134,155,.16) 0%, transparent 70%);
+  filter: blur(22px);
+}
+.home-live > * { position: relative; z-index: 1; }
+.home-live-txt { flex: 1; min-width: 0; }
+.home-live-kick { display: flex; align-items: center; gap: 7px; font-size: 9.5px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: var(--accent-deep); }
+/* Точка = выпуск вышел СЕГОДНЯ. Свечение, а не мигание: анимация на доме отвлекала бы. */
+.home-live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px rgba(228,134,155,.9); flex: 0 0 auto; }
+.home-live-title { font-size: 15px; font-weight: 600; color: var(--text-home); margin-top: 6px; overflow-wrap: break-word; }
+.home-live-meta { font-size: 11.5px; color: var(--muted-home); margin-top: 3px; }
+.home-live > i { font-size: 18px; color: #6E626C; flex: 0 0 auto; }
 
 /* Твои инструменты (6 плиток-заглушек) */
 /* margin-top 10 + margin-bottom героя 12 = те же 22px, которые до 18.08 давала

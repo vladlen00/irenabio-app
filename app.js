@@ -1062,6 +1062,10 @@ const homeEls = {
   progressBar: document.getElementById("home-progress-bar"),
   progressRow: document.getElementById("home-progress-row"),
   progressCount: document.getElementById("home-count"),
+  live: document.getElementById("home-live"),
+  liveDot: document.getElementById("home-live-dot"),
+  liveTitle: document.getElementById("home-live-title"),
+  liveMeta: document.getElementById("home-live-meta"),
   subUntil: document.getElementById("home-sub-until"),
   supportBtn: document.getElementById("home-support-btn"),
   supportContacts: document.getElementById("home-support-contacts"),
@@ -1289,6 +1293,77 @@ function pickCurrentSprint(sprints, completed, chosenId) {
   return best || sprints[0] || null;
 }
 
+// ===================== СВЕЖИЙ ВЫПУСК =====================
+// Ирена выпускает подкаст каждый день, и приложение обязано это показывать: иначе
+// женщина заходит и видит одно и то же. Отдельной сущности НЕТ - берём самый свежий
+// по publish_at день из тех, что уже приехали в get-home (он отдаёт дни ВСЕХ спринтов
+// вместе с publish_at, а с 18.08 ещё и audio_seconds у пяти самых свежих).
+//
+// КАРТОЧКА ОТВЕЧАЕТ НА ВОПРОС "что нового у Ирены", а не "что тебе делать": по спринту
+// женщины она НЕ фильтруется и НЕ прячется при совпадении с героем. Исчезающий через
+// день блок читался бы как поломка - сегодня есть, завтра нет, и непонятно почему.
+//
+// НАЗВАНИЕ "Свежий выпуск", а НЕ "Сейчас в канале": перенос из канала в базу отстаёт
+// (на 18.08 последний день в базе от 14.08), и вторая формулировка врала бы. Вернуть
+// её - когда отставание уберёт полуавтомат заливки. Дата поэтому печатается настоящая.
+// ПОТОЛОК СВЕЖЕСТИ: старше двух недель - карточки нет вовсе.
+const LIVE_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+
+function pickLiveDay(data) {
+  const now = Date.now();
+  let best = null;
+  for (const s of homeSprints(data)) {
+    // Черновики пропускаем: их спринт в библиотеке даже не нажимается, и вести
+    // женщину в день незалитого спринта нельзя.
+    if (s.status === "draft") continue;
+    for (const d of (s.days || [])) {
+      const t = d && d.publish_at ? Date.parse(d.publish_at) : NaN;
+      if (!Number.isFinite(t) || t > now) continue;   // get-home фильтрует будущее, но не полагаемся
+      if (!best || t > best.t) best = { day: d, sprint: s, t };
+    }
+  }
+  if (!best || now - best.t > LIVE_MAX_AGE_MS) return null;
+  return best;
+}
+
+// "сегодня" / "вчера" / "16 августа". Формат С ЧИСЛОМ даёт родительный падеж; без дня
+// месяца ru-RU возвращает именительный ("август"), на этом уже обжигались на экране
+// подписки. Считаем по КАЛЕНДАРНЫМ суткам, а не по разнице в часах: выпуск в 7 утра
+// и заход в 23 - это всё ещё "сегодня".
+function daysApart(ms) {
+  const a = new Date(ms), b = new Date();
+  const da = new Date(a.getFullYear(), a.getMonth(), a.getDate());
+  const db = new Date(b.getFullYear(), b.getMonth(), b.getDate());
+  return Math.round((db - da) / 86400000);
+}
+function fmtLiveDate(iso, ms) {
+  const n = daysApart(ms);
+  if (n <= 0) return "сегодня";
+  if (n === 1) return "вчера";
+  try {
+    return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+  } catch (e) { return ""; }
+}
+
+function renderLive(data, completed) {
+  const el = homeEls.live;
+  if (!el) return;
+  const live = pickLiveDay(data);
+  if (!live) { el.hidden = true; el.removeAttribute("data-day-id"); return; }
+  el.hidden = false;
+  el.setAttribute("data-day-id", live.day.id);
+  homeEls.liveTitle.textContent = dayShortTitle(live.day.title);
+  // Длительность необязательна: get-home отдаёт её только у пяти самых свежих дней,
+  // и у дня без подкаста её нет вовсе. Нет - строка остаётся без минут.
+  const secs = Number(live.day.audio_seconds || 0);
+  const mins = secs > 0 ? Math.max(1, Math.round(secs / 60)) + " мин" : "";
+  // Пройденный выпуск НЕ прячем: карточка про то, что нового у Ирены, а не про то,
+  // что женщине делать. Метка снимает вопрос "я это уже слушала?".
+  const done = completed && completed.has(live.day.id) ? "пройдено" : "";
+  homeEls.liveMeta.textContent = [fmtLiveDate(live.day.publish_at, live.t), mins, done].filter(Boolean).join(" \u00b7 ");
+  homeEls.liveDot.hidden = daysApart(live.t) > 0;   // точка только у сегодняшнего
+}
+
 // Рендер дома из ответа get-home (реальные данные)
 function renderHome(data) {
   homeData = data;   // сохраняем для экранов спринт/день и обновления прогресса
@@ -1394,6 +1469,9 @@ function renderHome(data) {
     const pct = denom > 0 ? Math.max(2, Math.min(100, Math.round((completedVisible / denom) * 100))) : 100;
     homeEls.progressBar.style.width = pct + "%";
   }
+
+  // --- свежий выпуск ---
+  renderLive(data, completed);
 
   // --- статус подписки (карточка + подпись в меню отражают реальное состояние) ---
   // renderHome вызывается только при access=true -> состояние: active / grace / cancelled (не "истекла").
@@ -2968,6 +3046,11 @@ function navBack() {
     if (ctaLib) { navTo("sprints"); return; }
     const all = e.target.closest("#home-alldays");
     if (all) { navTo("sprint", currentSprintId); return; }
+    // СВЕЖИЙ ВЫПУСК. Обычный navTo("day"): стек сам вернёт на главную, а текущий
+    // спринт не сдвинется - его двигает ТОЛЬКО кнопка "Проходить этот спринт"
+    // (persons.current_sprint_id). Отдельной ветки под отметку тоже не нужно.
+    const live = e.target.closest("#home-live[data-day-id]");
+    if (live) { navTo("day", live.getAttribute("data-day-id")); return; }
     const arch = e.target.closest(".t5-archive");
     if (arch) { navTo("sprints"); return; }
     const sc = e.target.closest(".poster[data-sprint-id]");

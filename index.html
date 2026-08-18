@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=66">
+  <link rel="stylesheet" href="style.css?v=67">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. У обоих есть кириллица
@@ -216,6 +216,23 @@
           </div>
         </div>
         <div class="home-body">
+          <!-- СВЕЖИЙ ВЫПУСК: самый свежий по publish_at день из ВСЕХ залитых спринтов,
+               включая тот, что женщина проходит. Отвечает на вопрос «что нового у Ирены»,
+               а не «что тебе делать», поэтому по её спринту НЕ фильтруется и НЕ прячется
+               при совпадении с героем: исчезающий через день блок читался бы как поломка.
+               НАЗВАНИЕ ВРЕМЕННОЕ: «Сейчас в канале» вернём, когда полуавтомат заливки
+               уберёт отставание базы от канала (на 18.08 оно 4 дня).
+               Открытие дня отсюда - обычный navTo("day"): current_sprint_id не трогает
+               (его двигает только кнопка «Проходить этот спринт»), а «назад» ведёт домой. -->
+          <div class="card home-live" id="home-live" role="button" hidden>
+            <div class="home-live-txt">
+              <div class="home-live-kick">Свежий выпуск<span class="home-live-dot" id="home-live-dot" hidden></span></div>
+              <div class="home-live-title" id="home-live-title"></div>
+              <div class="home-live-meta" id="home-live-meta"></div>
+            </div>
+            <i class="ti ti-chevron-right"></i>
+          </div>
+
           <div class="home-tools-h">Твои инструменты</div>
 
           <!-- Подружка вынесена из сетки в широкую карточку на брендовом градиенте (макет).
@@ -592,6 +609,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=91"></script>
+  <script src="app.js?v=92"></script>
 </body>
 </html>
