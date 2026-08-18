@@ -404,10 +404,16 @@ a:hover { text-decoration: underline; }
 }
 .home-live > * { position: relative; z-index: 1; }
 .home-live-txt { flex: 1; min-width: 0; }
-.home-live-kick { display: flex; align-items: center; gap: 7px; font-size: 9.5px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: var(--accent-deep); }
+/* БЛОЧНЫЙ, а не флекс: флекс с gap стоял под точку-индикатор, которой больше нет.
+   Теперь тут один текстовый узел «ПОДКАСТ ДНЯ · 26 МИН», и ему нужен обычный
+   перенос по словам, которого у флекс-строки не было бы. */
+.home-live-kick { display: block; font-size: 9.5px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: var(--accent-deep); }
 /* Точка = выпуск вышел СЕГОДНЯ. Свечение, а не мигание: анимация на доме отвлекала бы. */
 .home-live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px rgba(228,134,155,.9); flex: 0 0 auto; }
 .home-live-title { font-size: 15px; font-weight: 600; color: var(--text-home); margin-top: 6px; overflow-wrap: break-word; }
+/* ПРИПАРКОВАНО: элемента #home-live-meta в разметке сейчас нет, служебная строка
+   свёрнута в кикер. Правило держим вместе с .home-live-dot под возврат даты,
+   см. CLAUDE.md, раздел про карточку подкаста. Не выпиливать как мёртвое. */
 .home-live-meta { font-size: 11.5px; color: var(--muted-home); margin-top: 3px; }
 .home-live > i { font-size: 18px; color: #6E626C; flex: 0 0 auto; }
 

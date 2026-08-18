@@ -1064,7 +1064,7 @@ const homeEls = {
   progressCount: document.getElementById("home-count"),
   live: document.getElementById("home-live"),
   liveTitle: document.getElementById("home-live-title"),
-  liveMeta: document.getElementById("home-live-meta"),
+  liveKick: document.getElementById("home-live-kick"),
   subUntil: document.getElementById("home-sub-until"),
   supportBtn: document.getElementById("home-support-btn"),
   supportContacts: document.getElementById("home-support-contacts"),
@@ -1360,11 +1360,18 @@ function renderLive(data, completed) {
   // Длительность необязательна: get-home отдаёт её только у пяти самых свежих дней,
   // и у дня без подкаста её нет вовсе. Нет - строка остаётся без минут.
   const secs = Number(live.day.audio_seconds || 0);
-  const mins = secs > 0 ? Math.max(1, Math.round(secs / 60)) + " мин" : "";
+  const mins = secs > 0 ? Math.max(1, Math.round(secs / 60)) + "\u00a0мин" : "";
   // Пройденный выпуск НЕ прячем: карточка про то, что нового у Ирены, а не про то,
   // что женщине делать. Метка снимает вопрос "я это уже слушала?".
   const done = completed && completed.has(live.day.id) ? "пройдено" : "";
-  homeEls.liveMeta.textContent = [mins, done].filter(Boolean).join(" · ");
+  // Кикер несёт ВСЁ служебное: название блока, минуты и метку "пройдено".
+  // Отдельной строки под названием больше нет (правка Ирены): в ней оставались
+  // одни минуты, и ради них держать третью строку в карточке незачем.
+  // РАЗДЕЛИТЕЛЬ склеен как в кикере героя: обычный пробел ПЕРЕД точкой и
+  // неразрывный ПОСЛЕ, плюс неразрывные внутри сегментов. Иначе перенос на
+  // узком экране оставлял точку висеть в конце строки, а "26" отрывал от "мин".
+  homeEls.liveKick.textContent = ["Подкаст\u00a0дня", mins, done]
+    .filter(Boolean).join(" \u00b7\u00a0");
 }
 
 // Рендер дома из ответа get-home (реальные данные)

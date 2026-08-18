@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=67">
+  <link rel="stylesheet" href="style.css?v=68">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. У обоих есть кириллица
@@ -230,9 +230,8 @@
                (его двигает только кнопка «Проходить этот спринт»), а «назад» ведёт домой. -->
           <div class="card home-live" id="home-live" role="button" hidden>
             <div class="home-live-txt">
-              <div class="home-live-kick">Подкаст</div>
+              <div class="home-live-kick" id="home-live-kick"></div>
               <div class="home-live-title" id="home-live-title"></div>
-              <div class="home-live-meta" id="home-live-meta"></div>
             </div>
             <i class="ti ti-chevron-right"></i>
           </div>
@@ -613,6 +612,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=93"></script>
+  <script src="app.js?v=94"></script>
 </body>
 </html>
