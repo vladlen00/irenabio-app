@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="robots" content="noindex">
+<title>Такой страницы нет</title>
+
+<!-- ============================================================================
+     Своя страница на несуществующий адрес. GitHub Pages подхватывает 404.html
+     из корня репозитория САМ, регистрировать её негде и не нужно.
+
+     ЗАЧЕМ. Без неё любой битый адрес показывал английскую "Page not found ·
+     GitHub Pages": и /glutes/ с /bodyage/ (они выведены из MINI сознательно,
+     заглушек у них нет), и опечатка в ссылке, и старый адрес из переписки.
+     Для женщины английская страница выглядит как поломка приложения.
+
+     БЕЗ АВТОРЕДИРЕКТА - СОЗНАТЕЛЬНО. Страница, которая сама куда-то уносит,
+     оставляет ощущение "меня перекинуло, я не поняла куда". Уход должен быть
+     её решением, поэтому здесь одна кнопка и ничего больше.
+
+     Воркер эту страницу не трогает: "404.html" не входит в список MINI
+     (см. sw.js), значит она приезжает напрямую с Pages при любом состоянии
+     воркера - в том числе когда он сломан.
+
+     Английского нет нигде, включая <title>. Слов "ошибка" и "не найдено"
+     в лоб тоже нет.
+     ============================================================================ -->
+
+<style>
+  html, body { margin: 0; height: 100%; background: #0B080C; }
+  body {
+    color: #F7F1F2;
+    font-family: 'Onest', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px calc(24px + env(safe-area-inset-right, 0px))
+             calc(24px + env(safe-area-inset-bottom, 0px))
+             calc(24px + env(safe-area-inset-left, 0px));
+    box-sizing: border-box;
+  }
+  .wrap { max-width: 560px; width: 100%; text-align: center; }
+  .mark {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 56px; height: 56px; border-radius: 50%; margin-bottom: 22px;
+    background: linear-gradient(100deg,#7B2E9E,#C63C74 52%,#F0834E);
+    color: #fff; font-size: 26px; font-weight: 600;
+  }
+  h1 { font-size: 22px; line-height: 1.3; margin: 0 0 10px; font-weight: 600; }
+  p { color: #ADA1A8; margin: 0 0 26px; }
+  .btn {
+    display: inline-block; text-decoration: none;
+    padding: 15px 30px; border-radius: 22px;
+    background: linear-gradient(100deg,#7B2E9E,#C63C74 52%,#F0834E);
+    color: #fff; font-size: 16px; font-weight: 600;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="mark">И</div>
+    <h1>Такой страницы нет</h1>
+    <p>Возможно, адрес устарел или в ссылке пропала буква.</p>
+    <a class="btn" href="/">На главную</a>
+  </div>
+</body>
+</html>
