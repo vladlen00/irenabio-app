@@ -1164,6 +1164,17 @@ function denomOf(sprint, days) {
   return sprint && sprint.estimated_days ? sprint.estimated_days : ((days && days.length) || 0);
 }
 
+// Имя дня иногда СОВПАДАЕТ с именем спринта: в базе на 18.08 такой день ровно один
+// («День 1. Омоложение изнутри» в спринте «Омоложение изнутри»), но появиться может
+// любой - тексты заливаются пачками из канала. Печатать одно и то же дважды подряд
+// нельзя, поэтому повтор снимается ИЗ КИКЕРА: там название спринта служебное, а в
+// заголовке оно несёт день. Ничего не выдумываем и ничего не прячем.
+function sameTitle(a, b) {
+  const norm = (x) => String(x || "").toLowerCase().replace(/ё/g, "е")
+    .replace(/[^0-9a-zа-я]+/g, " ").trim();
+  return !!norm(a) && norm(a) === norm(b);
+}
+
 // Кикер героя: "НАЗВАНИЕ СПРИНТА · ДЕНЬ N". Названия приходят из базы и длинные
 // бывают («Здоровый ЖКТ и женское тело» просит 326px при коробке 314 на iPhone 14),
 // поэтому строке РАЗРЕШЁН ПЕРЕНОС - решение Владлена 18.08. Мельчить кегль под редкий
@@ -1172,6 +1183,9 @@ function denomOf(sprint, days) {
 // делит само название, а так на вторую строку уходит "· День N" целиком.
 function setKicker(el, title, tail) {
   if (!el) return;
+  // Пустое название = кикер из одного хвоста ("ДЕНЬ 1"). Так снимается тавтология,
+  // когда имя дня совпадает с именем спринта - см. sameTitle ниже.
+  if (!String(title || "").trim()) { el.textContent = String(tail); return; }
   // Хвост склеен НЕРАЗРЫВНЫМИ пробелами, а перед точкой стоит обычный: тогда
   // единственное место переноса - стык названия и хвоста, и на вторую строку уходит
   // «· День 6» целиком. Без этого строка ломалась ПОСЛЕ точки и та висела
@@ -1298,20 +1312,27 @@ function renderHome(data) {
       "<span>" + escapeHtml(label) + "</span></div>";
   }
 
+  // Обе "дневные" ветки героя рисуются одинаково, разница только в подписи кнопки.
+  function heroDay(day, cta) {
+    const short = dayShortTitle(day.title);
+    homeEls.herobox.innerHTML = heroHtml(day, cta);
+    // Совпало с именем спринта -> в кикере остаётся только "ДЕНЬ N", крупный
+    // заголовок название сохраняет.
+    setKicker(document.getElementById("home-kick"),
+      sameTitle(short, sprintTitle) ? "" : sprintTitle, "День " + day.day_number);
+    setHeadline(document.getElementById("home-hl"), short);
+  }
+
   if (!sprint || days.length === 0) {
     homeEls.herobox.innerHTML =
       '<div class="home-headline">Скоро здесь появятся дни</div>' +
       '<div class="home-subhead">Контент готовится. Загляните чуть позже.</div>';
   } else if (completedVisible === 0) {
     // НОВИЧОК
-    homeEls.herobox.innerHTML = heroHtml(days[0], "Начать");
-    setKicker(document.getElementById("home-kick"), sprintTitle, "День " + days[0].day_number);
-    setHeadline(document.getElementById("home-hl"), dayShortTitle(days[0].title));
+    heroDay(days[0], "Начать");
   } else if (nextDay) {
     // ВЕРНУВШИЙСЯ
-    homeEls.herobox.innerHTML = heroHtml(nextDay, "Продолжить");
-    setKicker(document.getElementById("home-kick"), sprintTitle, "День " + nextDay.day_number);
-    setHeadline(document.getElementById("home-hl"), dayShortTitle(nextDay.title));
+    heroDay(nextDay, "Продолжить");
   } else {
     // ВСЁ ПРОЙДЕНО. Номера дня тут нет - вместо него состояние спринта, иначе кикер
     // пришлось бы врать про "день N", которого женщина уже не увидит.
@@ -2538,8 +2559,14 @@ function renderDay(data) {
   // Шапка дня = широкая обложка ЕГО спринта. Слаг берём из homeData по day.sprint_id.
   const daySprint = sprintById(day.sprint_id);
   paintCover(document.getElementById("day-hero"), daySprint && daySprint.cover_slug, "wide", COVER_SHADE_DAY);
-  document.getElementById("day-kicker").textContent = ((day.sprint_title || "") + " · ДЕНЬ " + (day.day_number || "")).toUpperCase();
-  setHeadline(document.getElementById("day-title"), day.title || "");
+  // dayShortTitle ОБЯЗАТЕЛЕН и здесь: в базе 70 из 71 заголовка начинаются с "День N.",
+  // а номер уже стоит в кикере - без него экран печатал "ДЕНЬ 1" и следом "День 1. ...".
+  const dayShort = dayShortTitle(day.title || "");
+  const daySprintTitle = day.sprint_title || "";
+  const dayDup = sameTitle(dayShort, daySprintTitle);   // имя дня = имя спринта -> имя спринта в кикере лишнее
+  document.getElementById("day-kicker").textContent =
+    ((dayDup || !daySprintTitle ? "" : daySprintTitle + " · ") + "ДЕНЬ " + (day.day_number || "")).toUpperCase();
+  setHeadline(document.getElementById("day-title"), dayShort);
   const blocksEl = document.getElementById("day-blocks");
   const blocks = (data.blocks || []).slice().sort((a, b) => a.order_index - b.order_index);
   blocksEl.innerHTML = blocks.map(renderBlock).join("");
