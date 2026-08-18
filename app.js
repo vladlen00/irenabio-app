@@ -1853,7 +1853,9 @@ const MINT_APP_TOKEN_URL = SUPABASE_URL + "/functions/v1/mint-app-token";
 // "с экрана Домой" на iOS не рвётся). У кого path нет - уходит по url, как раньше.
 // Список путей ОБЯЗАН совпадать с MINI в sw.js.
 const MINI_APPS = {
-  workout: { url: "https://vladlen00.github.io/workout/", v: "4", path: "/workout/" },
+  // workout БЕЗ path СОЗНАТЕЛЬНО: ролики ограничены доменом github.io в кабинете
+  // Kinescope, на нашем origin плеер отдаёт «Доступ запрещён». См. исключение в sw.js.
+  workout: { url: "https://vladlen00.github.io/workout/", v: "4" },
   // glutes БЕЗ path СОЗНАТЕЛЬНО: прогресс лежит в localStorage, на новом origin
   // он оказался бы пустым, а старый - недостижимым. См. исключение в sw.js.
   glutes: { url: "https://vladlen00.github.io/glutes/", v: "2" },
