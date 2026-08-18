@@ -1849,15 +1849,22 @@ function wireCancelFlow(sub) {
 // (дом показывается лишь после verify-access-web), поэтому mint обычно успешен.
 const MINT_APP_TOKEN_URL = SUPABASE_URL + "/functions/v1/mint-app-token";
 // ?v= - кэш-бост для веб-открытия, бампать при обновлении самого мини-аппа.
+// path - открыть на СВОЁМ origin через sw.js (адресная строка чистая, окно
+// "с экрана Домой" на iOS не рвётся). У кого path нет - уходит по url, как раньше.
+// Список путей ОБЯЗАН совпадать с MINI в sw.js.
 const MINI_APPS = {
-  workout: { url: "https://vladlen00.github.io/workout/", v: "4" },
+  workout: { url: "https://vladlen00.github.io/workout/", v: "4", path: "/workout/" },
+  // glutes БЕЗ path СОЗНАТЕЛЬНО: прогресс лежит в localStorage, на новом origin
+  // он оказался бы пустым, а старый - недостижимым. См. исключение в sw.js.
   glutes: { url: "https://vladlen00.github.io/glutes/", v: "2" },
   // biohack-трекер - один апп, экран выбирается через ?startapp= (читается App.js из search).
   podruzhka: { url: "https://biohack-tracker-blond.vercel.app/", v: "1", q: "startapp=ai" },
   zdorovie: { url: "https://biohack-tracker-blond.vercel.app/", v: "1", q: "startapp=checkin" },
-  cycle: { url: "https://vladlen00.github.io/cycle/", v: "2" },
-  relax: { url: "https://vladlen00.github.io/studio/", v: "8" },
+  cycle: { url: "https://vladlen00.github.io/cycle/", v: "2", path: "/cycle/" },
+  relax: { url: "https://vladlen00.github.io/studio/", v: "8", path: "/studio/" },
   // Тест «Возраст тела»: плитки на доме нет, открывается меткой из текста дня.
+  // bodyage БЕЗ path СОЗНАТЕЛЬНО: общий ключ темы irena_theme, наш index.html его
+  // затирает - выбор темы перестал бы запоминаться. См. исключение в sw.js.
   bodyage: { url: "https://vladlen00.github.io/bodyage/", v: "1" },
 };
 
@@ -1886,7 +1893,12 @@ async function openMiniApp(appKey, tileEl) {
       const frag = "#irena_token=" + encodeURIComponent(data.token) +
                    "&exp=" + encodeURIComponent(data.expiresIn || 3600);
       const q = app.q ? "&" + app.q : "";   // напр. startapp=ai для biohack-экрана
-      location.href = app.url + "?v=" + encodeURIComponent(app.v) + q + frag;  // уходим со страницы
+      // Воркер активен И у аппа есть path -> свой origin. Иначе - старый абсолютный
+      // адрес, ровно как было. Деградация мягкая: хуже сегодняшнего не станет
+      // никогда, в том числе на первом заходе, пока воркер ещё не встал.
+      const swOn = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
+      const base = (swOn && app.path) ? app.path : app.url;
+      location.href = base + "?v=" + encodeURIComponent(app.v) + q + frag;  // уходим со страницы
       return;
     }
     // подписка не подтвердилась (редко: истекла между загрузкой дома и кликом) или сбой сервера
@@ -3074,6 +3086,20 @@ function navBack() {
 // иначе проба ляжет в критический путь входа. Здесь, а не выше по файлу, потому что
 // индикатору нужен уже инициализированный homeEls.
 ensureRoute();
+
+// Воркер путей мини-аппов (sw.js). Ставим РАНО, чтобы он успел встать до первого
+// клика по плитке, но НЕ полагаемся на него: решение принимается в openMiniApp по
+// navigator.serviceWorker.controller, и без воркера всё уходит по старым адресам.
+// ?sw=off - выключатель на случай залипания. Он работает ВСЕГДА, потому что сам
+// app.js приезжает в обход воркера (см. правило в sw.js и CLAUDE.md).
+if ("serviceWorker" in navigator) {
+  if (location.search.indexOf("sw=off") >= 0) {
+    navigator.serviceWorker.getRegistrations()
+      .then((rs) => rs.forEach((r) => r.unregister())).catch(() => {});
+  } else {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
+}
 
 // --- старт: ветвление возврат-после-оплаты / дом / чекаут ---
 const startParams = new URLSearchParams(location.search);
