@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=65">
+  <link rel="stylesheet" href="style.css?v=66">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. У обоих есть кириллица
@@ -269,6 +269,12 @@
             <div class="sprint-progress" id="sprint-progress"><div class="sprint-progress-bar" id="sprint-bar"></div></div>
             <div class="sprint-progress-empty" id="sprint-progress-empty" hidden>Ещё не начат</div>
           </div>
+          <!-- ЯВНЫЙ ВЫБОР. Единственное, что двигает текущий спринт на главной: открытие
+               дня (в том числе из карточки свежего выпуска) его не трогает. У текущего
+               вместо кнопки неактивная плашка - женщина должна видеть, где она. -->
+          <button class="btn sprint-choose" id="sprint-choose" type="button" hidden>Проходить этот спринт</button>
+          <div class="sprint-current" id="sprint-current" hidden><i class="ti ti-check"></i> Вы проходите этот спринт</div>
+          <p class="field-error sprint-choose-err" id="sprint-choose-err" hidden></p>
           <div id="sprint-days"></div>
         </div>
       </div>
@@ -586,6 +592,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=90"></script>
+  <script src="app.js?v=91"></script>
 </body>
 </html>

@@ -18,6 +18,7 @@ const VERIFY_ACCESS_URL = SUPABASE_URL + "/functions/v1/verify-access-web";
 const GET_HOME_URL = SUPABASE_URL + "/functions/v1/get-home";
 const GET_DAY_URL = SUPABASE_URL + "/functions/v1/get-day";
 const MARK_DAY_DONE_URL = SUPABASE_URL + "/functions/v1/mark-day-done";
+const SET_CURRENT_SPRINT_URL = SUPABASE_URL + "/functions/v1/set-current-sprint";   // ЯВНЫЙ выбор спринта
 const PROJECT_REF = "kjzxrpwqyyjcykwbqskn";
 // Таймаут одной сетевой попытки. Объявлен здесь (а не в блоке sbFetch ниже), потому что
 // его использует sbAuthFetch, который создаётся раньше по файлу.
@@ -1259,13 +1260,24 @@ function homeSprints(data) {
 }
 // Текущий = идущий спринт. Если идущего нет (библиотека из одних архивных) -
 // тот, в котором женщина остановилась на середине, иначе первый по порядку.
-function pickCurrentSprint(sprints, completed) {
+function pickCurrentSprint(sprints, completed, chosenId) {
   // ЧЕРНОВИКИ ОТСЕИВАЕМ ПЕРВЫМ ДЕЛОМ. С 2026-08-17 get-home отдаёт и draft, а
   // фолбэк ниже возвращает sprints[0] - незалитый «Анти-хаос» с order_index=12
   // стоит в списке РАНЬШЕ всех залитых и стал бы «текущим» на доме, ведя женщину
   // в пустой спринт. Сейчас до фолбэка дело не доходит только потому, что active
   // существует; это везение, а не гарантия - активного может не оказаться.
   sprints = sprints.filter((s) => s.status !== "draft");
+  // ЯВНЫЙ ВЫБОР ЖЕНЩИНЫ ПЕРЕВЕШИВАЕТ ВСЁ (persons.current_sprint_id, 18.08). До этого
+  // "текущий" вычислялся каждый раз заново, и отметка дня в чужом спринте могла увести
+  // герой: при отсутствии активного спринта фолбэк ниже выбирает по ЧИСЛУ пройденных
+  // дней, а оно меняется от любой отметки. Замер в стенде: ничья 2:2, одна отметка в
+  // соседнем спринте - и герой уехал туда.
+  // Санитайз обязателен: сохранённый спринт мог быть удалён или стать черновиком,
+  // и тогда женщина осталась бы с пустым героем. Не нашли - идём в прежний порядок.
+  if (chosenId) {
+    const chosen = sprints.find((s) => s.id === chosenId);
+    if (chosen) return chosen;
+  }
   const active = sprints.find((s) => s.status === "active");
   if (active) return active;
   let best = null, bestDone = -1;
@@ -1282,7 +1294,7 @@ function renderHome(data) {
   homeData = data;   // сохраняем для экранов спринт/день и обновления прогресса
   navStack = [];     // дом - основание стека: пришли сюда, история пройдена
   const completed = new Set((data.progress && data.progress.completed_day_ids) || []);
-  const sprint = pickCurrentSprint(homeSprints(data), completed);
+  const sprint = pickCurrentSprint(homeSprints(data), completed, data.current_sprint_id);
   currentSprintId = sprint ? sprint.id : null;
   const days = sprint && Array.isArray(sprint.days) ? sprint.days.slice().sort((a, b) => a.day_number - b.day_number) : [];
   const completedVisible = days.filter((d) => completed.has(d.id)).length;
@@ -2799,6 +2811,21 @@ function openSprint(sprintId) {
       '</div>';
   });
   document.getElementById("sprint-days").innerHTML = html;
+  // Выбор: у ТЕКУЩЕГО спринта плашка, у остальных кнопка. "Текущий" здесь -
+  // действующий (явный выбор либо фолбэк), а не только сохранённый в базе: иначе
+  // на спринте, который и так показан в герое, предлагалось бы его "начать".
+  const chooseBtn = document.getElementById("sprint-choose");
+  const curBadge = document.getElementById("sprint-current");
+  const chooseErr = document.getElementById("sprint-choose-err");
+  const isCurrent = currentSprintId === sprint.id;
+  if (chooseErr) chooseErr.hidden = true;
+  if (chooseBtn) {
+    chooseBtn.hidden = isCurrent;
+    chooseBtn.disabled = false;
+    chooseBtn.textContent = "Проходить этот спринт";
+    chooseBtn.setAttribute("data-sprint-id", sprint.id);
+  }
+  if (curBadge) curBadge.hidden = !isCurrent;
   window.scrollTo(0, 0);
 }
 
@@ -2843,7 +2870,7 @@ function posterHtml(s, isCurrent) {
 function openSprints() {
   const completed = new Set((homeData && homeData.progress && homeData.progress.completed_day_ids) || []);
   const all = homeSprints(homeData);
-  const current = pickCurrentSprint(all, completed);
+  const current = pickCurrentSprint(all, completed, homeData && homeData.current_sprint_id);
   // ХРОНОЛОГИЯ КАНАЛА: order_index растёт от самого раннего спринта к позднему, поэтому
   // сортируем ПО ВОЗРАСТАНИЮ. На выбор героя это не влияет: он берётся из
   // pickCurrentSprint по status === "active", order_index там не участвует.
@@ -2880,6 +2907,48 @@ function navBack() {
   if (!prev) { backToHome(); return; }
   NAV_VIEWS[prev.view](prev.arg);
 }
+
+// ЯВНЫЙ ВЫБОР СПРИНТА. Единственный писатель persons.current_sprint_id на фронте.
+// Оптимистично, как markDone: плашка встаёт сразу, при неудаче откат и честная строка -
+// молча "выбралось" быть не должно, женщина уйдёт с экрана в уверенности, что переехала.
+(function wireSprintChoice() {
+  const btn = document.getElementById("sprint-choose");
+  const badge = document.getElementById("sprint-current");
+  const err = document.getElementById("sprint-choose-err");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    const sprintId = btn.getAttribute("data-sprint-id");
+    if (!sprintId || btn.disabled) return;
+    const rollback = (msg) => {
+      btn.hidden = false; btn.disabled = false;
+      if (badge) badge.hidden = true;
+      if (err) { err.textContent = msg; err.hidden = false; }
+    };
+    btn.disabled = true;
+    if (err) err.hidden = true;
+    const token = await getToken();
+    if (!token) { rollback("Не получилось - обновите страницу и попробуйте ещё раз."); return; }
+    // БЕЗ автоповтора: повтор PATCH безвреден, но женщине важнее быстрый честный отказ,
+    // чем 27 секунд ожидания с уже нажатой кнопкой.
+    const r = await sbFetch(SET_CURRENT_SPRINT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+      body: JSON.stringify({ sprint_id: sprintId }),
+    });
+    if (r.state !== "ok" || !(r.data && r.data.ok)) {
+      rollback("Не сохранилось - проверьте интернет и нажмите ещё раз.");
+      return;
+    }
+    // Подтверждено сервером: правим локальный слепок. renderHome отсюда НЕ зовём -
+    // он чистит navStack и мотает страницу вверх, то есть сломал бы "назад" на экране,
+    // где женщина сейчас стоит. Дом перерисуется сам при возврате (backToHome), а
+    // библиотека читает homeData.current_sprint_id в момент отрисовки.
+    if (homeData) homeData.current_sprint_id = sprintId;
+    currentSprintId = sprintId;
+    btn.hidden = true;
+    if (badge) badge.hidden = false;
+  });
+})();
 
 // Навигация: клики дома -> день/спринт, кнопки "назад", "пройдено" (делегирование + статичные кнопки).
 (function wireNav() {
