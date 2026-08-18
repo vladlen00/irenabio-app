@@ -72,13 +72,22 @@
 //   Починка требует правки медитаций или самой студии - файлов ОБЕИХ дверей.
 //   ВЕРНУТЬ можно только вместе с этим (или вариантом C: патч разметки в воркере).
 //
+// 12 медитаций и дыхание (breathing, breathing446, meditation, sleep-meditation,
+//   anxiety-meditation, slim-meditation, kids-meditation, mitochondria-meditation,
+//   ideal-reality, burning-meditation, control-meditation, oneday) УБРАНЫ ОТСЮДА
+//   2026-08-18 как мина. Сами по себе они недостижимы: студия живёт на github.io и
+//   ведёт на github.io, адрес app.irenabio.com/meditation/ в пути женщины не возникает.
+//   Но пока они лежали в списке, любой прямой заход отдавал бы медитацию на НАШЕМ
+//   origin - а у КАЖДОЙ из них кнопка «← В студию» устроена ровно как разобрано выше:
+//   читает localStorage синхронно, раньше записи свежего токена, и с нашего origin
+//   забрала бы остаток прошлой сессии, затерев им живой токен. То есть та же поломка,
+//   что вывела studio, только вход в неё неочевидный.
+//   ВЕРНУТЬ можно ТОЛЬКО вместе со studio и ТЕМ ЖЕ ЗАХОДОМ - по отдельности нельзя:
+//   студия и медитации это одна цепочка, и она либо целиком на одном origin, либо нет.
+//
 // Плата за исключения одна: эти плитки продолжают вылетать в Safari на iOS.
 const MINI = [
   "workout", "cycle",
-  "breathing", "breathing446", "meditation", "sleep-meditation",
-  "anxiety-meditation", "slim-meditation", "kids-meditation",
-  "mitochondria-meditation", "ideal-reality", "burning-meditation",
-  "control-meditation", "oneday",
 ];
 
 const GH = "https://vladlen00.github.io";
