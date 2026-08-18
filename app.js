@@ -1063,7 +1063,6 @@ const homeEls = {
   progressRow: document.getElementById("home-progress-row"),
   progressCount: document.getElementById("home-count"),
   live: document.getElementById("home-live"),
-  liveDot: document.getElementById("home-live-dot"),
   liveTitle: document.getElementById("home-live-title"),
   liveMeta: document.getElementById("home-live-meta"),
   subUntil: document.getElementById("home-sub-until"),
@@ -1293,7 +1292,7 @@ function pickCurrentSprint(sprints, completed, chosenId) {
   return best || sprints[0] || null;
 }
 
-// ===================== СВЕЖИЙ ВЫПУСК =====================
+// ===================== ПОДКАСТ =====================
 // Ирена выпускает подкаст каждый день, и приложение обязано это показывать: иначе
 // женщина заходит и видит одно и то же. Отдельной сущности НЕТ - берём самый свежий
 // по publish_at день из тех, что уже приехали в get-home (он отдаёт дни ВСЕХ спринтов
@@ -1303,9 +1302,14 @@ function pickCurrentSprint(sprints, completed, chosenId) {
 // женщины она НЕ фильтруется и НЕ прячется при совпадении с героем. Исчезающий через
 // день блок читался бы как поломка - сегодня есть, завтра нет, и непонятно почему.
 //
-// НАЗВАНИЕ "Свежий выпуск", а НЕ "Сейчас в канале": перенос из канала в базу отстаёт
-// (на 18.08 последний день в базе от 14.08), и вторая формулировка врала бы. Вернуть
-// её - когда отставание уберёт полуавтомат заливки. Дата поэтому печатается настоящая.
+// НАЗВАНИЕ "Подкаст" (решение Ирены 18.08): оно называет вещь и ничего не обещает про
+// свежесть. "Свежий выпуск", "Тема дня" и "Сейчас в канале" все намекают на актуальность,
+// а пока перенос отстаёт от канала, это обещание ложное.
+//
+// ДАТЫ В СЛУЖЕБНОЙ СТРОКЕ НЕТ, И ТОЧКИ "вышло сегодня" ТОЖЕ. Причина та же: дата
+// подчёркивала, что платформа не поспевает за каналом. Вернём обе вместе с полуавтоматом
+// заливки, когда отставание уйдёт и дата станет преимуществом. Помощники fmtLiveDate и
+// daysApart НАРОЧНО оставлены живыми под этот возврат, вызовов у них сейчас нет.
 // ПОТОЛОК СВЕЖЕСТИ: старше двух недель - карточки нет вовсе.
 const LIVE_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -1360,8 +1364,7 @@ function renderLive(data, completed) {
   // Пройденный выпуск НЕ прячем: карточка про то, что нового у Ирены, а не про то,
   // что женщине делать. Метка снимает вопрос "я это уже слушала?".
   const done = completed && completed.has(live.day.id) ? "пройдено" : "";
-  homeEls.liveMeta.textContent = [fmtLiveDate(live.day.publish_at, live.t), mins, done].filter(Boolean).join(" \u00b7 ");
-  homeEls.liveDot.hidden = daysApart(live.t) > 0;   // точка только у сегодняшнего
+  homeEls.liveMeta.textContent = [mins, done].filter(Boolean).join(" · ");
 }
 
 // Рендер дома из ответа get-home (реальные данные)
