@@ -1056,12 +1056,11 @@ const homeEls = {
   loading: document.getElementById("home-loading"),
   content: document.getElementById("home-content"),
   herobox: document.getElementById("home-herobox"),
-  sprintTitle: document.getElementById("home-sprint-title"),
-  sprintBadge: document.getElementById("home-sprint-badge"),
   hero: document.getElementById("home-hero"),
   progressTrack: document.getElementById("home-progress"),
   progressBar: document.getElementById("home-progress-bar"),
-  progressEmpty: document.getElementById("home-progress-empty"),
+  progressRow: document.getElementById("home-progress-row"),
+  progressCount: document.getElementById("home-count"),
   subUntil: document.getElementById("home-sub-until"),
   supportBtn: document.getElementById("home-support-btn"),
   supportContacts: document.getElementById("home-support-contacts"),
@@ -1157,6 +1156,27 @@ function setHeadline(el, text) {
   if (!el) return;
   el.textContent = text;
   el.classList.toggle("long", (text || "").length > 26);
+}
+
+// Знаменатель счётчика: у идущего спринта - заявленная длина, у архивного её тоже
+// приводили к фактическому числу дней (правило estimated_days). Пусто -> сколько есть.
+function denomOf(sprint, days) {
+  return sprint && sprint.estimated_days ? sprint.estimated_days : ((days && days.length) || 0);
+}
+
+// Кикер героя: "НАЗВАНИЕ СПРИНТА · ДЕНЬ N". Названия приходят из базы и длинные
+// бывают («Здоровый ЖКТ и женское тело» просит 326px при коробке 314 на iPhone 14),
+// поэтому строке РАЗРЕШЁН ПЕРЕНОС - решение Владлена 18.08. Мельчить кегль под редкий
+// случай не стали: кикер служебный, две строки его не портят, а резать название или
+// прятать номер дня хуже. Перенос естественный, БЕЗ text-wrap: balance - иначе движок
+// делит само название, а так на вторую строку уходит "· День N" целиком.
+function setKicker(el, title, tail) {
+  if (!el) return;
+  // Хвост склеен НЕРАЗРЫВНЫМИ пробелами, а перед точкой стоит обычный: тогда
+  // единственное место переноса - стык названия и хвоста, и на вторую строку уходит
+  // «· День 6» целиком. Без этого строка ломалась ПОСЛЕ точки и та висела
+  // в конце первой строки.
+  el.textContent = title + " \u00b7\u00a0" + String(tail).replace(/ /g, "\u00a0");
 }
 
 // КУДА ВЕДЁТ НАЗАД С ЧЕКАУТА. null = пришли СНАРУЖИ (прямая ссылка, первый заход,
@@ -1259,17 +1279,23 @@ function renderHome(data) {
   paintCover(homeEls.hero, sprint && sprint.cover_slug, "wide", COVER_SHADE_HOME);
 
   // --- верхняя адаптивная карточка ---
-  // Кикер несёт номер дня ("СЕГОДНЯ · ДЕНЬ 6"), заголовок - имя дня БЕЗ префикса.
-  // Заголовки в базе физически начинаются с "День N." - без dayShortTitle номер
-  // печатался дважды. Тот же помощник уже работает в списке дней спринта.
-  function heroHtml(day, kicker, cta) {
+  // Кикер несёт НАЗВАНИЕ СПРИНТА и номер дня ("ОМОЛОЖЕНИЕ ИЗНУТРИ · ДЕНЬ 2"):
+  // женщина всегда видит, какой спринт и где она в нём. Заголовок - имя дня БЕЗ
+  // префикса: заголовки в базе физически начинаются с "День N.", и без dayShortTitle
+  // номер печатался дважды. Тот же помощник работает в списке дней спринта.
+  function heroHtml(day, cta) {
     const sub = (day.subtitle || "").trim();
-    return '<div class="home-kicker">' + escapeHtml(kicker) + " · День " + day.day_number + "</div>" +
+    return '<div class="home-kicker" id="home-kick"></div>' +
       '<div class="home-headline" id="home-hl"></div>' +
       (sub ? '<div class="home-subhead">' + escapeHtml(sub) + "</div>" : "") +
-      '<div class="home-cta" data-day-id="' + escapeHtml(day.id) + '" role="button">' +
-        '<span class="home-cta-ic"><i class="ti ti-player-play"></i></span>' +
-        "<span>" + escapeHtml(cta) + "</span></div>";
+      ctaHtml('data-day-id="' + escapeHtml(day.id) + '"', "ti-player-play", cta);
+  }
+  // Одна анатомия пилюли на обе кнопки. Куда вести - решает АТРИБУТ: data-day-id ->
+  // день, data-go="sprints" -> библиотека. Делегат в wireNav разбирает оба.
+  function ctaHtml(attr, icon, label) {
+    return '<div class="home-cta" ' + attr + ' role="button">' +
+      '<span class="home-cta-ic"><i class="ti ' + icon + '"></i></span>' +
+      "<span>" + escapeHtml(label) + "</span></div>";
   }
 
   if (!sprint || days.length === 0) {
@@ -1278,32 +1304,60 @@ function renderHome(data) {
       '<div class="home-subhead">Контент готовится. Загляните чуть позже.</div>';
   } else if (completedVisible === 0) {
     // НОВИЧОК
-    homeEls.herobox.innerHTML = heroHtml(days[0], "Начинаем", "Начать");
+    homeEls.herobox.innerHTML = heroHtml(days[0], "Начать");
+    setKicker(document.getElementById("home-kick"), sprintTitle, "День " + days[0].day_number);
     setHeadline(document.getElementById("home-hl"), dayShortTitle(days[0].title));
   } else if (nextDay) {
     // ВЕРНУВШИЙСЯ
-    homeEls.herobox.innerHTML = heroHtml(nextDay, "Сегодня", "Продолжить");
+    homeEls.herobox.innerHTML = heroHtml(nextDay, "Продолжить");
+    setKicker(document.getElementById("home-kick"), sprintTitle, "День " + nextDay.day_number);
     setHeadline(document.getElementById("home-hl"), dayShortTitle(nextDay.title));
   } else {
-    // все доступные дни пройдены
+    // ВСЁ ПРОЙДЕНО. Номера дня тут нет - вместо него состояние спринта, иначе кикер
+    // пришлось бы врать про "день N", которого женщина уже не увидит.
+    // Два РАЗНЫХ повода попасть сюда, и путать их нельзя: спринт кончился совсем
+    // (49 из 49) или женщина догнала выходящий спринт (12 из 28, остальные ещё не
+    // вышли). В первом случае дальше идти НЕКУДА внутри спринта - кнопка ведёт в
+    // библиотеку выбирать следующий; во втором звать никуда не надо, дни доедут сами.
+    const whole = completedVisible >= denomOf(sprint, days);
     homeEls.herobox.innerHTML =
-      '<div class="home-kicker">СПРИНТ: ' + escapeHtml(sprintTitle) + '</div>' +
-      '<div class="home-headline">Вы прошли все доступные дни</div>' +
-      '<div class="home-subhead">Новые дни появятся по мере выхода. Возвращайтесь.</div>';
+      '<div class="home-kicker" id="home-kick"></div>' +
+      (whole
+        // Заголовок числом, а не словом "пройден": слово уже стоит в кикере, а число
+        // - это то, что женщина действительно сделала. plurDaysLeft склоняет (49 дней,
+        // 31 день). Берётся ФАКТ (completedVisible), а не план: если дней вышло больше
+        // заявленных, "30 дней позади" остаётся правдой.
+        ? '<div class="home-headline">' + escapeHtml(plurDaysLeft(completedVisible)) + ' позади</div>' +
+          '<div class="home-subhead">Дальше - любой спринт из библиотеки.</div>' +
+          ctaHtml('data-go="sprints"', "ti-books", "К спринтам")
+        : '<div class="home-headline">Вы прошли все доступные дни</div>' +
+          '<div class="home-subhead">Новые дни появятся по мере выхода. Возвращайтесь.</div>');
+    setKicker(document.getElementById("home-kick"), sprintTitle, whole ? "Пройден" : "Вы в графике");
   }
 
-  // --- карточка спринта ---
-  homeEls.sprintTitle.textContent = sprintTitle;
-  const denom = sprint && sprint.estimated_days ? sprint.estimated_days : (days.length || 0);
-  const tilde = sprint && sprint.status === "active" ? "~" : "";   // идёт -> "~N", archived -> точное
-  homeEls.sprintBadge.textContent = completedVisible + " из " + tilde + denom;
-  // Ноль пройденных -> полосы нет вовсе, вместо неё строка-статус. Math.max(2,…)
-  // остаётся ТОЛЬКО для реального прогресса: один день из 28 - это 4%, но один день
-  // из 90 дал бы 1% и полоса выглядела бы пустой, хотя дело сдвинулось.
+  // --- прогресс (в герое, под кнопкой) ---
+  const denom = denomOf(sprint, days);
+  const hasProgress = !!sprint && days.length > 0;
+  // НОВИЧОК: ни полосы, ни счётчика. Пустой трек и "0 из 28" читаются как
+  // недогрузившаяся страница, а женщине в этот момент нужно одно - нажать "Начать".
+  // Пилюля "все дни" остаётся: это единственный путь к списку дней с главной.
   const started = completedVisible > 0;
-  if (homeEls.progressTrack) homeEls.progressTrack.hidden = !started;
-  if (homeEls.progressEmpty) homeEls.progressEmpty.hidden = started;
-  if (started) {
+  if (homeEls.progressTrack) homeEls.progressTrack.hidden = !hasProgress || !started;
+  if (homeEls.progressCount) {
+    homeEls.progressCount.hidden = !hasProgress || !started;
+    if (!started) homeEls.progressCount.textContent = "";   // не оставлять число от прошлого рендера
+  }
+  if (homeEls.progressRow) homeEls.progressRow.hidden = !hasProgress;
+  // Без полосы строке нужен её собственный отступ от кнопки - иначе она прилипает.
+  if (homeEls.progressRow) homeEls.progressRow.classList.toggle("solo", hasProgress && !started);
+  if (hasProgress && started) {
+    // Тильды у идущего спринта тут НЕТ (было "18 из ~14" в старой карточке): строка
+    // в 10px на обложке должна читаться с одного взгляда, знак съедал её собранность.
+    // Цена решения: если Ирена выпустит дней БОЛЬШЕ заявленных 28, счётчик покажет
+    // "30 из 28" - лечится правкой estimated_days, а не тильдой.
+    homeEls.progressCount.textContent = completedVisible + " из " + denom;
+    // Math.max(2,…): один день из 28 - это 4%, но один из 90 дал бы 1%, и полоса
+    // выглядела бы пустой, хотя дело сдвинулось. Сюда попадаем только с started.
     const pct = denom > 0 ? Math.max(2, Math.min(100, Math.round((completedVisible / denom) * 100))) : 100;
     homeEls.progressBar.style.width = pct + "%";
   }
@@ -2814,6 +2868,8 @@ function navBack() {
   document.addEventListener("click", (e) => {
     const cta = e.target.closest(".home-cta[data-day-id]");
     if (cta) { navTo("day", cta.getAttribute("data-day-id")); return; }
+    const ctaLib = e.target.closest('.home-cta[data-go="sprints"]');   // спринт пройден целиком
+    if (ctaLib) { navTo("sprints"); return; }
     const all = e.target.closest("#home-alldays");
     if (all) { navTo("sprint", currentSprintId); return; }
     const arch = e.target.closest(".t5-archive");

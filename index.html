@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=63">
+  <link rel="stylesheet" href="style.css?v=65">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. У обоих есть кириллица
@@ -201,20 +201,21 @@
             </div>
           </div>
           <div id="home-herobox"></div>
+          <!-- Прогресс переехал В ГЕРОЙ (2026-08-18), карточка под ним удалена целиком.
+               Название спринта теперь несёт кикер, счётчик и путь к списку дней - эта
+               строка. Разметка СТАТИЧЕСКАЯ, а не внутри herobox: homeEls берёт узлы по
+               id один раз при загрузке, и перерисовка innerHTML оборвала бы ссылки.
+               Полоса при нуле НЕ прячется: пустой трек рядом с "0 из 28" читается как
+               "ещё не начат" сам по себе, огрызка в 2% тут не бывает.
+               Пилюля, а не голый текст: обложки у спринтов разные, и то, что тёмное на
+               лотосе, на следующей картинке окажется светлым - подложка работает всегда. -->
+          <div class="hero-progress" id="home-progress"><div class="hero-progress-bar" id="home-progress-bar"></div></div>
+          <div class="hero-progress-row" id="home-progress-row">
+            <span class="hero-count" id="home-count"></span>
+            <span class="hero-alldays" id="home-alldays" role="button">все дни ›</span>
+          </div>
         </div>
         <div class="home-body">
-          <div class="card home-sprint" id="home-sprint-card">
-            <div class="home-sprint-top">
-              <div class="home-sprint-title" id="home-sprint-title"></div>
-              <div class="home-sprint-badge" id="home-sprint-badge"></div>
-            </div>
-            <!-- При нуле пройденных полоса скрыта целиком, вместо неё строка-статус:
-                 огрызок в 2% читался как сломанная вёрстка, а не как "ещё не начат". -->
-            <div class="home-progress" id="home-progress"><div class="home-progress-bar" id="home-progress-bar"></div></div>
-            <div class="home-progress-empty" id="home-progress-empty" hidden>Ещё не начат</div>
-            <div class="home-alldays" id="home-alldays" role="button"><span>смотреть все дни</span><i class="ti ti-chevron-right"></i></div>
-          </div>
-
           <div class="home-tools-h">Твои инструменты</div>
 
           <!-- Подружка вынесена из сетки в широкую карточку на брендовом градиенте (макет).
@@ -585,6 +586,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=87"></script>
+  <script src="app.js?v=89"></script>
 </body>
 </html>
