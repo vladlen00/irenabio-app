@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=68">
+  <link rel="stylesheet" href="style.css?v=69">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. У обоих есть кириллица
@@ -398,14 +398,19 @@
           <input id="email" type="email" inputmode="email" autocomplete="email"
                  placeholder="ваша@почта.com" autocapitalize="off" spellcheck="false">
         </label>
-        <!-- Второе поле: опечатка в адресе стоит доступа - почта это логин, по ней же идут
-             квитанция и восстановление по паре "почта + номер заказа". Вставку НЕ запрещаем. -->
-        <label class="field" for="email2">
-          <span class="field-label">Повторите почту</span>
-          <input id="email2" type="email" inputmode="email" autocomplete="email"
-                 placeholder="ещё раз, чтобы не ошибиться" autocapitalize="off" spellcheck="false">
-        </label>
         <p class="field-error" id="email-error" hidden></p>
+
+        <!-- ЭХО АДРЕСА вместо второго поля "Повторите почту" (2026-08-28).
+             Опечатка в почте стоит доступа: почта это ЕДИНСТВЕННЫЙ ключ к аккаунту, писем мы
+             не шлём, и ошибка не всплывёт никогда - женщина заплатит, а доступ уедет на
+             несуществующий адрес. Два одинаковых поля решали это дороже, чем нужно: лишнее
+             трение ровно на экране оплаты. Крупная строка ловит взгляд там, где он и так
+             задерживается - прямо перед нажатием кнопки.
+             НЕ УДАЛЯТЬ, не заменив равноценной защитой. Логика - updateEmailEcho в app.js. -->
+        <p class="email-echo" id="email-echo" hidden>
+          <span class="email-echo-label">Проверьте адрес - это ваш логин</span>
+          <span class="email-echo-value" id="email-echo-value"></span>
+        </p>
 
         <button id="btn-pay" class="btn btn-primary" type="submit" data-method="wayforpay">
           Оплатить
@@ -612,6 +617,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=106"></script>
+  <script src="app.js?v=107"></script>
 </body>
 </html>

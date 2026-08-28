@@ -209,7 +209,8 @@ const els = {
   form: document.getElementById("checkout-form"),
   plans: document.getElementById("plans"),
   email: document.getElementById("email"),
-  email2: document.getElementById("email2"),   // повтор почты, см. readCheckoutEmail
+  emailEcho: document.getElementById("email-echo"),          // эхо адреса, см. updateEmailEcho
+  emailEchoValue: document.getElementById("email-echo-value"),
   emailError: document.getElementById("email-error"),
   formError: document.getElementById("form-error"),
   btnPay: document.getElementById("btn-pay"),
@@ -292,16 +293,24 @@ function emailValid(email) {
   return email.length >= 6 && email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-// Почта на чекауте вводится ДВАЖДЫ. Возвращает нормализованный адрес или null (с показанной
-// ошибкой). Вставку во второе поле НЕ запрещаем: кто копирует из первого, обычно копирует
-// верный адрес, а запрет получили бы все.
+// Почта на чекауте вводится ОДИН раз. Возвращает нормализованный адрес или null (с показанной
+// ошибкой). Защита от опечатки живёт в updateEmailEcho: адрес показывается крупно прямо над
+// кнопкой оплаты. Не срезать её, не заменив равноценной - почта это единственный ключ к
+// аккаунту, писем мы не шлём, и ошибка не всплывёт никогда (коммент у #email-echo).
 function readCheckoutEmail() {
   const email = normalizeEmail(els.email.value);
   if (!emailValid(email)) { showEmailError(EMAIL_HINT); els.email.focus(); return null; }
-  const again = normalizeEmail(els.email2 ? els.email2.value : "");
-  if (!again) { showEmailError("Повторите почту во втором поле."); if (els.email2) els.email2.focus(); return null; }
-  if (email !== again) { showEmailError("Адреса не совпадают - проверьте оба поля."); if (els.email2) els.email2.focus(); return null; }
   return email;
+}
+
+// Эхо адреса перед оплатой. Показываем НОРМАЛИЗОВАННЫЙ адрес - ровно тот, что уйдёт в заказ
+// и станет логином. Появление строки само по себе сигнал "адрес принят".
+function updateEmailEcho() {
+  if (!els.emailEcho || !els.emailEchoValue) return;
+  const email = normalizeEmail(els.email.value);
+  const ok = emailValid(email);
+  els.emailEchoValue.textContent = ok ? email : "";
+  els.emailEcho.hidden = !ok;
 }
 
 // --- сообщения об ошибке ---
@@ -1018,8 +1027,8 @@ els.form.addEventListener("submit", (e) => {
     if (e.target.name === "lavacur") { state.lavaCurrency = e.target.value === "EUR" ? "EUR" : "RUB"; paintCur(); }
   });
 }
-els.email.addEventListener("input", () => showEmailError(""));
-if (els.email2) els.email2.addEventListener("input", () => showEmailError(""));
+els.email.addEventListener("input", () => { showEmailError(""); updateEmailEcho(); });
+updateEmailEcho();   // браузер мог восстановить значение поля при перезагрузке
 
 // слушатели экрана пароля
 els.btnEnter.addEventListener("click", onEnter);

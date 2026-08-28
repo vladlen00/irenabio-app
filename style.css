@@ -206,6 +206,14 @@ a:hover { text-decoration: underline; }
 .field-error { color: var(--accent-deep); font-size: 13px; margin: 6px 2px 0; }
 .form-error { color: var(--accent-deep); font-size: 14px; margin: 14px 2px 0; text-align: center; }
 
+/* Эхо адреса над кнопкой оплаты. Заменило второе поле "Повторите почту". */
+.email-echo { margin: 16px 0 0; text-align: center; }
+.email-echo-label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+.email-echo-value {
+  display: block; font-size: 19px; font-weight: 700; color: var(--text);
+  line-height: 1.25; word-break: break-all;   /* длинный адрес не рвёт вёрстку на узком экране */
+}
+
 /* Кнопки */
 .btn {
   display: block; width: 100%; padding: 15px 20px; border-radius: 14px;
