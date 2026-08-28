@@ -198,11 +198,14 @@ a:hover { text-decoration: underline; }
 /* Поле почты */
 .field { display: block; margin: 0; }
 .field-label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; }
-#email {
+/* ПО КЛАССУ, а не по id: правило #email ловило ровно одно поле из четырнадцати, и каждое
+   новое приезжало без стилей (так с 16.08 жило #email2 на чекауте, а поля экранов
+   восстановления и claim-account - с самого их появления). Подробности правила в CLAUDE.md. */
+.field input {
   width: 100%; padding: 13px 14px; font-size: 16px; color: var(--text);
   background: var(--surface); border: 1.5px solid var(--border); border-radius: 13px;
 }
-#email:focus { outline: none; border-color: var(--accent); }
+.field input:focus { outline: none; border-color: var(--accent); }
 .field-error { color: var(--accent-deep); font-size: 13px; margin: 6px 2px 0; }
 .form-error { color: var(--accent-deep); font-size: 14px; margin: 14px 2px 0; text-align: center; }
 
@@ -265,6 +268,13 @@ a:hover { text-decoration: underline; }
 }
 #password { padding-right: 76px; }  /* место под кнопку "показать" */
 #password:focus, #password2:focus { outline: none; border-color: var(--accent); }
+/* Место под кнопку "показать" для полей, у которых её раньше не было отдельного правила
+   (#reset-password, #claim-password). У #password и #login-password то же значение задано
+   своими id-правилами и перекрывает это - результат тот же.
+   ⚠️ #password2 лежит в .pw-field БЕЗ кнопки; его id-правило с shorthand padding перебивает
+   этот селектор по специфичности, поэтому лишнего отступа он не получает. */
+.pw-field input { padding-right: 76px; }
+
 .pw-eye {
   position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
   border: none; background: transparent; color: var(--accent-deep);
