@@ -329,6 +329,16 @@ function clearErrors() {
 const EMAIL_HINT = "Проверьте адрес почты. Пример: ваша@почта.com";
 const RATE_MSG = "Слишком много попыток. Подождите минуту и попробуйте снова.";
 const NET_MSG = "Не удалось связаться с сервером. Проверьте интернет и попробуйте ещё раз.";
+// 5xx - это НЕ обрыв связи: сервер ответил, просто сломался на нашей стороне. Совет "проверьте
+// интернет" в этом случае отправляет женщину чинить исправный вайфай, а на экране оплаты ещё и
+// прячет настоящую причину (28.08: отказ Lava по почте приехал 502 и прочитался как проблема
+// со связью). Различаем по reason, который sbFetch кладёт рядом со state.
+// ⚠️ isConnectionReason НЕ ТРОГАЕМ: на нём висят ретраи и пересмотр маршрута, и 5xx там
+// действительно ретраибелен. Здесь меняется ТОЛЬКО текст для человека.
+const SRV_MSG = "Что-то сломалось на нашей стороне. Попробуйте через минуту, а если повторится - напишите нам.";
+function netMsg(r) {
+  return (r && typeof r.reason === "string" && r.reason.indexOf("error_5") === 0) ? SRV_MSG : NET_MSG;
+}
 
 // ===================== СЕТЕВОЙ СЛОЙ: sbFetch =====================
 // Единая обёртка над ВСЕМИ обращениями к Supabase. Логика перенесена из мини-аппов
@@ -568,10 +578,13 @@ async function goCheckoutSubmit() {
   });
   const data = r.data || {};
   if (r.state === "ok" && data.ok && data.invoiceUrl) { window.location.href = data.invoiceUrl; return; }
-  if (r.state === "unreachable") showFormError(NET_MSG);
+  if (r.state === "unreachable") showFormError(netMsg(r));
   else if (r.status === 429) showFormError(RATE_MSG);
   // Домен не принимает почту (проверка MX на сервере) - это почти всегда опечатка в домене.
   else if (data.error === "invalid_email_domain") showEmailError("Проверьте адрес: домен не принимает почту. Опечатка?");
+  // payment_init_failed разбираем ДО общего 400: отказ платёжки приезжает как 400 (был 502),
+  // и без этой строки женщина увидела бы "проверьте почту" на проблему с подписью мерчанта.
+  else if (data.error === "payment_init_failed") showFormError("Не удалось открыть оплату. Попробуйте ещё раз.");
   else if (r.status === 400 || data.error === "invalid_email") showEmailError(EMAIL_HINT);
   else showFormError("Не удалось открыть оплату. Попробуйте ещё раз.");
   if (btn) { btn.disabled = false; btn.textContent = "Оплатить"; }
@@ -636,7 +649,7 @@ async function onPayGo() {
     return;
   }
   if (errEl) {
-    errEl.textContent = r.state === "unreachable" ? NET_MSG
+    errEl.textContent = r.state === "unreachable" ? netMsg(r)
       : (r.status === 429 ? RATE_MSG : "Не удалось открыть оплату. Попробуйте ещё раз.");
     errEl.hidden = false;
   }
@@ -2108,7 +2121,7 @@ async function doReset() {
       body: JSON.stringify({ email, orderReference: order, password }),
     });
     if (r.state === "unreachable") {
-      showResetError(NET_MSG);
+      showResetError(netMsg(r));
       btn.disabled = false; btn.textContent = "Сбросить пароль";
       return;
     }
@@ -2177,7 +2190,7 @@ async function doClaim() {
       body: JSON.stringify({ email, orderReference: order, password }),
     });
     if (r.state === "unreachable") {
-      showClaimError(NET_MSG);
+      showClaimError(netMsg(r));
       btn.disabled = false; btn.textContent = "Создать пароль и войти";
       return;
     }
