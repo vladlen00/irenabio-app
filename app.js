@@ -191,15 +191,19 @@ function supportContactsHtml() {
   return supportEmailHtml() + ' или ' + supportTgHtml();
 }
 
+// hidden: тариф снят с продажи, но НЕ удалён (31.08.2026, до живого платежа на всех
+// четырёх сочетаниях WayForPay и Lava на 6m/12m). Скрытый тариф не рисуется, не
+// выбирается и не поднимается из адреса. Зеркала на сервере: PLAN_CATALOG.available
+// в create-checkout и PLAN_MAP.available в create-lava-invoice.
 const PLANS = {
   "1m":  { months: 1,  eur: 11, label: "1 месяц" },
-  "6m":  { months: 6,  eur: 55, label: "6 месяцев" },
-  "12m": { months: 12, eur: 99, label: "12 месяцев" },
+  "6m":  { months: 6,  eur: 55, label: "6 месяцев",  hidden: true },
+  "12m": { months: 12, eur: 99, label: "12 месяцев", hidden: true },
 };
 
 // Состояние. plan и method переживут шаг оплаты (plan дублируем в URL).
 const state = {
-  plan: "6m",
+  plan: "1m",
   method: "wayforpay", // wayforpay | lava
   email: "",
   lavaCurrency: "RUB", // RUB | EUR (экран 2)
@@ -265,7 +269,10 @@ const sb = (window.supabase && window.supabase.createClient)
 // --- URL <-> state (тариф переживает перезагрузку, пригодится шагу оплаты) ---
 function readPlanFromUrl() {
   const p = new URLSearchParams(location.search).get("plan");
-  if (p && PLANS[p]) {
+  // Скрытый тариф из адреса НЕ поднимаем: ссылки ?plan=6m разошлись по каналу и по
+  // истории браузеров, и без этой проверки они воскрешали бы снятый тариф. Молча
+  // остаёмся на тарифе по умолчанию, writePlanToUrl следом перепишет адрес.
+  if (p && PLANS[p] && !PLANS[p].hidden) {
     state.plan = p;
     const radio = els.plans.querySelector(`input[value="${p}"]`);
     if (radio) radio.checked = true;

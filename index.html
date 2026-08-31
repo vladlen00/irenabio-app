@@ -365,7 +365,7 @@
           <legend class="sr-only">Выберите тариф</legend>
 
           <label class="plan" data-plan="1m">
-            <input type="radio" name="plan" value="1m">
+            <input type="radio" name="plan" value="1m" checked>
             <span class="plan-body">
               <span class="plan-period">1 месяц</span>
               <span class="plan-price">11 <span>EUR</span></span>
@@ -373,8 +373,14 @@
             </span>
           </label>
 
-          <label class="plan" data-plan="6m">
-            <input type="radio" name="plan" value="6m" checked>
+          <!-- СНЯТО С ПРОДАЖИ 31.08.2026 до живого платежа на всех четырёх сочетаниях
+               (WayForPay и Lava на 6m и 12m). Разметка НЕ удалена: возврат = снять
+               hidden и disabled, вернуть checked туда, где он нужен.
+               Зеркала, расходиться нельзя: app.js PLANS.hidden,
+               create-checkout PLAN_CATALOG.available,
+               create-lava-invoice PLAN_MAP.available. -->
+          <label class="plan" data-plan="6m" hidden>
+            <input type="radio" name="plan" value="6m" disabled>
             <span class="plan-tag">выгодно</span>
             <span class="plan-body">
               <span class="plan-period">6 месяцев</span>
@@ -383,8 +389,8 @@
             </span>
           </label>
 
-          <label class="plan" data-plan="12m">
-            <input type="radio" name="plan" value="12m">
+          <label class="plan" data-plan="12m" hidden>
+            <input type="radio" name="plan" value="12m" disabled>
             <span class="plan-body">
               <span class="plan-period">12 месяцев</span>
               <span class="plan-price">99 <span>EUR</span></span>
@@ -617,6 +623,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=109"></script>
+  <script src="app.js?v=110"></script>
 </body>
 </html>
