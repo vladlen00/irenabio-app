@@ -406,6 +406,19 @@
         </label>
         <p class="field-error" id="email-error" hidden></p>
 
+        <!-- ВЫХОД С ЧЕКАУТА ДЛЯ ЗАЛОГИНЕННОЙ (2026-09-10). Женщина без доступа
+             (no_account / no_subscription / expired) приходит сюда с живой сессией,
+             и до этого блока выходов у неё не было: back спрятан, подвал спрятан,
+             меню только на доме. Единственным выходом была оплата второй раз.
+             Ссылки ловит один делегированный обработчик по data-session-exit (app.js).
+             Показывается только при живой сессии - fillCheckoutSession. -->
+        <p class="reassure" id="checkout-session" hidden>
+          Вы вошли как <strong id="checkout-session-email"></strong>.
+          <a href="#" data-session-exit="login" style="color:inherit;text-decoration:underline">Войти другой почтой</a>
+          &middot;
+          <a href="#" data-session-exit="start" style="color:inherit;text-decoration:underline">Выйти</a>
+        </p>
+
         <!-- ЭХО АДРЕСА вместо второго поля "Повторите почту" (2026-08-28).
              Опечатка в почте стоит доступа: почта это ЕДИНСТВЕННЫЙ ключ к аккаунту, писем мы
              не шлём, и ошибка не всплывёт никогда - женщина заплатит, а доступ уедет на
@@ -623,6 +636,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=111"></script>
+  <script src="app.js?v=112"></script>
 </body>
 </html>

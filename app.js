@@ -1247,6 +1247,39 @@ function checkoutBack() {
   showStart();
 }
 
+// Блок "Вы вошли как ... Войти другой почтой / Выйти" на чекауте. Сессия ЕСТЬ, а
+// доступа нет - женщина попала сюда из routeHomeOrCheckout (no_account /
+// no_subscription / expired) и раньше не имела ни одного выхода, кроме оплаты.
+// Почту берём из самой сессии: ровно та, с которой attach-web-identity сверяет заказ.
+// Без сессии блок скрыт: человеку с улицы выходить неоткуда, у него есть back.
+async function fillCheckoutSession() {
+  const box = document.getElementById("checkout-session");
+  const emailEl = document.getElementById("checkout-session-email");
+  if (!box) return;
+  box.hidden = true;
+  if (!sb || !hasStoredSession()) return;
+  let email = null;
+  try {
+    const { data } = await sb.auth.getSession();
+    email = data && data.session && data.session.user ? data.session.user.email : null;
+  } catch (e) {}
+  if (!email) return;
+  if (emailEl) emailEl.textContent = email;
+  box.hidden = false;
+}
+// Выход по ссылке с data-session-exit: "login" -> экран входа (сменить почту),
+// "start" -> стартовый экран. Тот же signOut, что и в меню дома.
+async function sessionExit(target) {
+  try { if (sb) await sb.auth.signOut(); } catch (e) {}
+  if (target === "login") showLogin(); else showStart();
+}
+document.addEventListener("click", (e) => {
+  const a = e.target && e.target.closest ? e.target.closest("[data-session-exit]") : null;
+  if (!a) return;
+  e.preventDefault();
+  sessionExit(a.getAttribute("data-session-exit"));
+});
+
 function showCheckout() {
   hideEntryViews();
   hidePayFlowExtra();
@@ -1264,6 +1297,7 @@ function showCheckout() {
   els.viewAccess.hidden = true;
   clearLavaReturn();   // ушли на чекаут -> сбрасываем незавершённый Lava-возврат (ложный мост)
   els.viewCheckout.hidden = false;
+  fillCheckoutSession();   // блок выхода для залогиненной; без сессии остаётся скрытым
   // существующая инициализация чекаута (ровно как было на старте) - оплатная ветка не тронута
   // Неизвестный тариф в адресе (в т.ч. старая ссылка ?plan=test) МОЛЧА игнорируется:
   // readPlanFromUrl подставляет значение, только если оно есть в PLANS, иначе остаётся
