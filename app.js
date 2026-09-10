@@ -1257,20 +1257,42 @@ async function fillCheckoutSession() {
   const emailEl = document.getElementById("checkout-session-email");
   if (!box) return;
   box.hidden = true;
-  if (!sb || !hasStoredSession()) return;
+  if (!sb || !hasStoredSession()) { lockCheckoutEmail(null); return; }
   let email = null;
   try {
     const { data } = await sb.auth.getSession();
     email = data && data.session && data.session.user ? data.session.user.email : null;
   } catch (e) {}
-  if (!email) return;
+  if (!email) { lockCheckoutEmail(null); return; }
   if (emailEl) emailEl.textContent = email;
   box.hidden = false;
+  lockCheckoutEmail(email);
+}
+// Почта залогиненной подставляется и ЗАКРЫВАЕТСЯ от правки: другой адрес в форме =
+// новый person (create-checkout резолвит person по строке из формы), деньги взяты,
+// доступа нет, дневник и история остались у старого. Сменить адрес можно только
+// через "Войти другой почтой" - осознанно, с выходом из сессии.
+// readCheckoutEmail и путь оплаты не меняются: они читают то же els.email.value.
+function lockCheckoutEmail(email) {
+  if (!els.email) return;
+  if (email) {
+    els.email.value = email;
+    els.email.readOnly = true;
+    showEmailError("");
+    // Эхо адреса ловит опечатку; в закрытом поле опечатка невозможна, а адрес уже
+    // стоит и в поле, и в строке "Вы вошли как". Третий повтор только шумит.
+    if (els.emailEcho) els.emailEcho.hidden = true;
+  } else {
+    els.email.readOnly = false;
+    updateEmailEcho();
+  }
 }
 // Выход по ссылке с data-session-exit: "login" -> экран входа (сменить почту),
 // "start" -> стартовый экран. Тот же signOut, что и в меню дома.
 async function sessionExit(target) {
   try { if (sb) await sb.auth.signOut(); } catch (e) {}
+  if (els.email) els.email.value = "";   // следующий чекаут начинается с чистого поля
+  lockCheckoutEmail(null);
   if (target === "login") showLogin(); else showStart();
 }
 document.addEventListener("click", (e) => {

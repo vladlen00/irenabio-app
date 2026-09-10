@@ -206,6 +206,8 @@ a:hover { text-decoration: underline; }
   background: var(--surface); border: 1.5px solid var(--border); border-radius: 13px;
 }
 .field input:focus { outline: none; border-color: var(--accent); }
+/* Почта залогиненной на чекауте: подставлена из сессии и не правится (lockCheckoutEmail). */
+.field input[readonly] { color: var(--muted); border-style: dashed; cursor: default; }
 .field-error { color: var(--accent-deep); font-size: 13px; margin: 6px 2px 0; }
 .form-error { color: var(--accent-deep); font-size: 14px; margin: 14px 2px 0; text-align: center; }
 
