@@ -1252,20 +1252,28 @@ function checkoutBack() {
 // no_subscription / expired) и раньше не имела ни одного выхода, кроме оплаты.
 // Почту берём из самой сессии: ровно та, с которой attach-web-identity сверяет заказ.
 // Без сессии блок скрыт: человеку с улицы выходить неоткуда, у него есть back.
-async function fillCheckoutSession() {
-  const box = document.getElementById("checkout-session");
-  const emailEl = document.getElementById("checkout-session-email");
-  if (!box) return;
-  box.hidden = true;
-  if (!sb || !hasStoredSession()) { lockCheckoutEmail(null); return; }
-  let email = null;
+// Почта живой сессии или null. Без сети: getSession читает хранилище.
+async function sessionEmail() {
+  if (!sb || !hasStoredSession()) return null;
   try {
     const { data } = await sb.auth.getSession();
-    email = data && data.session && data.session.user ? data.session.user.email : null;
-  } catch (e) {}
-  if (!email) { lockCheckoutEmail(null); return; }
+    return (data && data.session && data.session.user && data.session.user.email) || null;
+  } catch (e) { return null; }
+}
+// Общий блок "Вы вошли как ..." для чекаута и экрана подписки без дома.
+// Возвращает почту сессии (null - блок скрыт).
+async function fillSessionBlock(boxId, emailId) {
+  const box = document.getElementById(boxId);
+  const emailEl = document.getElementById(emailId);
+  if (box) box.hidden = true;
+  const email = await sessionEmail();
+  if (!email) return null;
   if (emailEl) emailEl.textContent = email;
-  box.hidden = false;
+  if (box) box.hidden = false;
+  return email;
+}
+async function fillCheckoutSession() {
+  const email = await fillSessionBlock("checkout-session", "checkout-session-email");
   lockCheckoutEmail(email);
 }
 // Почта залогиненной подставляется и ЗАКРЫВАЕТСЯ от правки: другой адрес в форме =
@@ -1654,15 +1662,25 @@ const CANCEL_LAVA_URL = SUPABASE_URL + "/functions/v1/cancel-lava-subscription";
   if (menuItem) menuItem.addEventListener("click", (e) => {
     e.stopPropagation();
     if (panel) panel.hidden = true;   // закрыть меню профиля
-    openSubscription();
+    openSubscription({ standalone: false });
   });
-  if (homeCard) homeCard.addEventListener("click", () => openSubscription());
+  if (homeCard) homeCard.addEventListener("click", () => openSubscription({ standalone: false }));
 })();
 
-async function openSubscription() {
+// subStandalone: экран открыт БЕЗ дома (доступа нет, reason=expired). Ставится только
+// двумя входами - домом (false) и routeHomeOrCheckout (true); возврат с чекаута
+// (checkoutBack) зовёт без аргумента и режим сохраняет.
+let subStandalone = false;
+async function openSubscription(opts) {
+  if (opts && typeof opts.standalone === "boolean") subStandalone = opts.standalone;
   hideContentViews();
+  els.viewCheckout.hidden = true;   // возврат с чекаута оставлял его видимым под экраном подписки
   const view = document.getElementById("view-subscription");
   if (view) view.hidden = false;
+  const backBtn = document.getElementById("sub-back");
+  if (backBtn) backBtn.hidden = subStandalone;   // дома нет - возвращаться некуда
+  if (subStandalone) fillSessionBlock("sub-session", "sub-session-email");
+  else { const sbx = document.getElementById("sub-session"); if (sbx) sbx.hidden = true; }
   window.scrollTo(0, 0);
   const loading = document.getElementById("sub-loading");
   const content = document.getElementById("sub-content");
@@ -1690,6 +1708,8 @@ async function openSubscription() {
   if (loading) loading.hidden = true;
   // развели: нет связи -> отдельный экран; сервер ответил -> прежняя честная ошибка
   if (r.state === "unreachable") { showConnection(openSubscription); return; }
+  // Без дома и без подписки в ответе - показывать нечего, отдаём чекаут (как до маршрута).
+  if (subStandalone && r.state === "denied") { checkoutBackTo = null; showCheckout(); return; }
   if (errEl) { errEl.innerHTML = "Не удалось загрузить данные подписки. Обновите страницу или напишите нам " + supportEmailHtml() + "."; errEl.hidden = false; }
 }
 
@@ -2347,7 +2367,14 @@ async function doClaim() {
 async function routeHomeOrCheckout(opts) {
   const paidFallback = opts && typeof opts.paidFallback === "function" ? opts.paidFallback : null;
   const again = () => routeHomeOrCheckout(opts);
-  const noAccess = () => { if (paidFallback) return paidFallback(); checkoutBackTo = null; showCheckout(); };
+  // reason от get-home: expired -> экран подписки "ЗАКОНЧИЛАСЬ" без дома (карта, дата,
+  // "прогресс сохранён", кнопка оформить). no_account / no_subscription -> чекаут: у них
+  // строки подписки нет, экрану подписки показывать нечего. paidFallback по-прежнему первый.
+  const noAccess = (reason) => {
+    if (paidFallback) return paidFallback();
+    if (reason === "expired") { openSubscription({ standalone: true }); return; }
+    checkoutBackTo = null; showCheckout();
+  };
   const noSession = () => { if (paidFallback) return paidFallback(); if (readLavaReturn()) showPayWait(); else showStart(); };
 
   // Синхронный пик сохранённой сессии -> прячем чекаут сразу, без мигания.
@@ -2373,7 +2400,7 @@ async function routeHomeOrCheckout(opts) {
     // Доступ открыт -> чистим ?paid=1&order= СРАЗУ. Иначе адрес живёт в истории и на каждом
     // заходе снова показывает "Оплата прошла, задайте пароль" залогиненной женщине.
     if (home.access) { stripPaidParams(); renderHome(home); return; }
-    noAccess();       // сервер ответил и сказал: доступа нет
+    noAccess(home.reason);       // сервер ответил и сказал: доступа нет
     return;
   }
   // ГЛАВНОЕ МЕСТО ЗАДАЧИ: вердикта не было -> НИКАКОГО чекаута.
@@ -2385,7 +2412,7 @@ async function routeHomeOrCheckout(opts) {
   //   401 - токен пуст или не принят GoTrue, то есть СЕССИЯ МЕРТВА -> нужна кнопка "Войти".
   // Без этого деления платящая женщина с протухшим токеном снова упирается в оплату:
   // getSessionState отдаёт "ok" (токен в хранилище есть), и ранняя развилка не срабатывает.
-  if (r.state === "denied" && r.status === 403) { noAccess(); return; }
+  if (r.state === "denied" && r.status === 403) { noAccess((r.data || {}).reason); return; }
   if (r.state === "denied") { noSession(); return; }
   // Всё остальное - неожиданный 4xx, кривой ответ - это НЕ вердикт о подписке.
   // По правилу v57: нет вердикта - нет чекаута.

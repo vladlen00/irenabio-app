@@ -348,6 +348,15 @@
              сразу под картой), поэтому содержимое целиком собирает renderSubscription. -->
         <div id="sub-content" hidden></div>
         <p id="sub-error" class="sub-loaderr" hidden></p>
+        <!-- ЭКРАН БЕЗ ДОМА (2026-09-10): истёкшая подписка приходит сюда из routeHomeOrCheckout
+             по reason=expired. Дома нет, стрелка назад спрятана, выход - этот блок.
+             Тот же обработчик data-session-exit, что и на чекауте. -->
+        <p class="reassure" id="sub-session" hidden>
+          Вы вошли как <strong id="sub-session-email"></strong>.
+          <a href="#" data-session-exit="login" style="color:inherit;text-decoration:underline">Войти другой почтой</a>
+          &middot;
+          <a href="#" data-session-exit="start" style="color:inherit;text-decoration:underline">Выйти</a>
+        </p>
         <div class="sub-support" id="sub-support"></div>
       </div>
     </section>
@@ -636,6 +645,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=113"></script>
+  <script src="app.js?v=114"></script>
 </body>
 </html>
