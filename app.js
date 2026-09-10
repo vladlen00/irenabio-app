@@ -1778,7 +1778,7 @@ function renderSubscription(sub) {
     const chargeWords = nextChargeWords || untilWords;
     html += '<p class="mnote">' +
       (recurrentLive
-        ? (chargeWords ? (chargeWords + (price ? " спишется " + escapeHtml(price) : " продлится") + " за следующий период. Напомню за три дня.")
+        ? (chargeWords ? (chargeWords + (price ? " спишется " + escapeHtml(price) : " продлится") + " за следующий период.")
                  : "Продлевается автоматически.")
         : recurrent
           // Правило не действует: доступ до конца оплаченного периода, дальше тишина.
