@@ -161,14 +161,18 @@ a:hover { text-decoration: underline; }
 .checkout { padding: max(30px, calc(12px + env(safe-area-inset-top, 0px))) max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
 /* Кнопка "назад" на экранах платёжного пути. Тот же вид, что у .lib-back и .day-back:
    38x38, радиус 13, стеклянная. Живёт в потоке, а не абсолютом - над заголовком. */
+/* Пилюля "<- Назад" (2026-09-10): квадрат 38px с одной тонкой стрелкой сливался с фоном,
+   слово делает кнопку узнаваемой, 44px по высоте - зона под палец. Кликается целиком. */
 .pay-back {
-  width: 38px; height: 38px; border-radius: 13px; margin-bottom: 14px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(20,14,20,.6); border: 1px solid rgba(255,255,255,.14);
-  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 44px; padding: 0 16px 0 12px; margin-bottom: 14px;
+  border-radius: 14px; cursor: pointer; user-select: none;
+  color: #F2E6EA; font-size: 15px; font-weight: 600; line-height: 1;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.22);
 }
+.pay-back:active { background: rgba(255,255,255,.14); }
 .pay-back[hidden] { display: none; }
-.pay-back i { font-size: 20px; color: #F2E6EA; }
+.pay-back i { font-size: 22px; color: #F2E6EA; }
 .checkout h1 { font-size: 26px; margin: 0 0 8px; text-align: center; }
 .checkout .lead { color: var(--muted); text-align: center; margin: 0 0 26px; font-size: 15px; }
 
