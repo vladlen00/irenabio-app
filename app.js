@@ -2106,6 +2106,17 @@ function showStart() {
   const vs = document.getElementById("view-start"); if (vs) vs.hidden = false;
   window.scrollTo(0, 0);
 }
+// Экран входа переиспользуется без перезагрузки: после удачного входа doLogin оставляет
+// кнопку "Входим..." (disabled) и поля с почтой и паролем, их никто не чистил. Любой
+// повторный показ (Выйти с дома -> Войти, "Войти другой почтой" с чекаута) открывал
+// залипшую форму. Сброс здесь, в единственной точке показа. Новые точки показа экрана
+// входа обязаны идти через showLogin, а не снимать hidden с секции сами.
+function resetLoginForm() {
+  const em = document.getElementById("login-email"); if (em) em.value = "";
+  const pw = document.getElementById("login-password"); if (pw) { pw.value = ""; pw.type = "password"; }
+  const eye = document.getElementById("login-eye"); if (eye) eye.textContent = "показать";
+  const btn = document.getElementById("btn-login"); if (btn) { btn.disabled = false; btn.textContent = "Войти"; }
+}
 function showLogin() {
   hidePayFlowExtra();
   if (siteHeader) siteHeader.hidden = false;
@@ -2116,6 +2127,7 @@ function showLogin() {
   const vc0 = document.getElementById("view-claim"); if (vc0) vc0.hidden = true;
   const vl = document.getElementById("view-login"); if (vl) vl.hidden = false;
   showLoginError("");
+  resetLoginForm();
   const em = document.getElementById("login-email"); if (em) em.focus();
   window.scrollTo(0, 0);
 }
