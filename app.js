@@ -196,7 +196,11 @@ function supportContactsHtml() {
 // выбирается и не поднимается из адреса. Зеркала на сервере: PLAN_CATALOG.available
 // в create-checkout и PLAN_MAP.available в create-lava-invoice.
 const PLANS = {
-  "1m":  { months: 1,  eur: 11, label: "1 месяц" },
+  // renews: тариф продлевается сам у ОБЕИХ платёжек. Флаг кормит строку про автопродление
+  // на чекауте (updateRecurrentNote). У 6m и 12m флага НЕТ намеренно: у WayForPay они
+  // разовые, у Lava продляемые, одной строкой это не описать. При возврате тарифов текст
+  // решать отдельно, иначе экран оплаты соврёт.
+  "1m":  { months: 1,  eur: 11, label: "1 месяц", renews: true },
   "6m":  { months: 6,  eur: 55, label: "6 месяцев",  hidden: true },
   "12m": { months: 12, eur: 99, label: "12 месяцев", hidden: true },
 };
@@ -290,6 +294,16 @@ function paintSelected() {
     const input = label.querySelector("input");
     label.classList.toggle("selected", input.checked);
   });
+  updateRecurrentNote();
+}
+
+// Строка про автопродление на чекауте: показываем только там, где оно есть у ОБЕИХ
+// платёжек. Нет флага - нет строки: молчание лучше неверного обещания на экране оплаты.
+function updateRecurrentNote() {
+  const note = document.getElementById("pay-recurrent-note");
+  if (!note) return;
+  const plan = PLANS[state.plan];
+  note.hidden = !(plan && plan.renews);
 }
 
 // --- email ---

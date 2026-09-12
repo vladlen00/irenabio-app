@@ -235,6 +235,11 @@ a:hover { text-decoration: underline; }
 .btn-ghost:hover { border-color: var(--accent); text-decoration: none; }
 
 /* Ссылка "Нет аккаунта? Оформить подписку" на экране логина (исходный вид). */
+/* Условия на экране оплаты: подвал тут скрыт, а ссылки обязаны быть под рукой. */
+.pay-legal { margin: 14px 0 0; text-align: center; font-size: 12.5px; line-height: 1.5; color: var(--muted); }
+.pay-legal a { color: var(--muted); border-bottom: 1px dashed var(--border); }
+.pay-legal a:hover { color: var(--accent-deep); text-decoration: none; }
+
 .alt-pay { text-align: center; margin: 14px 0 0; }
 .alt-pay a { font-size: 14px; color: var(--muted); border-bottom: 1px dashed var(--border); }
 .alt-pay a:hover { color: var(--accent-deep); text-decoration: none; }

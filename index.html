@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=72">
+  <link rel="stylesheet" href="style.css?v=73">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. У обоих есть кириллица
@@ -448,6 +448,25 @@
           <a href="#" id="to-lava-currency" role="button">Оплатить в рублях <i class="ti ti-chevron-right"></i></a>
         </p>
 
+        <!-- УСЛОВИЯ НА САМОМ ЭКРАНЕ ОПЛАТЫ (12.09.2026). Подвал с этими ссылками на чекауте
+             скрыт (showCheckout прячет .site-footer), а WayForPay требует, чтобы условия
+             услуги, оферта и порядок возврата были доступны покупателю ("Вимоги до сайту").
+             Готовой формулировки про автосписание НЕТ ни у WayForPay, ни у Lava - проверено
+             12.09.2026 по их документации. Текст ниже НАШ, собран по смыслу требований.
+             Строка про автопродление показывается ТОЛЬКО у тарифов с renews:true в PLANS
+             (updateRecurrentNote в app.js): у снятых 6m и 12m автопродление зависит от
+             платёжки - WayForPay разовый, Lava продляет, - и врать на экране оплаты нельзя. -->
+        <p class="pay-legal" id="pay-recurrent-note" hidden>
+          Подписка продлевается автоматически каждый месяц, списывается стоимость выбранного
+          тарифа. Отключить автопродление можно в приложении в любой момент - доступ
+          останется до конца оплаченного периода.
+        </p>
+        <p class="pay-legal">
+          Оплачивая, вы принимаете
+          <a href="https://irenabio.com/offer.html" target="_blank" rel="noopener">Публичную оферту</a>
+          и <a href="https://irenabio.com/refund.html" target="_blank" rel="noopener">Условия возврата</a>.
+        </p>
+
         <p class="form-error" id="form-error" hidden></p>
       </form>
     </section>
@@ -645,6 +664,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=117"></script>
+  <script src="app.js?v=118"></script>
 </body>
 </html>
