@@ -2003,6 +2003,10 @@ async function openMiniApp(appKey, tileEl) {
     const r = await sbFetch(MINT_APP_TOKEN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+      // Ключ аппа нужен серверу, чтобы выбрать срок токена: студии 90 минут (женщина уходит
+      // из неё в медитацию и возвращается кнопкой, на возврате токен проверяется заново),
+      // остальным прежние 15. Решение о сроке принимает сервер, здесь только назначение.
+      body: JSON.stringify({ app: appKey }),
     }, { retry: true });
     if (r.state === "unreachable") { flash("Нет связи, попробуйте ещё раз"); return; }
     const res = { ok: r.state === "ok" };
