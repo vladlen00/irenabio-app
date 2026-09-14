@@ -1985,7 +1985,7 @@ const MINI_APPS = {
   workout: { url: "https://vladlen00.github.io/workout/", v: "4", path: "/workout/" },
   // glutes С path с 14.09. Выводился 18.08 «из-за прогресса в localStorage», причина
   // была НЕВЕРНОЙ: на вебе прогресс не сохраняется нигде. Разбор в истории sw.js.
-  glutes: { url: "https://vladlen00.github.io/glutes/", v: "2", path: "/glutes/" },
+  glutes: { url: "https://vladlen00.github.io/glutes/", v: "3", path: "/glutes/" },
   // biohack-трекер - один апп, экран выбирается через ?startapp= (читается App.js из search).
   podruzhka: { url: "https://biohack-tracker-blond.vercel.app/", v: "1", q: "startapp=ai" },
   zdorovie: { url: "https://biohack-tracker-blond.vercel.app/", v: "1", q: "startapp=checkin" },
