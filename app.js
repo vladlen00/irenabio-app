@@ -1983,9 +1983,9 @@ const MINI_APPS = {
   // workout С path с 20.08: домен app.irenabio.com добавлен ко всем 14 роликам
   // в кабинете Kinescope (проверено руками), ограничение снято.
   workout: { url: "https://vladlen00.github.io/workout/", v: "4", path: "/workout/" },
-  // glutes БЕЗ path СОЗНАТЕЛЬНО: прогресс лежит в localStorage, на новом origin
-  // он оказался бы пустым, а старый - недостижимым. См. исключение в sw.js.
-  glutes: { url: "https://vladlen00.github.io/glutes/", v: "2" },
+  // glutes С path с 14.09. Выводился 18.08 «из-за прогресса в localStorage», причина
+  // была НЕВЕРНОЙ: на вебе прогресс не сохраняется нигде. Разбор в истории sw.js.
+  glutes: { url: "https://vladlen00.github.io/glutes/", v: "2", path: "/glutes/" },
   // biohack-трекер - один апп, экран выбирается через ?startapp= (читается App.js из search).
   podruzhka: { url: "https://biohack-tracker-blond.vercel.app/", v: "1", q: "startapp=ai" },
   zdorovie: { url: "https://biohack-tracker-blond.vercel.app/", v: "1", q: "startapp=checkin" },
