@@ -143,10 +143,14 @@ self.addEventListener("fetch", (e) => {
 
   // credentials: "omit" обязателен: с ACAO "*" браузер отвергает ответ на
   // запрос с учётными данными. Их тут и не нужно - Pages отдаёт статику.
-  // .catch(): если проксирование не сложилось, уводим на github.io напрямую,
-  // то есть в СЕГОДНЯШНЕЕ поведение. Хуже, чем без воркера, не становится.
+  // Не сложилось проксирование ИЛИ Pages ответил не 200 - уводим на github.io
+  // напрямую, то есть в поведение «как без воркера». Раньше не-200 (404/5xx)
+  // отдавался странице как есть, и для скрипта это был неисполненный файл и
+  // мёртвый экран (кандидат 2 в разборе 14.09, HANDOVER).
+  const direct = GH + u.pathname + u.search;
   e.respondWith(
-    fetch(GH + u.pathname + u.search, { credentials: "omit" })
-      .catch(() => Response.redirect(GH + u.pathname + u.search, 302))
+    fetch(direct, { credentials: "omit" })
+      .then((r) => (r.ok ? r : Response.redirect(direct, 302)))
+      .catch(() => Response.redirect(direct, 302))
   );
 });
