@@ -1603,13 +1603,16 @@ function renderHome(data) {
   const subGrace = data.status === "grace";
   const subCancelled = !!data.cancelled;
   const untilRu = data.valid_until ? fmtDateRu(data.valid_until) : "";
-  homeEls.subUntil.textContent = untilRu ? ("до " + untilRu) : "";
+  // В grace доступ живёт до valid_until + 3 дня (ACCESS-CANON), и «продлите до» обязано
+  // называть ЭТУ дату: valid_until в grace обычно уже в прошлом.
+  const graceEndRu = subGrace && data.valid_until ? fmtDateRu(graceEndIso(data.valid_until)) : "";
+  homeEls.subUntil.textContent = untilRu ? ("до " + (graceEndRu || untilRu)) : "";
   const subTitleEl = document.getElementById("home-sub-title");
   if (subTitleEl) subTitleEl.textContent = subGrace ? "Оплата не прошла" : (subCancelled ? "Автопродление отключено" : "Подписка активна");
   const hmenuUntil = document.getElementById("hmenu-sub-until");
   if (hmenuUntil) {
     hmenuUntil.textContent = subGrace
-      ? ("оплата не прошла" + (untilRu ? ", продлите до " + untilRu : ""))
+      ? ("оплата не прошла" + (graceEndRu ? ", продлите до " + graceEndRu : ""))
       : subCancelled
         ? ("автопродление отключено" + (untilRu ? ", до " + untilRu : ""))
         : ("активна" + (untilRu ? " до " + untilRu : ""));
@@ -1767,6 +1770,12 @@ function fmtDayMonthYear(iso) {
   if (isNaN(d.getTime())) return "";
   return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" }).replace(/\s*г\.$/, "");
 }
+// Конец доступа в grace: valid_until + 3 дня, та же константа, что в гейтах сервера.
+const ACCESS_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
+function graceEndIso(iso) {
+  const t = iso ? new Date(iso).getTime() : NaN;
+  return Number.isFinite(t) ? new Date(t + ACCESS_GRACE_MS).toISOString() : null;
+}
 function daysLeft(iso) {
   const t = iso ? new Date(iso).getTime() : 0;
   if (!t) return null;
@@ -1838,8 +1847,17 @@ function renderSubscription(sub) {
   } else if (sub.status === "grace") {
     // ОПЛАТА НЕ ПРОШЛА. Кнопка оплаты идёт СРАЗУ под картой: заплатить надо мочь,
     // не листая экран.
-    html += memcardHtml("bad", "ОПЛАТА НЕ ПРОШЛА", sub, "Доступ ещё", left != null ? plurDaysLeft(left) : "");
-    html += '<p class="mnote">Банк отклонил списание' + (untilWords ? " " + untilWords : "") +
+    // Дни считаются до конца ДОСТУПА (valid_until + 3 дня), а не до valid_until: в grace
+    // срок обычно уже прошёл, и карта печатала «0 дней» при живом доступе.
+    const graceLeft = daysLeft(graceEndIso(sub.valid_until));
+    html += memcardHtml("bad", "ОПЛАТА НЕ ПРОШЛА", sub, "Доступ ещё", graceLeft != null ? plurDaysLeft(graceLeft) : "");
+    // Дата - когда НА САМОМ ДЕЛЕ не прошло списание (payment_failed_at), а не конец периода.
+    // no_callback: платёжка промолчала, говорить «банк отклонил» было бы выдумкой.
+    const failedWords = sub.payment_failed_at ? fmtDayMonth(sub.payment_failed_at) : "";
+    html += '<p class="mnote">' +
+            (sub.grace_reason === "no_callback"
+              ? "Продление подписки не прошло"
+              : "Банк отклонил списание" + (failedWords ? " " + failedWords : "")) +
             '. Обычно помогает повторить оплату - деньги спишутся один раз.</p>';
     html += '<button type="button" class="sub-primary" id="sub-renew">' +
             (price ? "Оплатить " + escapeHtml(price) : "Оплатить") + '</button>';
