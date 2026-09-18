@@ -1258,6 +1258,7 @@ function checkoutBack() {
   checkoutBackTo = null;
   if (t === "subscription") { openSubscription(); return; }
   if (t === "login") { showLogin(); return; }
+  if (t === "demo") { showDemoIntro(); return; }
   showStart();
 }
 
@@ -1730,6 +1731,23 @@ async function openSubscription(opts) {
   if (errEl) { errEl.innerHTML = "Не удалось загрузить данные подписки. Обновите страницу или напишите нам " + supportEmailHtml() + "."; errEl.hidden = false; }
 }
 
+// ЧТО ВНУТРИ - список для пришедших из демо (экран view-demo-intro).
+// ОБНОВЛЯТЬ ПРИ ДОБАВЛЕНИИ СПРИНТОВ. Написан руками и живёт ровно здесь.
+//
+// В ШАГЕ 2 ЭТОТ МАССИВ УДАЛЯЕТСЯ. Витрина возьмёт состав из базы через get-public,
+// и две копии списка программ существовать не должны: они разъедутся в первый же
+// месяц, ровно как расходилась оферта с кодом. См. HANDOVER, ХВОСТ 1.
+//
+// Это НЕ то же самое, что SUB_INCLUDES ниже: там плоский перечень для членской
+// карты, тут первое впечатление с пояснениями. Правя один, посмотрите на второй.
+const DEMO_INSIDE = [
+  ["Спринты и дни", "программы по темам, новый день выходит вслед за каналом"],
+  ["Тренировки", "«Женское тело» и «Биохакинг ягодиц», с разбором техники"],
+  ["Медитации и дыхание", "практики на сон, тревогу, расслабление и фокус"],
+  ["Трекеры", "цикл, самочувствие, анализы и дневник"],
+  ["Подружка", "помощница Ирены: спросить про свои анализы и самочувствие"],
+];
+
 // Что даёт подписка. Порядок закреплён макетом, произвольно не менять.
 const SUB_INCLUDES = ["тренировки и упражнения", "трекеры здоровья и цикла", "дневник самочувствия",
   "медитации", "дыхательные практики", "обучающие материалы", "ежедневные подкасты"];
@@ -2126,7 +2144,28 @@ function hideEntryViews() {
   const vl = document.getElementById("view-login"); if (vl) vl.hidden = true;
   const vr = document.getElementById("view-reset"); if (vr) vr.hidden = true;
   const vc = document.getElementById("view-claim"); if (vc) vc.hidden = true;
+  const vd = document.getElementById("view-demo-intro"); if (vd) vd.hidden = true;
 }
+function showDemoIntro() {
+  hidePayFlowExtra();
+  if (siteHeader) siteHeader.hidden = false;
+  if (siteFooter) siteFooter.hidden = false;
+  els.viewHome.hidden = true;
+  els.viewCheckout.hidden = true;
+  if (els.viewLavaReturn) els.viewLavaReturn.hidden = true;
+  els.viewPassword.hidden = true;
+  els.viewAccess.hidden = true;
+  hideEntryViews();
+  const box = document.getElementById("demo-inside");
+  if (box) {
+    box.innerHTML = DEMO_INSIDE.map(function (x) {
+      return '<li><b>' + escapeHtml(x[0]) + '</b><span>' + escapeHtml(x[1]) + '</span></li>';
+    }).join("");
+  }
+  const v = document.getElementById("view-demo-intro"); if (v) v.hidden = false;
+  window.scrollTo(0, 0);
+}
+
 function showStart() {
   hidePayFlowExtra();
   if (siteHeader) siteHeader.hidden = false;
@@ -2139,6 +2178,7 @@ function showStart() {
   const vl = document.getElementById("view-login"); if (vl) vl.hidden = true;
   const vr0 = document.getElementById("view-reset"); if (vr0) vr0.hidden = true;
   const vc0 = document.getElementById("view-claim"); if (vc0) vc0.hidden = true;
+  const vd1 = document.getElementById("view-demo-intro"); if (vd1) vd1.hidden = true;
   const vs = document.getElementById("view-start"); if (vs) vs.hidden = false;
   window.scrollTo(0, 0);
 }
@@ -2161,6 +2201,7 @@ function showLogin() {
   els.viewCheckout.hidden = true;
   const vr0 = document.getElementById("view-reset"); if (vr0) vr0.hidden = true;
   const vc0 = document.getElementById("view-claim"); if (vc0) vc0.hidden = true;
+  const vd0 = document.getElementById("view-demo-intro"); if (vd0) vd0.hidden = true;
   const vl = document.getElementById("view-login"); if (vl) vl.hidden = false;
   showLoginError("");
   resetLoginForm();
@@ -2378,6 +2419,8 @@ async function doClaim() {
   const bind = (id, fn) => { const e = document.getElementById(id); if (e) e.addEventListener("click", fn); };
   bind("start-login", (e) => { e.preventDefault(); showLogin(); });
   bind("start-signup", (e) => { e.preventDefault(); checkoutBackTo = "start"; showCheckout(); });
+  bind("demo-signup", (e) => { e.preventDefault(); checkoutBackTo = "demo"; showCheckout(); });
+  bind("demo-login", (e) => { e.preventDefault(); showLogin(); });
   bind("btn-login", (e) => { e.preventDefault(); doLogin(); });
   bind("login-back", (e) => { e.preventDefault(); showStart(); });
   bind("login-to-signup", (e) => { e.preventDefault(); checkoutBackTo = "login"; showCheckout(); });
@@ -3284,6 +3327,11 @@ if ("serviceWorker" in navigator) {
 
 // --- старт: ветвление возврат-после-оплаты / дом / чекаут ---
 const startParams = new URLSearchParams(location.search);
+// Метка из демо-копии мини-аппа: ?from=demo-<апп>. Проверка строгая по префиксу,
+// иначе любой посторонний ?from= уводил бы женщину с обычного маршрута.
+function isDemoReferral() {
+  return /^demo-[a-z0-9-]{1,32}$/.test(startParams.get("from") || "");
+}
 if (startParams.get("paid") === "1" && startParams.get("order")) {
   // ?paid приходит по returnUrl WayForPay, НО адрес остаётся в истории и открывается снова.
   // Поэтому сначала спрашиваем про доступ, и только если его нет - показываем экран пароля.
@@ -3292,6 +3340,14 @@ if (startParams.get("paid") === "1" && startParams.get("order")) {
   const order = startParams.get("order");
   if (sb && hasStoredSession()) routeHomeOrCheckout({ paidFallback: () => enterPaymentReturn(order) });
   else enterPaymentReturn(order);
+} else if (isDemoReferral() && !(sb && hasStoredSession())) {
+  // Пришла из демо и не залогинена -> короткий экран «что внутри» вместо СТАРТА.
+  // Сервер тут НЕ спрашивается вовсе, поэтому правило «нет вердикта - нет чекаута»
+  // не задето: мы ничего не утверждаем про её подписку, мы её ещё не знаем.
+  // Есть сохранённая сессия -> обычный маршрут. Ключ может оказаться протухшим,
+  // и это безопасно: маршрут сам покажет СТАРТ с кнопкой «Войти», то есть не хуже
+  // сегодняшнего (см. ловушку hasStoredSession в памяти).
+  showDemoIntro();
 } else {
   routeHomeOrCheckout();                           // дом / чекаут / (stash -> экран ожидания)
 }

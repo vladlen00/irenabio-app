@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=73">
+  <link rel="stylesheet" href="style.css?v=74">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. У обоих есть кириллица
@@ -61,6 +61,21 @@
         <button class="btn btn-ghost" id="start-signup" type="button">Оформить подписку</button>
         <p class="alt-pay start-paid-help"><a href="#" id="start-paid-help" role="button">Оплатили, но ещё не заходили?</a></p>
         <p class="reassure" id="start-paid-help-box" hidden></p>
+      </div>
+    </section>
+
+
+    <!-- ЭКРАН «ЧТО ВНУТРИ»: показывается тем, кто пришёл из демо-копии мини-аппа
+         (в адресе ?from=demo-<апп>) и НЕ залогинен. Раньше их встречал СТАРТ с двумя
+         кнопками, и это тупик: женщина попробовала одну практику и не знает, что есть
+         остальное. Список наполняет app.js из DEMO_INSIDE. -->
+    <section id="view-demo-intro" hidden>
+      <div class="start-card">
+        <h1>Что внутри</h1>
+        <p class="lead">Вы попробовали одну практику. В приложении есть остальное.</p>
+        <ul class="demo-inside" id="demo-inside"></ul>
+        <button class="btn btn-primary" id="demo-signup" type="button">Оформить подписку</button>
+        <p class="alt-pay"><a href="#" id="demo-login" role="button">У меня уже есть подписка</a></p>
       </div>
     </section>
 
@@ -664,6 +679,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=122"></script>
+  <script src="app.js?v=123"></script>
 </body>
 </html>

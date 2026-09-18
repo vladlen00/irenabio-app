@@ -787,6 +787,17 @@ a:hover { text-decoration: underline; }
 .start-card .btn { margin-top: 12px; }
 .start-card .btn:first-of-type { margin-top: 4px; }
 
+/* Список «что внутри» на экране для пришедших из демо. Карточка и кнопки
+   переиспользуют .start-card, своего тут только список. */
+.demo-inside { list-style: none; margin: 0 0 22px; padding: 0; text-align: left; }
+.demo-inside li {
+  padding: 11px 0; border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.demo-inside li:first-child { border-top: none; }
+.demo-inside b { font-size: 15px; font-weight: 600; color: var(--text); }
+.demo-inside span { font-size: 13px; line-height: 1.45; color: var(--muted); }
+
 .login-card { margin-top: 24px; }
 .login-card h1 { font-size: 24px; text-align: center; margin: 0 0 20px; }
 .login-pw-label { margin-top: 12px; }
