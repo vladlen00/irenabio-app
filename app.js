@@ -6,6 +6,36 @@
 //   attach-web-identity -> verify-access-web (с ретраями) -> "Доступ открыт".
 // Чекаут на чистом fetch; supabase-js (CDN) только для auth-экранов (пароль+гейт).
 
+// Метка сборки. Печатается в консоль при загрузке, чтобы можно было убедиться,
+// что браузер взял свежий app.js, а не кэш. Поднимать вместе с ?v= в index.html.
+const APP_BUILD = "2026-09-21 витрина #8 (8 программ, полное число дней)";
+try {
+  console.info("app.js build:", APP_BUILD);
+  document.documentElement.setAttribute("data-build", APP_BUILD);
+} catch (e) {}
+
+// ⚠️ ВРЕМЕННО, ДЛЯ ПОИСКА ЗАВИСАНИЯ НА "Проверяем доступ". Снять вместе с починкой.
+// Включается сам на localhost и по ?debug=1. На проде молчит.
+const SC_DEBUG = (function () {
+  try {
+    return location.hostname === "localhost" || location.hostname === "127.0.0.1"
+      || location.search.indexOf("debug=1") >= 0;
+  } catch (e) { return false; }
+})();
+window.__scLog = [];
+function scLog(what, data) {
+  if (!SC_DEBUG) return;
+  const line = { t: Math.round(performance.now()), what: what, data: data === undefined ? null : data };
+  window.__scLog.push(line);
+  try { console.log("[СЦ " + line.t + "] " + what, data === undefined ? "" : data); } catch (e) {}
+}
+// Одной строкой скопировать весь журнал: copy(__scDump())
+window.__scDump = function () {
+  const txt = window.__scLog.map((l) => "[" + l.t + "] " + l.what + (l.data ? " " + JSON.stringify(l.data) : "")).join(String.fromCharCode(10));
+  try { console.log(txt); } catch (e) {}
+  return txt;
+};
+
 const SUPABASE_URL = "https://kjzxrpwqyyjcykwbqskn.supabase.co";
 const PUBLISHABLE_KEY = "sb_publishable_pOloEHMZ5QjMhnbfhygqmA_CQPSP1hU";
 const CREATE_CHECKOUT_URL = SUPABASE_URL + "/functions/v1/create-checkout";
@@ -17,6 +47,7 @@ const ATTACH_IDENTITY_URL = SUPABASE_URL + "/functions/v1/attach-web-identity";
 const VERIFY_ACCESS_URL = SUPABASE_URL + "/functions/v1/verify-access-web";
 const GET_HOME_URL = SUPABASE_URL + "/functions/v1/get-home";
 const GET_DAY_URL = SUPABASE_URL + "/functions/v1/get-day";
+const GET_PUBLIC_URL = SUPABASE_URL + "/functions/v1/get-public";   // витрина: без авторизации
 const MARK_DAY_DONE_URL = SUPABASE_URL + "/functions/v1/mark-day-done";
 const SET_CURRENT_SPRINT_URL = SUPABASE_URL + "/functions/v1/set-current-sprint";   // ЯВНЫЙ выбор спринта
 const PROJECT_REF = "kjzxrpwqyyjcykwbqskn";
@@ -64,6 +95,10 @@ function clearRoute() { try { localStorage.removeItem(ROUTE_KEY); } catch (e) {}
 function routeProbeStatus(text) {
   try {
     if (!homeEls || !homeEls.loading) return;
+    // ⚠️ Пишем ТОЛЬКО когда каркас дома реально на экране. Иначе текст оседает в
+    // скрытом узле и всплывает позже, на другом экране: гостья, вернувшаяся стрелкой
+    // из бесплатного дня, читала «Проверяем доступ…», хотя ничего не проверялось.
+    if (!els || !els.viewHome || els.viewHome.hidden) return;
     homeEls.loading.textContent = text;
   } catch (e) {}
 }
@@ -76,7 +111,10 @@ async function routeAlive(base, timeoutMs) {
   const url = base + "/auth/v1/health?_=" + Date.now() + "-" + Math.random().toString(36).slice(2);
   const ctrl = new AbortController();
   const tm = setTimeout(() => ctrl.abort(), timeoutMs);
-  try { await fetch(url, { method: "GET", cache: "no-store", signal: ctrl.signal }); return true; }
+  // apikey добавлен 21.09: без него health отвечает 401 и браузер печатает красным,
+  // хотя это штатный ответ. Логику не меняет - живым путь считается по ЛЮБОМУ ответу,
+  // а ключ анонимный и всё равно лежит в бандле.
+  try { await fetch(url, { method: "GET", cache: "no-store", signal: ctrl.signal, headers: { apikey: PUBLISHABLE_KEY } }); return true; }
   catch (e) { return false; }
   finally { clearTimeout(tm); }
 }
@@ -474,6 +512,16 @@ function isAuthNetworkError(err) {
 function hasStoredSession() {
   try { return !!localStorage.getItem("sb-" + PROJECT_REF + "-auth-token"); } catch (e) { return false; }
 }
+// Гонка промиса с таймером. Промис не отменяется (его некому отменять), но ждать
+// его дольше срока мы перестаём.
+const SESSION_TIMEOUT_MS = 8000;
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error("session_timeout")), ms)),
+  ]);
+}
+
 async function getSessionState(opts) {
   if (!sb) return { state: "denied", token: null };
   const stored = hasStoredSession();
@@ -482,7 +530,14 @@ async function getSessionState(opts) {
   for (let attempt = 1; attempt <= attempts; attempt++) {
     if (onAttempt) { try { onAttempt(attempt, attempts); } catch (e) {} }
     try {
-      const { data, error } = await sb.auth.getSession();
+      // ⚠ ТАЙМАУТ ОБЯЗАТЕЛЕН. У sb.auth.getSession() своего таймаута НЕТ, и после
+      // возврата Назад из другой вкладки (bfcache) он умеет не резолвиться вовсе:
+      // страницу восстановили, запрос обновления токена был оборван, внутренний
+      // замок supabase-js остался занятым. Без гонки с таймером женщина навсегда
+      // застывала на "Проверяем доступ, попытка 1 из 3" - найдено 21.09.2026.
+      // Промах таймера трактуем как обрыв связи: дальше сработает ретрай, а после
+      // последней попытки - экран связи (у подписчицы) или витрина (у гостьи).
+      const { data, error } = await withTimeout(sb.auth.getSession(), SESSION_TIMEOUT_MS);
       const token = data && data.session ? data.session.access_token : null;
       if (token) return { state: "ok", token };
       // токена нет: либо человек не залогинен, либо refresh не дошёл до сервера
@@ -1188,7 +1243,10 @@ function paintCover(el, slug, kind, shade) {
 // Спринт, которому принадлежит день. get-day отдаёт day.sprint_id, а cover_slug уже
 // лежит в homeData - отдельный запрос за обложкой не нужен.
 function sprintById(id) {
-  return homeSprints(homeData).find((s) => s.id === id) || null;
+  const own = homeSprints(homeData).find((s) => s.id === id);
+  if (own) return own;
+  // У гостьи homeData нет вовсе: обложку бесплатного дня берём из состава витрины.
+  return (publicData && (publicData.sprints || []).find((s) => s.id === id)) || null;
 }
 
 function fmtDateRu(iso) {
@@ -1258,7 +1316,7 @@ function checkoutBack() {
   checkoutBackTo = null;
   if (t === "subscription") { openSubscription(); return; }
   if (t === "login") { showLogin(); return; }
-  if (t === "demo") { showDemoIntro(); return; }
+  if (t === "showcase") { showShowcase(); return; }
   showStart();
 }
 
@@ -1351,7 +1409,39 @@ function showCheckout() {
   writePlanToUrl();
   paintSelected();
 }
+// Сторож каркаса дома. Условие проверяется В МОМЕНТ срабатывания, а не по флагам:
+// так его нельзя забыть снять из нового экрана. Ушли с каркаса - сторож промолчит.
+const HOME_WAIT_LIMIT_MS = 12000;
+let homeWaitTimer = null;
+function homeWaitWatch(retry) {
+  clearTimeout(homeWaitTimer);
+  scLog("сторож: завёл на " + HOME_WAIT_LIMIT_MS + " мс");
+  homeWaitTimer = setTimeout(() => {
+    const loading = homeEls && homeEls.loading;
+    const state = {
+      есть_узел: !!loading,
+      загрузка_скрыта: loading ? loading.hidden : null,
+      дом_скрыт: els.viewHome ? els.viewHome.hidden : null,
+      текст: loading ? (loading.textContent || "").slice(0, 40) : null,
+      сессия: !!(sb && hasStoredSession()),
+    };
+    if (!loading || loading.hidden || !els.viewHome || els.viewHome.hidden) { scLog("сторож: промолчал, каркаса нет", state); return; }
+    scLog("сторож: СРАБОТАЛ", state);
+    console.warn("home shell watchdog: вердикта нет дольше " + HOME_WAIT_LIMIT_MS + " мс");
+    // Вердикта нет дольше срока. "Проверяем доступ" навсегда - недопустимо.
+    // Есть сохранённая сессия -> это про связь, ей экран связи с "Повторить".
+    // Нет сессии -> она гостья, её домашний экран это витрина.
+    if (sb && hasStoredSession()) showConnection(retry || (() => routeHomeOrCheckout()));
+    else showShowcase();
+  }, HOME_WAIT_LIMIT_MS);
+}
+
 function showHomeShell() {
+  if (SC_DEBUG) {
+    let stack = "";
+    try { stack = (new Error().stack || "").split(String.fromCharCode(10)).slice(1, 5).join(" <- ").replace(/https?:\/\/[^\/]+\//g, ""); } catch (e) {}
+    scLog("showHomeShell: ПОКАЗЫВАЮ КАРКАС ДОМА", { откуда: stack });
+  }
   hideEntryViews();
   hidePayFlowExtra();
   if (siteHeader) siteHeader.hidden = true;
@@ -1364,6 +1454,7 @@ function showHomeShell() {
   homeEls.loading.textContent = "Загрузка…";   // сброс счётчика попыток от прошлого захода
   homeEls.loading.hidden = false;
   homeEls.content.hidden = true;
+  homeWaitWatch();
 }
 
 // ===================== БИБЛИОТЕКА СПРИНТОВ =====================
@@ -1731,7 +1822,6 @@ async function openSubscription(opts) {
   if (errEl) { errEl.innerHTML = "Не удалось загрузить данные подписки. Обновите страницу или напишите нам " + supportEmailHtml() + "."; errEl.hidden = false; }
 }
 
-// ЧТО ВНУТРИ - список для пришедших из демо (экран view-demo-intro).
 // ОБНОВЛЯТЬ ПРИ ДОБАВЛЕНИИ СПРИНТОВ. Написан руками и живёт ровно здесь.
 //
 // В ШАГЕ 2 ЭТОТ МАССИВ УДАЛЯЕТСЯ. Витрина возьмёт состав из базы через get-public,
@@ -1740,35 +1830,6 @@ async function openSubscription(opts) {
 //
 // Это НЕ то же самое, что SUB_INCLUDES ниже: там плоский перечень для членской
 // карты, тут первое впечатление с пояснениями. Правя один, посмотрите на второй.
-const DEMO_INSIDE = [
-  // Названия программ сверены с базой 18.09.2026: это ВСЕ спринты, у которых
-  // есть живые дни. «Анти-хаос», «Здоровый ЖКТ и женское тело» и «Основы питания»
-  // сюда НЕ попали намеренно: они в статусе draft, дней ноль, и женщина, пришедшая
-  // за ними, нашла бы плашку «Скоро».
-  ["Программы по дням", "«Архитектура сна», «Биохакинг ягодиц», «Омоложение изнутри». Новые дни добавляются вслед за каналом"],
-  ["Тренировки с Иреной", "«Женское тело» и разборы техники, чтобы работали нужные мышцы"],
-  // 14 практик это 12 медитаций плюс 2 дыхательные. Сверено с RELAX_WEB_APPS студии.
-  ["Медитации и дыхание", "заснуть, унять тревогу, собраться перед важным. 14 практик"],
-  ["Твои данные в одном месте", "цикл, самочувствие, анализы. Видно, что меняется от месяца к месяцу"],
-  ["ИИ-подружка", "знает твои анализы и фазу цикла, отвечает по современным медицинским протоколам"],
-];
-
-// Подзаголовок под заголовком экрана: своя фраза на каждое демо, чтобы женщина
-// узнала то, что только что прошла. Ключ - хвост метки ?from=demo-<апп>.
-// ОБНОВЛЯТЬ ПРИ ДОБАВЛЕНИИ ДЕМО-КОПИЙ. Незнакомая метка берёт запасную фразу,
-// поэтому новое демо не ломает экран, а лишь говорит общими словами.
-//
-// В ШАГЕ 2 ЭТОТ СЛОВАРЬ УДАЛЯЕТСЯ вместе с DEMO_INSIDE: витрина возьмёт состав
-// из базы через get-public. См. HANDOVER, ХВОСТ 1.
-const DEMO_SUBHEAD = {
-  oneday: "Ты попробовала одну медитацию из 12. Вот что есть в приложении.",
-  breathing446: "Ты попробовала одну дыхательную практику. Вот что есть в приложении.",
-  bodyage: "Ты узнала возраст своего тела. Сохранить результат и сравнить через месяц можно в приложении.",
-  glutes: "Ты посмотрела один разбор техники. Всего их 20, плюс сами тренировки.",
-  workout: "Ты попробовала одну тренировку. Вот что есть в приложении.",
-};
-const DEMO_SUBHEAD_FALLBACK = "Это малая часть. Вот что есть в приложении.";
-
 // Что даёт подписка. Порядок закреплён макетом, произвольно не менять.
 const SUB_INCLUDES = ["тренировки и упражнения", "трекеры здоровья и цикла", "дневник самочувствия",
   "медитации", "дыхательные практики", "обучающие материалы", "ежедневные подкасты"];
@@ -2051,6 +2112,10 @@ const MINI_APPS = {
   // (кнопка возврата забирает остаток прошлой сессии и затирает им свежий токен).
   // Воспроизведено дважды на живом. См. исключение в sw.js.
   relax: { url: "https://vladlen00.github.io/studio/", v: "15" },
+  // Две медитации глубокого расслабления: плиток на доме нет, открываются метками
+  // из текста дня (Анти-хаос, день 1). Версии сверены с RELAX_WEB_APPS студии 21.09.
+  meditation: { url: "https://vladlen00.github.io/meditation/", v: "2" },       // «Глубокое расслабление», дневная
+  sleep:      { url: "https://vladlen00.github.io/sleep-meditation/", v: "2" }, // «Глубокий сон», ночная
   // Тест «Возраст тела»: плитки на доме нет, открывается меткой из текста дня.
   // bodyage БЕЗ path СОЗНАТЕЛЬНО: общий ключ темы irena_theme, наш index.html его
   // затирает - выбор темы перестал бы запоминаться. См. исключение в sw.js.
@@ -2147,6 +2212,9 @@ const DAY_LINK_ROUTES = {
   trainings: () => openSheetByGroup("trainings"),
   trackers:  () => openSheetByGroup("trackers"),
   bodyage:   (el) => openMiniApp("bodyage", el), // тест «Возраст тела», день 1 спринта «Омоложение изнутри»
+  cycle:      (el) => openMiniApp("cycle", el),      // трекер «Цикл», день 1 спринта «Основы питания»
+  meditation: (el) => openMiniApp("meditation", el), // «Глубокое расслабление», день 1 «Анти-хаоса»
+  sleep:      (el) => openMiniApp("sleep", el),      // «Глубокий сон», день 1 «Анти-хаоса»
 };
 document.addEventListener("click", (e) => {
   const a = e.target.closest('a[href^="' + DAY_LINK_PREFIX + '"]');
@@ -2165,32 +2233,540 @@ function hideEntryViews() {
   const vl = document.getElementById("view-login"); if (vl) vl.hidden = true;
   const vr = document.getElementById("view-reset"); if (vr) vr.hidden = true;
   const vc = document.getElementById("view-claim"); if (vc) vc.hidden = true;
-  const vd = document.getElementById("view-demo-intro"); if (vd) vd.hidden = true;
+  const vd = document.getElementById("view-showcase"); if (vd) vd.hidden = true;
+  scChrome(false);
 }
-function showDemoIntro() {
+// ===================== ВИТРИНА (домашний экран для незалогиненной) =====================
+// Это НЕ лендинг и не отдельная страница: тот же экран, что у подписчицы, только с
+// замками и продающим слоем. После оплаты замки исчезают, экран остаётся тот же.
+//
+// Всё содержимое приезжает из get-public: состав библиотеки, названия дней, числа,
+// ЦЕНА. Руками на витрине не написано ни одного числа и ни одной цены - иначе они
+// разъедутся с кассой в первый же месяц, ровно как разъезжалась оферта с кодом.
+//
+// Заплатка "что внутри" (DEMO_INSIDE/DEMO_SUBHEAD/showDemoIntro) удалена: список
+// программ теперь один и живёт в базе.
+
+let publicData = null;
+
+// Демо-копии мини-аппов. Ведут на github.io и НЕ требуют ни сессии, ни токена.
+const DEMO_LINKS = {
+  oneday:       "https://vladlen00.github.io/oneday-demo/",
+  breathing446: "https://vladlen00.github.io/breathing446-demo/",
+  bodyage:      "https://vladlen00.github.io/bodyage-demo/",
+  glutes:       "https://vladlen00.github.io/glutes-demo/",
+  workout:      "https://vladlen00.github.io/workout-demo/",
+};
+
+// Плитки инструментов. Порядок и метки по утверждённому макету D.
+// Состав внутри плитки пишется руками СОЗНАТЕЛЬНО: мини-аппы живут не в базе, а в
+// отдельных репозиториях, и никакого «источника правды» для них в get-public нет.
+// Числа же (сколько программ) всегда из базы.
+const SC_TOOLS = [
+  { key: "trainings", icon: "trainings", name: "Тренировки", sub: "и упражнения", chip: "2 пробные", try: true,
+    title: "Тренировки",
+    items: [
+      { name: "Женское тело: первая тренировка", demo: "workout" },
+      { name: "Биохакинг ягодиц: разбор техники", demo: "glutes" },
+      { name: "Остальные тренировки и разборы", locked: true },
+    ] },
+  { key: "relax", icon: "relax", name: "Расслабление", sub: "медитации, дыхание", chip: "2 пробные", try: true,
+    title: "Расслабление",
+    items: [
+      { name: "Медитация «Один день»", demo: "oneday" },
+      { name: "Дыхание 4-4-6", demo: "breathing446" },
+      { name: "Ещё 12 практик", locked: true },
+    ] },
+  { key: "trackers", icon: "trackers", name: "Трекеры", sub: "здоровье и цикл", chip: "тест бесплатно", try: true,
+    title: "Трекеры",
+    items: [
+      { name: "Возраст тела: тест целиком", demo: "bodyage" },
+      { name: "Цикл", locked: true },
+      { name: "Чекины", locked: true },
+    ] },
+  // Метка считается из базы, поэтому chip тут нет.
+  { key: "library", icon: "sprints", name: "Все спринты", sub: "библиотека" },
+];
+
+// Своё бесплатное демо у программы. Женщина, которая смотрит на ягодицы, должна
+// узнать, что можно попробовать ИХ, а не соседний спринт.
+const SPRINT_DEMO = {
+  glutes: { demo: "glutes", text: "Сначала посмотреть бесплатно: разбор техники" },
+};
+
+// Винительный падеж названия для фразы "послушать бесплатно «Архитектуру сна»".
+// Правило узкое и намеренно тупое: склоняем только первое слово на -а/-я. Остальные
+// названия («Омоложение изнутри», «Основы питания», «Биохакинг ягодиц») в винительном
+// совпадают с именительным, и трогать их не надо.
+function accusative(title) {
+  const t = String(title || "");
+  const sp = t.indexOf(" ");
+  const first = sp < 0 ? t : t.slice(0, sp);
+  const rest = sp < 0 ? "" : t.slice(sp);
+  if (/а$/.test(first)) return first.slice(0, -1) + "у" + rest;
+  if (/я$/.test(first)) return first.slice(0, -1) + "ю" + rest;
+  return t;
+}
+
+// "11 €". Цена ТОЛЬКО из ответа сервера: своей константы у фронта нет.
+function scPrice(p) {
+  if (!p || p.amount == null) return "";
+  const sign = CUR_SIGN[p.currency] || p.currency || "";
+  return sign ? (p.amount + " " + sign) : String(p.amount);
+}
+// Дата в КИЕВСКОЙ зоне: старт спринта и момент подорожания задаются киевским временем,
+// и без явной зоны "30 сентября 00:00" у части женщин печаталось бы 29-м.
+function scDateRu(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", timeZone: "Europe/Kyiv" });
+}
+
+async function loadPublic(action, extra) {
+  const body = Object.assign({ action }, extra || {});
+  // Чтение, идемпотентно -> автоповтор разрешён. Авторизации у витрины нет вовсе.
+  return await sbFetch(GET_PUBLIC_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }, { retry: true });
+}
+
+// Полоска с ценой живёт только вместе с витриной.
+function scChrome(on) {
+  const bar = document.getElementById("sc-bottom");
+  if (bar) bar.hidden = !on;
+  document.body.classList.toggle("sc-open", !!on);
+  // Высота полоски с ценой уезжает в CSS: над ней встаёт мини-плеер, и под обе
+  // панели берётся нижний отступ страницы. Меряем, а не задаём числом: в полоске
+  // две строки текста, и на узком экране она выше, чем на широком.
+  if (on && bar) {
+    const h = Math.round(bar.getBoundingClientRect().height) || 76;
+    document.documentElement.style.setProperty("--sc-bar-h", h + "px");
+    scLog("scChrome: высота полоски", { px: h });
+  }
+}
+
+async function showShowcase() {
+  scLog("showShowcase: вход", { есть_данные: !!publicData });
   hidePayFlowExtra();
-  if (siteHeader) siteHeader.hidden = false;
-  if (siteFooter) siteFooter.hidden = false;
+  if (siteHeader) siteHeader.hidden = true;   // у витрины своя шапка в герое
+  if (siteFooter) siteFooter.hidden = true;
   els.viewHome.hidden = true;
   els.viewCheckout.hidden = true;
   if (els.viewLavaReturn) els.viewLavaReturn.hidden = true;
   els.viewPassword.hidden = true;
   els.viewAccess.hidden = true;
   hideEntryViews();
-  const lead = document.getElementById("demo-lead");
-  if (lead) {
-    const key = (startParams.get("from") || "").slice("demo-".length);
-    lead.textContent = DEMO_SUBHEAD[key] || DEMO_SUBHEAD_FALLBACK;
-  }
-  const box = document.getElementById("demo-inside");
-  if (box) {
-    box.innerHTML = DEMO_INSIDE.map(function (x) {
-      return '<li><b>' + escapeHtml(x[0]) + '</b><span>' + escapeHtml(x[1]) + '</span></li>';
-    }).join("");
-  }
-  const v = document.getElementById("view-demo-intro"); if (v) v.hidden = false;
+  const v = document.getElementById("view-showcase");
+  if (v) v.hidden = false;
+  scMarkShowcase();
   window.scrollTo(0, 0);
+
+  if (publicData) { renderShowcase(publicData); scLog("showShowcase: нарисовал из памяти"); return; }
+  const r = await loadPublic("library");
+  const data = r.data || {};
+  if (r.state !== "ok" || !data.ok || !Array.isArray(data.sprints) || data.sprints.length === 0) {
+    // Витрина не загрузилась. Экран связи здесь НЕ показываем: он говорит "не смогли
+    // проверить ваш доступ", а про доступ гостьи мы ничего и не утверждали. Падаем на
+    // СТАРТ - там обе двери, "Войти" и "Оформить подписку", и ничего не обещано.
+    if (v) v.hidden = true;
+    scChrome(false);
+    showStart();
+    return;
+  }
+  publicData = data;
+  renderShowcase(data);
 }
+
+function renderShowcase(d) {
+  const price = scPrice(d.price);
+
+  // ===== ГЕРОЙ: спринт, в котором есть бесплатные дни =====
+  const freeSprint = d.sprints.find((s) => (s.free_days || []).length > 0) || d.sprints[0];
+  const freeDay = (freeSprint.free_days || [])[0] || null;
+  paintCover(document.getElementById("sc-hero"), freeSprint.cover_slug, "wide", COVER_SHADE_HOME);
+  const kick = document.getElementById("sc-kick");
+  const headline = document.getElementById("sc-headline");
+  if (freeDay) {
+    kick.textContent = ((freeSprint.title || "") + " · ДЕНЬ " + freeDay.day_number).toUpperCase();
+    setHeadline(headline, dayShortTitle(freeDay.title || ""));
+  } else {
+    kick.textContent = (freeSprint.title || "").toUpperCase();
+    setHeadline(headline, freeSprint.title || "");
+  }
+  const play = document.getElementById("sc-play");
+  play.hidden = !freeDay;
+  play.onclick = freeDay ? () => openFreeDay(freeDay.id) : null;
+
+  const freeN = (freeSprint.free_days || []).length;
+  const totalN = freeSprint.days_total || 0;
+  document.getElementById("sc-bar").style.width = totalN > 0 ? Math.round((freeN / totalN) * 100) + "%" : "0";
+  document.getElementById("sc-count").textContent = totalN > 0 ? (freeN + " из " + totalN + " открыты") : "";
+  document.getElementById("sc-alldays").onclick = () => openLockSheet("sprint", freeSprint);
+
+  // ===== ИНСТРУМЕНТЫ =====
+  const toolsEl = document.getElementById("sc-tools");
+  toolsEl.innerHTML = SC_TOOLS.map((t) => {
+    const chip = t.key === "library"
+      ? '<span class="sc-chip sc-chip-lock">' + escapeHtml(plurPrograms(d.sprints.length)) + "</span>"
+      : '<span class="sc-chip sc-chip-try">' + escapeHtml(t.chip) + "</span>";
+    return '<div class="t5" data-tool="' + t.key + '" role="button">' +
+      '<img class="t5ic" src="icons/' + t.icon + '.png?v=1" alt="" width="32" height="32">' +
+      chip +
+      '<div class="t5n">' + escapeHtml(t.name) + "</div>" +
+      '<div class="t5s">' + escapeHtml(t.sub) + "</div></div>";
+  }).join("");
+
+  // ===== ПОЛКА ПРОГРАММ =====
+  document.getElementById("sc-shelf").innerHTML = d.sprints.map(scPosterHtml).join("");
+
+  // ===== ПРОДАЮЩАЯ КАРТОЧКА И ПОЛОСКА =====
+  document.getElementById("sc-buy-title").textContent = price ? ("Всё приложение за " + price + " в месяц") : "Оформить подписку";
+  document.getElementById("sc-bottom-price").textContent = price ? (price + " в месяц") : "Подписка";
+  scChrome(true);
+
+  // ===== ПЛАШКА ПОДОРОЖАНИЯ =====
+  // Сервер присылает её ТОЛЬКО когда обещание правда для обеих касс. Фронт ничего
+  // не решает и никаких дат не считает: печатает то, что дали.
+  let notice = document.getElementById("sc-notice");
+  if (!notice) {
+    notice = document.createElement("p");
+    notice.id = "sc-notice";
+    notice.className = "sc-notice";
+    const buy = document.getElementById("sc-buy");
+    buy.parentNode.insertBefore(notice, buy.nextSibling);
+  }
+  const n = d.price_notice;
+  if (n) {
+    notice.innerHTML =
+      "<b>Успей до " + escapeHtml(scDateRu(n.last_day)) + "</b>, и " + escapeHtml(scPrice(n.current)) +
+      " закрепятся за тобой навсегда." +
+      "<span>С " + escapeHtml(scDateRu(n.first_day)) + " для новых " + escapeHtml(scPrice(n.next)) +
+      ". Осталось " + escapeHtml(plurDaysLeft(n.days_left)) + "</span>";
+    notice.hidden = false;
+    document.getElementById("sc-bottom-sub").textContent = scPrice(n.current) + " навсегда, до " + scDateRu(n.last_day);
+  } else {
+    notice.hidden = true;
+    document.getElementById("sc-bottom-sub").textContent = "всё открыто, отмена в любой момент";
+  }
+}
+
+function plurPrograms(n) {
+  const a = Math.abs(n) % 100, b = a % 10;
+  const w = (a > 10 && a < 20) || b === 0 || b > 4 ? "программ" : b === 1 ? "программа" : "программы";
+  return n + " " + w;
+}
+
+// Сколько дней В ПРОГРАММЕ, а не сколько залито. Залитых может быть один, и «1 день»
+// у 31-дневного спринта обманывал бы в меньшую сторону.
+// НОЛЬ значит «число неизвестно» - так у идущего прямо сейчас спринта, где плана ещё
+// нет. Тогда число не печатаем вовсе: выдуманное хуже отсутствующего.
+function scDaysTotal(s) {
+  return s.estimated_days || (s.days_total > 1 ? s.days_total : 0);
+}
+
+// Постер программы. Обложка НЕ гасится: закрытость несут метка и замок.
+function scPosterHtml(s) {
+  const free = (s.free_days || []).length;
+  const cover = coverUrl(s.cover_slug, "poster");
+  const startsMs = s.starts_at ? Date.parse(s.starts_at) : NaN;
+  const soon = !free && s.days_total === 0 && Number.isFinite(startsMs);
+  const badge = free
+    ? '<span class="poster-badge poster-badge-free">' + escapeHtml(plurDays(free)) + " бесплатно</span>"
+    : soon
+      ? '<span class="poster-badge poster-badge-sub">с ' + escapeHtml(scDateRu(s.starts_at)) + "</span>"
+      : s.is_new
+        ? '<span class="poster-badge poster-badge-new">новая</span>'
+        : '<span class="poster-badge poster-badge-sub">в подписке</span>';
+  const lock = free ? "" : '<span class="poster-lock"><i class="ti ti-lock"></i></span>';
+  const meta = scDaysTotal(s) > 0 ? plurDays(scDaysTotal(s)) : (soon ? "скоро" : (s.is_new ? "идёт сейчас" : ""));
+  return '<div class="poster' + (cover ? "" : " poster-blank") + '" data-sprint="' + escapeHtml(s.id) + '" role="button"' +
+      (cover ? ' style="background-image: url(\'' + cover + '\')"' : "") + ">" +
+    badge + lock +
+    '<div class="poster-info"><b>' + escapeHtml(s.title || "") + "</b><span>" + escapeHtml(meta) + "</span></div></div>";
+}
+
+// ===================== ШТОРКА ЗАМКА =====================
+// Одна шторка на три случая. Кнопка ведёт СРАЗУ в чекаут: женщина уже нажала дважды.
+function openLockSheet(kind, payload) {
+  const panel = document.getElementById("lock-panel");
+  const price = scPrice(publicData && publicData.price);
+  const n = publicData && publicData.price_notice;
+  const hurry = n ? '<div class="lock-note"><b>' + escapeHtml(scPrice(n.current)) + " закрепятся за тобой, если успеть до " +
+                    escapeHtml(scDateRu(n.last_day)) + "</b></div>" : "";
+
+  if (kind === "podruzhka") {
+    panel.innerHTML =
+      '<div class="lock-body" style="margin-top:0;padding-top:18px">' +
+        '<div class="lock-head"><img src="icons/podruzhka-card.png?v=1" alt="" width="52" height="52">' +
+          "<div><b>ИИ-подружка</b><span>знает твои анализы и фазу цикла</span></div></div>" +
+        '<div class="lock-chat">' +
+          '<div class="lock-bub me">Пью железо второй месяц, а ферритин всё равно 18. Что не так?</div>' +
+          '<div class="lock-bub her">Чаще всего дело в форме и в режиме. Сульфат усваивается хуже, бисглицинат заметно лучше.</div>' +
+          '<div class="lock-bub her">И ежедневный приём мешает усвоению: через день выходит больше, чем каждый день.</div>' +
+        "</div>" +
+        '<div class="lock-list">' +
+          "<div><i>•</i><span>Присылаешь фото анализов, она разбирает по функциональным нормам</span></div>" +
+          "<div><i>•</i><span>Помнит твои добавки, цикл и прошлые вопросы</span></div>" +
+          "<div><i>•</i><span>Отвечает по материалам Ирены, а не по интернету</span></div>" +
+        "</div>" +
+        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>Открыть Подружку</button>' +
+        '<div class="lock-note">в подписке за ' + escapeHtml(price) + " в месяц · отмена в любой момент</div>" +
+        hurry +
+      "</div>";
+  } else if (kind === "tool") {
+    const t = payload;
+    panel.innerHTML =
+      '<div class="lock-body" style="margin-top:0;padding-top:18px">' +
+        '<div class="lock-title" style="font-size:22px">' + escapeHtml(t.title) + "</div>" +
+        t.items.map((it) => it.locked
+          ? '<div class="lock-day rest"><i class="ti ti-lock"></i><span>' + escapeHtml(it.name) + "</span></div>"
+          : '<div class="lock-day free" data-demo="' + escapeHtml(it.demo) + '"><i class="ti ti-player-play"></i>' +
+            "<span>" + escapeHtml(it.name) + "</span><span class=\"sc-chip sc-chip-try\">попробовать</span></div>"
+        ).join("") +
+        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>Открыть всё за ' + escapeHtml(price) + " в месяц</button>" +
+        hurry +
+      "</div>";
+  } else {
+    const s = payload;
+    const free = s.free_days || [];
+    const prev = free.length > 0 ? free : (s.days_preview || []);
+    const rest = Math.max(0, scDaysTotal(s) - prev.length);
+    const startsMs = s.starts_at ? Date.parse(s.starts_at) : NaN;
+    const kicker = scDaysTotal(s) > 0
+      ? plurDays(scDaysTotal(s)) + " · " + (free.length ? plurDays(free.length) + " бесплатно" : "в подписке")
+      : Number.isFinite(startsMs) ? "старт " + scDateRu(s.starts_at)
+      : s.days_total > 0 ? "идёт сейчас · в подписке"
+      : "скоро";
+    const cover = coverUrl(s.cover_slug, "wide") || coverUrl(s.cover_slug, "poster");
+    panel.innerHTML =
+      '<div class="lock-cover' + (cover ? "" : " poster-blank") + '"' +
+        (cover ? ' style="background-image:url(\'' + cover + '\')"' : "") + '><span class="lock-grab"></span></div>' +
+      '<div class="lock-body">' +
+        '<div class="lock-kick">' + escapeHtml(kicker) + "</div>" +
+        '<div class="lock-title">' + escapeHtml(s.title || "") + "</div>" +
+        '<div class="lock-lead">Один выпуск Ирены в день и одно действие. Проходишь в своём темпе.</div>' +
+        (prev.length ? '<div class="lock-days">' + prev.map((p) => {
+          const isFree = free.some((f) => f.day_number === p.day_number);
+          return '<div class="lock-day' + (isFree ? " free" : "") + '"' + (isFree ? ' data-free-day="' + escapeHtml(p.id) + '"' : "") + ">" +
+            '<i class="n">' + String(p.day_number).padStart(2, "0") + "</i>" +
+            "<span>" + escapeHtml(dayShortTitle(p.title || "")) + "</span>" +
+            (isFree ? '<i class="ti ti-player-play"></i>' : '<i class="ti ti-lock"></i>') + "</div>";
+        }).join("") +
+        (rest > 0 ? '<div class="lock-day rest"><i class="n">…</i><span>и ещё ' + escapeHtml(plurDays(rest)) + "</span></div>" : "") +
+        "</div>" : "") +
+        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>Открыть за ' + escapeHtml(price) + " в месяц</button>" +
+        scAltHtml(s, free) +
+        hurry +
+      "</div>";
+  }
+  document.getElementById("lock-sheet").hidden = false;
+}
+
+// Нижняя ссылка в шторке программы. Есть своё демо - ведём в него; нет - в
+// бесплатный спринт. У самой бесплатной программы ссылки нет вовсе: она уже открыта.
+function scAltHtml(s, free) {
+  if (free.length > 0 || !publicData) return "";
+  const own = SPRINT_DEMO[s.cover_slug];
+  if (own) return '<span class="lock-alt" data-demo="' + escapeHtml(own.demo) + '">' + escapeHtml(own.text) + "</span>";
+  const title = scFreeSprintTitle();
+  if (!title) return "";
+  return '<span class="lock-alt" data-lock-free>Сначала послушать бесплатно «' + escapeHtml(accusative(title)) + "»</span>";
+}
+
+function scFreeSprintTitle() {
+  const s = (publicData.sprints || []).find((x) => (x.free_days || []).length > 0);
+  return s ? s.title : "";
+}
+
+// ===================== БЕСПЛАТНЫЙ ДЕНЬ =====================
+// Тот же экран дня, что у подписчицы, но содержимое приезжает из get-public и
+// кнопки "пройдено" нет: отмечать прогресс некуда, пока нет аккаунта.
+async function openFreeDay(dayId, forceHost, fromHistory) {
+  scLog("openFreeDay", { день: dayId, из_истории: !!fromHistory });
+  currentDayId = dayId;
+  // Кадр в историю: "назад" из дня вернёт на витрину, а не на посторонний адрес.
+  // При возврате ПО истории кадр не плодим, иначе "назад" зациклится на дне.
+  if (!fromHistory && !forceHost) scPushView("day", dayId);
+  const sheet = document.getElementById("lock-sheet"); if (sheet) sheet.hidden = true;
+  hideContentViews();
+  scChrome(false);
+  document.getElementById("view-showcase").hidden = true;
+  document.getElementById("view-day").hidden = false;
+  const loading = document.getElementById("day-loading");
+  const blocksEl = document.getElementById("day-blocks");
+  const doneBtn = document.getElementById("day-done");
+  const errEl = document.getElementById("day-error");
+  loading.hidden = false; blocksEl.innerHTML = ""; doneBtn.hidden = true; errEl.hidden = true;
+  if (!forceHost) window.scrollTo(0, 0);
+
+  const body = { day_id: dayId };
+  const host = forceHost || rememberedAudioHost();
+  if (host) body.force_host = host;
+  const r = await loadPublic("day", body);
+  loading.hidden = true;
+  if (r.state === "unreachable") { showConnection(() => openFreeDay(dayId, forceHost)); return; }
+  const data = r.data || {};
+  if (r.state !== "ok" || !data.ok) {
+    errEl.innerHTML = "Не удалось открыть день. Обновите страницу или напишите нам " + supportEmailHtml() + ".";
+    errEl.hidden = false; return;
+  }
+  renderDay(data, { guest: true });
+}
+
+// ===================== СОБЫТИЯ ВИТРИНЫ =====================
+(function wireShowcase() {
+  const view = document.getElementById("view-showcase");
+  if (view) {
+    view.addEventListener("click", (e) => {
+      if (e.target.closest("#sc-login")) { showLogin(); return; }
+      if (e.target.closest("#sc-pod")) { openLockSheet("podruzhka"); return; }
+      if (e.target.closest("#sc-buy")) { scGoCheckout(); return; }
+      const tile = e.target.closest("[data-tool]");
+      if (tile) {
+        const t = SC_TOOLS.find((x) => x.key === tile.getAttribute("data-tool"));
+        if (!t) return;
+        // "Все спринты" ведёт не в шторку, а к полке: она прямо ниже и показывает всё.
+        if (t.key === "library") { document.getElementById("sc-shelf").scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+        openLockSheet("tool", t);
+        return;
+      }
+      const poster = e.target.closest("[data-sprint]");
+      if (poster) {
+        const s = (publicData.sprints || []).find((x) => x.id === poster.getAttribute("data-sprint"));
+        if (s) openLockSheet("sprint", s);
+      }
+    });
+  }
+  const sheet = document.getElementById("lock-sheet");
+  if (sheet) {
+    sheet.addEventListener("click", (e) => {
+      if (e.target.closest("[data-sheet-close]")) { sheet.hidden = true; return; }
+      if (e.target.closest("[data-lock-buy]")) { sheet.hidden = true; scGoCheckout(); return; }
+      if (e.target.closest("[data-lock-free]")) {
+        sheet.hidden = true;
+        const s = (publicData.sprints || []).find((x) => (x.free_days || []).length > 0);
+        if (s && s.free_days[0]) openFreeDay(s.free_days[0].id);
+        return;
+      }
+      const day = e.target.closest("[data-free-day]");
+      if (day) { openFreeDay(day.getAttribute("data-free-day")); return; }
+      const demo = e.target.closest("[data-demo]");
+      if (demo) {
+        const url = DEMO_LINKS[demo.getAttribute("data-demo")];
+        if (url) location.href = url;   // демо открываются без токена и без сессии
+      }
+    });
+  }
+  const bar = document.getElementById("sc-bottom-btn");
+  if (bar) bar.addEventListener("click", scGoCheckout);
+  const sup = document.getElementById("sc-support-btn");
+  if (sup) sup.addEventListener("click", () => {
+    const box = document.getElementById("sc-support-contacts");
+    if (!box) return;
+    box.innerHTML = "Напишите нам " + supportTgHtml() + " - ответим и поможем.";
+    box.hidden = !box.hidden;
+  });
+})();
+
+function scGoCheckout() {
+  const sheet = document.getElementById("lock-sheet"); if (sheet) sheet.hidden = true;
+  scChrome(false);
+  const v = document.getElementById("view-showcase"); if (v) v.hidden = true;
+  checkoutBackTo = "showcase";
+  // Запись в историю, чтобы кнопка "назад" в браузере вернула на витрину, а не
+  // выкинула из приложения. Своей истории у приложения нет (showCheckout зовёт
+  // replaceState), поэтому без этой строки "назад" уводит на предыдущий сайт.
+  scPushView("checkout");
+  showCheckout();
+}
+
+// ===== ИСТОРИЯ ГОСТЬИ =====
+// Приложение своей истории не вело вообще: все переходы - это показ и скрытие
+// секций, адрес не менялся. Поэтому "назад" из дня уходил на ПРЕДЫДУЩИЙ адрес в
+// стеке браузера - у Владлена это был ?plan=1m от прошлого захода на чекаут, и он
+// грузился заново, с нуля, упираясь в каркас дома.
+//
+// Теперь у гостьи есть свой стек: витрина - день - чекаут. Возврат внутри него
+// НЕ перезагружает страницу, поэтому подкаст в мини-плеере продолжает играть.
+// true, пока якорь меняем МЫ. Отличает "женщина нажала назад" от "мы открыли экран".
+let scHashSelf = false;
+// ⚠️ ЯКОРЬ, А НЕ pushState. История гостьи держится на #day в адресе, и это
+// принципиально: смена ЯКОРЯ никогда не уводит со страницы, поэтому "назад" из дня
+// ГАРАНТИРОВАННО остаётся в этом документе и приходит к нам событием. pushState такой
+// гарантии не даёт: 21.09 у Владлена "назад" ушёл в другой документ (старый ?plan=1m
+// из bfcache) мимо нашего popstate, и витрина не показывалась ничем.
+function scPushView(view, arg) {
+  const want = view === "day" ? "#day" : view === "checkout" ? "#checkout" : "";
+  scLog("scPushView", { вид: view, якорь_было: location.hash, якорь_станет: want });
+  try {
+    history.replaceState({ sc: view, arg: arg || null }, "", location.href);
+  } catch (e) { scLog("scPushView: replaceState упал", String(e)); }
+  if (location.hash !== want) {
+    // Присвоение hash = НОВАЯ запись в истории, всегда, во всех браузерах.
+    // Свой же hashchange глушим: иначе постановка якоря тут же снова открыла бы день.
+    scHashSelf = true;
+    try { location.hash = want; } catch (e) { scLog("scPushView: якорь не встал", String(e)); }
+    setTimeout(() => { scHashSelf = false; }, 0);
+  }
+}
+// Витрина - основание стека. Заодно убираем из адреса ?plan: он остаётся от
+// чекаута и не имеет к витрине никакого отношения.
+function scMarkShowcase() {
+  try {
+    const url = new URL(location.href);
+    // Якорь #day/#checkout снимаем: витрина - основание, и адрес обязан это отражать,
+    // иначе перезагрузка страницы откроет день, с которого женщина уже ушла.
+    url.searchParams.delete("plan");
+    url.hash = "";                       // витрина - основание, якоря у неё нет
+    history.replaceState({ sc: "showcase" }, "", url);
+    scLog("scMarkShowcase", { адрес: url.pathname + url.search + url.hash });
+  } catch (e) { scLog("scMarkShowcase упал", String(e)); }
+}
+
+// Куда вести по текущему якорю. Один разбор на оба события - и popstate, и hashchange:
+// браузеры шлют их в разном порядке и не всегда оба.
+let scRouting = false;
+function scRouteByHash(from) {
+  if (scHashSelf) { scLog("маршрут по якорю: это мы сами поставили якорь, пропускаю", { from: from, якорь: location.hash }); return; }
+  if (sb && hasStoredSession()) { scLog("маршрут по якорю: у неё сессия -> не вмешиваюсь", { from: from }); return; }
+  if (scRouting) return;               // popstate и hashchange на одно действие
+  scRouting = true;
+  setTimeout(() => { scRouting = false; }, 0);
+  const h = location.hash;
+  scLog("маршрут по якорю", { from: from, якорь: h, state: history.state });
+  if (h === "#day") {
+    const st = history.state || {};
+    const id = st.arg || currentDayId;
+    if (id) { openFreeDay(id, null, true); return; }
+  }
+  if (h === "#checkout") { showCheckout(); return; }
+  showShowcase();
+}
+
+window.addEventListener("hashchange", () => scRouteByHash("hashchange"));
+// Уход со страницы: если после "назад" логов больше нет, эта строка - последняя, и она
+// говорит, что документ покинули (то есть "назад" увёл в другой документ).
+window.addEventListener("pagehide", (e) => scLog("pagehide: покидаем документ", { persisted: e.persisted, якорь: location.hash }));
+
+window.addEventListener("popstate", (e) => {
+  scLog("popstate", { state: e.state, якорь: location.hash, адрес: location.search });
+  scRouteByHash("popstate");
+});
+
+// Возврат Назад из другой вкладки (демо-копия) отдаёт страницу из bfcache: скрипт
+// заново не выполняется, и экран остаётся таким, каким его покинули. Если это был
+// каркас дома, ждущий вердикта, ждать больше нечего - запрос оборвали при уходе.
+window.addEventListener("pageshow", (e) => {
+  scLog("pageshow", { persisted: e.persisted });
+  if (!e.persisted) return;
+  if (sb && hasStoredSession()) return;
+  const loadingStuck = els.viewHome && !els.viewHome.hidden;
+  const showcaseGone = !document.getElementById("view-showcase") || document.getElementById("view-showcase").hidden;
+  const onCheckout = els.viewCheckout && !els.viewCheckout.hidden;
+  if (loadingStuck || (showcaseGone && !onCheckout)) showShowcase();
+});
 
 function showStart() {
   hidePayFlowExtra();
@@ -2204,7 +2780,8 @@ function showStart() {
   const vl = document.getElementById("view-login"); if (vl) vl.hidden = true;
   const vr0 = document.getElementById("view-reset"); if (vr0) vr0.hidden = true;
   const vc0 = document.getElementById("view-claim"); if (vc0) vc0.hidden = true;
-  const vd1 = document.getElementById("view-demo-intro"); if (vd1) vd1.hidden = true;
+  const vd1 = document.getElementById("view-showcase"); if (vd1) vd1.hidden = true;
+  scChrome(false);
   const vs = document.getElementById("view-start"); if (vs) vs.hidden = false;
   window.scrollTo(0, 0);
 }
@@ -2227,7 +2804,6 @@ function showLogin() {
   els.viewCheckout.hidden = true;
   const vr0 = document.getElementById("view-reset"); if (vr0) vr0.hidden = true;
   const vc0 = document.getElementById("view-claim"); if (vc0) vc0.hidden = true;
-  const vd0 = document.getElementById("view-demo-intro"); if (vd0) vd0.hidden = true;
   const vl = document.getElementById("view-login"); if (vl) vl.hidden = false;
   showLoginError("");
   resetLoginForm();
@@ -2445,8 +3021,6 @@ async function doClaim() {
   const bind = (id, fn) => { const e = document.getElementById(id); if (e) e.addEventListener("click", fn); };
   bind("start-login", (e) => { e.preventDefault(); showLogin(); });
   bind("start-signup", (e) => { e.preventDefault(); checkoutBackTo = "start"; showCheckout(); });
-  bind("demo-signup", (e) => { e.preventDefault(); checkoutBackTo = "demo"; showCheckout(); });
-  bind("demo-login", (e) => { e.preventDefault(); showLogin(); });
   bind("btn-login", (e) => { e.preventDefault(); doLogin(); });
   bind("login-back", (e) => { e.preventDefault(); showStart(); });
   bind("login-to-signup", (e) => { e.preventDefault(); checkoutBackTo = "login"; showCheckout(); });
@@ -2490,6 +3064,7 @@ async function doClaim() {
 // вместо чекаута или старта отдаём женщину экрану пароля (её обычный путь после оплаты).
 // Порядок принципиален: сначала проверяем доступ, и только потом читаем адрес.
 async function routeHomeOrCheckout(opts) {
+  scLog("routeHomeOrCheckout: вход", { сессия: !!(sb && hasStoredSession()), адрес: location.search });
   const paidFallback = opts && typeof opts.paidFallback === "function" ? opts.paidFallback : null;
   const again = () => routeHomeOrCheckout(opts);
   // reason от get-home: expired -> экран подписки "ЗАКОНЧИЛАСЬ" без дома (карта, дата,
@@ -2500,14 +3075,17 @@ async function routeHomeOrCheckout(opts) {
     if (reason === "expired") { openSubscription({ standalone: true }); return; }
     checkoutBackTo = null; showCheckout();
   };
-  const noSession = () => { if (paidFallback) return paidFallback(); if (readLavaReturn()) showPayWait(); else showStart(); };
+  // Незалогиненная (и та, у кого сессия протухла) видит ВИТРИНУ, а не голый старт:
+  // это её домашний экран, и кнопка "Войти" стоит прямо в герое.
+  const noSession = () => { if (paidFallback) return paidFallback(); if (readLavaReturn()) showPayWait(); else showShowcase(); };
 
   // Синхронный пик сохранённой сессии -> прячем чекаут сразу, без мигания.
   // Сессии НЕТ вообще -> человек не залогинен, это не сетевая ситуация -> старт.
-  if (!sb || !hasStoredSession()) { noSession(); return; }
+  if (!sb || !hasStoredSession()) { scLog("маршрут: сессии нет -> noSession"); noSession(); return; }
 
   showHomeShell(); // чекаут скрыт, показываем загрузку дома, пока проверяем доступ
   const s = await getSessionState({ retry: true, onAttempt: homeProgress });
+  scLog("маршрут: состояние сессии", { state: s.state });
   if (s.state === "unreachable") { showConnection(again); return; }
   // Сессия честно истекла. НЕ чекаут: у платящей женщины ключ в localStorage есть,
   // поэтому ранняя ветка showStart выше не сработала, и она упиралась в предложение
@@ -2766,14 +3344,27 @@ async function getToken() {
 }
 function hideContentViews() {
   els.viewHome.hidden = true;
+  scChrome(false);
   const vss = document.getElementById("view-sprints"); if (vss) vss.hidden = true;
   const vs = document.getElementById("view-sprint"); if (vs) vs.hidden = true;
   const vd = document.getElementById("view-day"); if (vd) vd.hidden = true;
   const vsub = document.getElementById("view-subscription"); if (vsub) vsub.hidden = true;
 }
 function backToHome() {
+  scLog("backToHome", { есть_дом: !!homeData, сессия: !!(sb && hasStoredSession()) });
+  // ⚠️ У ГОСТЬИ ДОМА НЕТ. Она попала сюда стрелкой приложения из бесплатного дня, и
+  // раньше упиралась в пустой каркас дома с текстом «Проверяем доступ…», оставшимся
+  // от пробы маршрута на загрузке. Событий браузера при этом нет (адрес не меняется),
+  // поэтому ни popstate, ни сторож её не спасали: сторож взводится только в
+  // showHomeShell, а сюда приходят мимо него. Найдено 21.09 по журналу Владлена.
+  if (!homeData) {
+    scLog("backToHome: дома нет -> витрина");
+    hideContentViews();
+    showShowcase();
+    return;
+  }
   hideContentViews();
-  if (homeData) renderHome(homeData);   // перерисовка -> прогресс обновится после "пройдено"
+  renderHome(homeData);                 // перерисовка -> прогресс обновится после "пройдено"
   els.viewHome.hidden = false;
   window.scrollTo(0, 0);
 }
@@ -2916,7 +3507,7 @@ function setDoneState(btn, done) {
   else { btn.classList.remove("done"); btn.disabled = false; btn.innerHTML = '<i class="ti ti-circle-check"></i> Отметить день пройденным'; }
 }
 
-function renderDay(data) {
+function renderDay(data, opts) {
   const day = data.day || {};
   // Шапка дня = широкая обложка ЕГО спринта. Слаг берём из homeData по day.sprint_id.
   const daySprint = sprintById(day.sprint_id);
@@ -2940,6 +3531,9 @@ function renderDay(data) {
     if (el && el.getAttribute("data-host") !== curTrk.host) player.swapCurrentUrl(curTrk.blockId, el.getAttribute("data-url"), el.getAttribute("data-host"));
   }
   const doneBtn = document.getElementById("day-done");
+  // Гостья: отмечать прогресс некуда, аккаунта ещё нет. Кнопку не показываем вовсе,
+  // а не гасим - неработающая кнопка хуже её отсутствия.
+  if (opts && opts.guest) { doneBtn.hidden = true; return; }
   const completed = new Set((homeData && homeData.progress && homeData.progress.completed_day_ids) || []);
   doneBtn.hidden = false;
   setDoneState(doneBtn, completed.has(day.id));
@@ -3245,6 +3839,7 @@ const NAV_VIEWS = {
 };
 let navStack = [];
 function navTo(view, arg) {
+  scLog("navTo", { экран: view, арг: arg });
   const top = navStack[navStack.length - 1];
   // повторный переход на тот же экран (напр. тап по мини-плееру на своём же дне)
   // кадр не плодит, иначе "назад" вернёт туда же
@@ -3252,6 +3847,7 @@ function navTo(view, arg) {
   NAV_VIEWS[view](arg);
 }
 function navBack() {
+  scLog("navBack: стрелка приложения", { стек: navStack.map((f) => f.view) });
   navStack.pop();
   const prev = navStack[navStack.length - 1];
   if (!prev) { backToHome(); return; }
@@ -3343,7 +3939,10 @@ ensureRoute();
 // ?sw=off - выключатель на случай залипания. Он работает ВСЕГДА, потому что сам
 // app.js приезжает в обход воркера (см. правило в sw.js и CLAUDE.md).
 if ("serviceWorker" in navigator) {
-  if (location.search.indexOf("sw=off") >= 0) {
+  // На localhost (превью) воркер снимаем: файлы приложения он и так не трогает,
+  // а проксирование путей мини-аппов при отладке только путает.
+  const localPreview = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+  if (localPreview || location.search.indexOf("sw=off") >= 0) {
     navigator.serviceWorker.getRegistrations()
       .then((rs) => rs.forEach((r) => r.unregister())).catch(() => {});
   } else {
@@ -3353,11 +3952,9 @@ if ("serviceWorker" in navigator) {
 
 // --- старт: ветвление возврат-после-оплаты / дом / чекаут ---
 const startParams = new URLSearchParams(location.search);
-// Метка из демо-копии мини-аппа: ?from=demo-<апп>. Проверка строгая по префиксу,
-// иначе любой посторонний ?from= уводил бы женщину с обычного маршрута.
-function isDemoReferral() {
-  return /^demo-[a-z0-9-]{1,32}$/.test(startParams.get("from") || "");
-}
+// Метка ?from=demo-<апп> в адресе ОСТАЁТСЯ (демо-копии её ставят), но на маршрут
+// больше не влияет: незалогиненная в любом случае попадает на витрину. Читать её
+// снова придётся, когда заведём source_tag в pending_checkouts.
 if (startParams.get("paid") === "1" && startParams.get("order")) {
   // ?paid приходит по returnUrl WayForPay, НО адрес остаётся в истории и открывается снова.
   // Поэтому сначала спрашиваем про доступ, и только если его нет - показываем экран пароля.
@@ -3366,14 +3963,16 @@ if (startParams.get("paid") === "1" && startParams.get("order")) {
   const order = startParams.get("order");
   if (sb && hasStoredSession()) routeHomeOrCheckout({ paidFallback: () => enterPaymentReturn(order) });
   else enterPaymentReturn(order);
-} else if (isDemoReferral() && !(sb && hasStoredSession())) {
-  // Пришла из демо и не залогинена -> короткий экран «что внутри» вместо СТАРТА.
-  // Сервер тут НЕ спрашивается вовсе, поэтому правило «нет вердикта - нет чекаута»
-  // не задето: мы ничего не утверждаем про её подписку, мы её ещё не знаем.
-  // Есть сохранённая сессия -> обычный маршрут. Ключ может оказаться протухшим,
-  // и это безопасно: маршрут сам покажет СТАРТ с кнопкой «Войти», то есть не хуже
-  // сегодняшнего (см. ловушку hasStoredSession в памяти).
-  showDemoIntro();
+} else if ((scLog("старт: развилка", { paid: startParams.get("paid"), plan: startParams.get("plan"), сессия: !!(sb && hasStoredSession()), в_рамке: window.top !== window.self }), !(sb && hasStoredSession()))) {
+  // НЕ ЗАЛОГИНЕНА -> ВИТРИНА. Это её домашний экран, а не лендинг: те же компоненты,
+  // что у подписчицы, с замками. Метка ?from=demo-<апп> больше ничего не решает -
+  // женщина из демо попадает туда же, куда и пришедшая по прямой ссылке.
+  //
+  // Сервер про ДОСТУП тут не спрашивается вовсе (get-public не знает, кто пришёл),
+  // поэтому правило «нет вердикта - нет чекаута» не задето: мы ничего не утверждаем
+  // про её подписку. Сохранённый ключ может быть протухшим - тогда сюда мы не попадём,
+  // а попадём в routeHomeOrCheckout, и он покажет витрину сам, уже получив отказ.
+  showShowcase();
 } else {
   routeHomeOrCheckout();                           // дом / чекаут / (stash -> экран ожидания)
 }

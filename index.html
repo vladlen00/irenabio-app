@@ -65,17 +65,81 @@
     </section>
 
 
-    <!-- ЭКРАН «ЧТО ВНУТРИ»: показывается тем, кто пришёл из демо-копии мини-аппа
-         (в адресе ?from=demo-<апп>) и НЕ залогинен. Раньше их встречал СТАРТ с двумя
-         кнопками, и это тупик: женщина попробовала одну практику и не знает, что есть
-         остальное. Список наполняет app.js из DEMO_INSIDE. -->
-    <section id="view-demo-intro" hidden>
-      <div class="start-card">
-        <h1>Что ещё внутри</h1>
-        <p class="lead" id="demo-lead"></p>
-        <ul class="demo-inside" id="demo-inside"></ul>
-        <button class="btn btn-primary" id="demo-signup" type="button">Оформить подписку</button>
-        <p class="alt-pay"><a href="#" id="demo-login" role="button">У меня уже есть подписка</a></p>
+    <!-- ВИТРИНА: домашний экран для НЕЗАЛОГИНЕННОЙ. Это не отдельная страница и не
+         лендинг: те же компоненты, что у подписчицы (герой спринта, карточка Подружки,
+         сетка инструментов, полка постеров), только с замками и продающим слоем.
+         После оплаты замки исчезают, и женщина видит тот же экран, уже свой.
+
+         Почему отдельная секция, а не #view-home: узлы дома app.js забирает по id один
+         раз при загрузке (homeEls), и рисовать в них гостевое содержимое значит рвать
+         ссылки у подписчицы. Разметка разная, классы и вид - одни и те же.
+
+         Всё содержимое приезжает из get-public: названия, числа дней, обложки, цена.
+         Руками здесь не написано ни одного числа. -->
+    <section id="view-showcase" hidden>
+      <div class="home">
+
+        <!-- ГЕРОЙ = карточка текущего спринта, как на доме, но с кнопкой "Войти" -->
+        <div class="home-hero sc-hero" id="sc-hero">
+          <div class="home-topbar">
+            <div class="home-topbar-left">
+              <span class="sc-mark">И</span>
+              <span class="home-hello">Привет!</span>
+            </div>
+            <button type="button" class="sc-login" id="sc-login">Войти</button>
+          </div>
+          <!-- Кикер, заголовок, подпись и пилюля-плеер - ТЕ ЖЕ классы, что у дома.
+               Своего у витрины здесь ничего нет, кроме текста кнопки. -->
+          <div class="home-kicker" id="sc-kick"></div>
+          <div class="home-headline" id="sc-headline"></div>
+          <p class="home-subhead" id="sc-lead">Первые три дня открыты бесплатно, без регистрации.</p>
+          <div class="home-cta" id="sc-play" role="button">
+            <span class="home-cta-ic"><i class="ti ti-player-play-filled"></i></span>
+            <span>Слушать бесплатно</span>
+          </div>
+          <div class="hero-progress"><div class="hero-progress-bar" id="sc-bar"></div></div>
+          <div class="hero-progress-row">
+            <span class="hero-count" id="sc-count"></span>
+            <span class="hero-alldays" id="sc-alldays" role="button">все дни ›</span>
+          </div>
+        </div>
+
+        <div class="home-body">
+          <div class="home-tools-h">Твои инструменты</div>
+
+          <!-- Подружка: та же широкая карточка, что на доме. Метка "пример ›" вместо
+               стрелки: нажатие открывает не аппу, а переписку-образец. -->
+          <div class="home-wide sc-pod" id="sc-pod" role="button">
+            <img class="home-wide-ic" src="icons/podruzhka-card.png?v=1" alt="" width="66" height="66">
+            <div class="home-wide-txt">
+              <b>Подружка</b>
+              <span class="home-wide-sub">знает твои анализы и фазу цикла</span>
+            </div>
+            <span class="sc-chip sc-chip-soft">пример ›</span>
+          </div>
+
+          <div class="home-tools" id="sc-tools"></div>
+
+          <div class="home-tools-h">Программы</div>
+          <div class="shelf" id="sc-shelf"></div>
+
+          <!-- Продающая карточка на месте "Автопродление" с дома. -->
+          <div class="card home-sub sc-buy" id="sc-buy" role="button">
+            <div class="home-sub-left">
+              <i class="ti ti-diamond"></i>
+              <div>
+                <div class="home-sub-title" id="sc-buy-title"></div>
+                <div class="home-sub-until">откроется сразу после оплаты, отмена в любой момент</div>
+              </div>
+            </div>
+            <i class="ti ti-chevron-right home-sub-arrow"></i>
+          </div>
+
+          <div class="home-support">
+            <button type="button" id="sc-support-btn"><i class="ti ti-help-circle"></i> Поддержка</button>
+            <div class="home-support-contacts" id="sc-support-contacts" hidden></div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -604,6 +668,24 @@
       </div>
     </section>
   </main>
+
+  <!-- ЗАКРЕПЛЁННАЯ ПОЛОСКА ВИТРИНЫ. Живёт вне main: position:fixed, и внутри .wrap
+       её прижало бы к колонке. Показывается только вместе с витриной. -->
+  <div class="sc-bottom" id="sc-bottom" hidden>
+    <div class="sc-bottom-txt">
+      <b id="sc-bottom-price"></b>
+      <span id="sc-bottom-sub">всё открыто, отмена в любой момент</span>
+    </div>
+    <button type="button" class="btn btn-primary sc-bottom-btn" id="sc-bottom-btn">Оформить</button>
+  </div>
+
+  <!-- ШТОРКА ЗАМКА: одна на все закрытые места (программа, Подружка, плитка).
+       Содержимое рисует app.js, разметка переиспользует классы .sheet с дома. -->
+  <div id="lock-sheet" class="sheet" hidden>
+    <div class="sheet-backdrop" data-sheet-close></div>
+    <div class="sheet-panel lock-panel" id="lock-panel" role="dialog" aria-label="Что внутри"></div>
+  </div>
+
 
   <footer class="site-footer">
     <div class="wrap">
