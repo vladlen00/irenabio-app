@@ -8,33 +8,11 @@
 
 // Метка сборки. Печатается в консоль при загрузке, чтобы можно было убедиться,
 // что браузер взял свежий app.js, а не кэш. Поднимать вместе с ?v= в index.html.
-const APP_BUILD = "2026-09-21 витрина #8 (8 программ, полное число дней)";
+const APP_BUILD = "2026-09-22 витрина, сборка #8";
 try {
   console.info("app.js build:", APP_BUILD);
   document.documentElement.setAttribute("data-build", APP_BUILD);
 } catch (e) {}
-
-// ⚠️ ВРЕМЕННО, ДЛЯ ПОИСКА ЗАВИСАНИЯ НА "Проверяем доступ". Снять вместе с починкой.
-// Включается сам на localhost и по ?debug=1. На проде молчит.
-const SC_DEBUG = (function () {
-  try {
-    return location.hostname === "localhost" || location.hostname === "127.0.0.1"
-      || location.search.indexOf("debug=1") >= 0;
-  } catch (e) { return false; }
-})();
-window.__scLog = [];
-function scLog(what, data) {
-  if (!SC_DEBUG) return;
-  const line = { t: Math.round(performance.now()), what: what, data: data === undefined ? null : data };
-  window.__scLog.push(line);
-  try { console.log("[СЦ " + line.t + "] " + what, data === undefined ? "" : data); } catch (e) {}
-}
-// Одной строкой скопировать весь журнал: copy(__scDump())
-window.__scDump = function () {
-  const txt = window.__scLog.map((l) => "[" + l.t + "] " + l.what + (l.data ? " " + JSON.stringify(l.data) : "")).join(String.fromCharCode(10));
-  try { console.log(txt); } catch (e) {}
-  return txt;
-};
 
 const SUPABASE_URL = "https://kjzxrpwqyyjcykwbqskn.supabase.co";
 const PUBLISHABLE_KEY = "sb_publishable_pOloEHMZ5QjMhnbfhygqmA_CQPSP1hU";
@@ -1415,7 +1393,6 @@ const HOME_WAIT_LIMIT_MS = 12000;
 let homeWaitTimer = null;
 function homeWaitWatch(retry) {
   clearTimeout(homeWaitTimer);
-  scLog("сторож: завёл на " + HOME_WAIT_LIMIT_MS + " мс");
   homeWaitTimer = setTimeout(() => {
     const loading = homeEls && homeEls.loading;
     const state = {
@@ -1425,8 +1402,7 @@ function homeWaitWatch(retry) {
       текст: loading ? (loading.textContent || "").slice(0, 40) : null,
       сессия: !!(sb && hasStoredSession()),
     };
-    if (!loading || loading.hidden || !els.viewHome || els.viewHome.hidden) { scLog("сторож: промолчал, каркаса нет", state); return; }
-    scLog("сторож: СРАБОТАЛ", state);
+    if (!loading || loading.hidden || !els.viewHome || els.viewHome.hidden) { return; }
     console.warn("home shell watchdog: вердикта нет дольше " + HOME_WAIT_LIMIT_MS + " мс");
     // Вердикта нет дольше срока. "Проверяем доступ" навсегда - недопустимо.
     // Есть сохранённая сессия -> это про связь, ей экран связи с "Повторить".
@@ -1437,11 +1413,6 @@ function homeWaitWatch(retry) {
 }
 
 function showHomeShell() {
-  if (SC_DEBUG) {
-    let stack = "";
-    try { stack = (new Error().stack || "").split(String.fromCharCode(10)).slice(1, 5).join(" <- ").replace(/https?:\/\/[^\/]+\//g, ""); } catch (e) {}
-    scLog("showHomeShell: ПОКАЗЫВАЮ КАРКАС ДОМА", { откуда: stack });
-  }
   hideEntryViews();
   hidePayFlowExtra();
   if (siteHeader) siteHeader.hidden = true;
@@ -2343,12 +2314,10 @@ function scChrome(on) {
   if (on && bar) {
     const h = Math.round(bar.getBoundingClientRect().height) || 76;
     document.documentElement.style.setProperty("--sc-bar-h", h + "px");
-    scLog("scChrome: высота полоски", { px: h });
   }
 }
 
 async function showShowcase() {
-  scLog("showShowcase: вход", { есть_данные: !!publicData });
   hidePayFlowExtra();
   if (siteHeader) siteHeader.hidden = true;   // у витрины своя шапка в герое
   if (siteFooter) siteFooter.hidden = true;
@@ -2357,13 +2326,19 @@ async function showShowcase() {
   if (els.viewLavaReturn) els.viewLavaReturn.hidden = true;
   els.viewPassword.hidden = true;
   els.viewAccess.hidden = true;
+  // Экран дня прячем ЗДЕСЬ, а не только в backToHome. Стрелка приложения идёт через
+  // hideContentViews и день убирает, а «назад» браузером приходит прямо сюда, мимо неё:
+  // до 22.09.2026 день оставался видимым и дорисовывался ПОД витриной во всю длину.
+  // На экране это не бросалось в глаза, потому что витрина выше окна, но стоило
+  // докрутить до низа - и под «Поддержкой» начинался второй экран.
+  const vday = document.getElementById("view-day"); if (vday) vday.hidden = true;
   hideEntryViews();
   const v = document.getElementById("view-showcase");
   if (v) v.hidden = false;
   scMarkShowcase();
   window.scrollTo(0, 0);
 
-  if (publicData) { renderShowcase(publicData); scLog("showShowcase: нарисовал из памяти"); return; }
+  if (publicData) { renderShowcase(publicData); return; }
   const r = await loadPublic("library");
   const data = r.data || {};
   if (r.state !== "ok" || !data.ok || !Array.isArray(data.sprints) || data.sprints.length === 0) {
@@ -2584,7 +2559,6 @@ function scFreeSprintTitle() {
 // Тот же экран дня, что у подписчицы, но содержимое приезжает из get-public и
 // кнопки "пройдено" нет: отмечать прогресс некуда, пока нет аккаунта.
 async function openFreeDay(dayId, forceHost, fromHistory) {
-  scLog("openFreeDay", { день: dayId, из_истории: !!fromHistory });
   currentDayId = dayId;
   // Кадр в историю: "назад" из дня вернёт на витрину, а не на посторонний адрес.
   // При возврате ПО истории кадр не плодим, иначе "назад" зациклится на дне.
@@ -2699,15 +2673,14 @@ let scHashSelf = false;
 // из bfcache) мимо нашего popstate, и витрина не показывалась ничем.
 function scPushView(view, arg) {
   const want = view === "day" ? "#day" : view === "checkout" ? "#checkout" : "";
-  scLog("scPushView", { вид: view, якорь_было: location.hash, якорь_станет: want });
   try {
     history.replaceState({ sc: view, arg: arg || null }, "", location.href);
-  } catch (e) { scLog("scPushView: replaceState упал", String(e)); }
+  } catch (e) {}
   if (location.hash !== want) {
     // Присвоение hash = НОВАЯ запись в истории, всегда, во всех браузерах.
     // Свой же hashchange глушим: иначе постановка якоря тут же снова открыла бы день.
     scHashSelf = true;
-    try { location.hash = want; } catch (e) { scLog("scPushView: якорь не встал", String(e)); }
+    try { location.hash = want; } catch (e) {}
     setTimeout(() => { scHashSelf = false; }, 0);
   }
 }
@@ -2721,21 +2694,19 @@ function scMarkShowcase() {
     url.searchParams.delete("plan");
     url.hash = "";                       // витрина - основание, якоря у неё нет
     history.replaceState({ sc: "showcase" }, "", url);
-    scLog("scMarkShowcase", { адрес: url.pathname + url.search + url.hash });
-  } catch (e) { scLog("scMarkShowcase упал", String(e)); }
+  } catch (e) {}
 }
 
 // Куда вести по текущему якорю. Один разбор на оба события - и popstate, и hashchange:
 // браузеры шлют их в разном порядке и не всегда оба.
 let scRouting = false;
 function scRouteByHash(from) {
-  if (scHashSelf) { scLog("маршрут по якорю: это мы сами поставили якорь, пропускаю", { from: from, якорь: location.hash }); return; }
-  if (sb && hasStoredSession()) { scLog("маршрут по якорю: у неё сессия -> не вмешиваюсь", { from: from }); return; }
+  if (scHashSelf) return;
+  if (sb && hasStoredSession()) return;
   if (scRouting) return;               // popstate и hashchange на одно действие
   scRouting = true;
   setTimeout(() => { scRouting = false; }, 0);
   const h = location.hash;
-  scLog("маршрут по якорю", { from: from, якорь: h, state: history.state });
   if (h === "#day") {
     const st = history.state || {};
     const id = st.arg || currentDayId;
@@ -2748,10 +2719,8 @@ function scRouteByHash(from) {
 window.addEventListener("hashchange", () => scRouteByHash("hashchange"));
 // Уход со страницы: если после "назад" логов больше нет, эта строка - последняя, и она
 // говорит, что документ покинули (то есть "назад" увёл в другой документ).
-window.addEventListener("pagehide", (e) => scLog("pagehide: покидаем документ", { persisted: e.persisted, якорь: location.hash }));
 
 window.addEventListener("popstate", (e) => {
-  scLog("popstate", { state: e.state, якорь: location.hash, адрес: location.search });
   scRouteByHash("popstate");
 });
 
@@ -2759,7 +2728,6 @@ window.addEventListener("popstate", (e) => {
 // заново не выполняется, и экран остаётся таким, каким его покинули. Если это был
 // каркас дома, ждущий вердикта, ждать больше нечего - запрос оборвали при уходе.
 window.addEventListener("pageshow", (e) => {
-  scLog("pageshow", { persisted: e.persisted });
   if (!e.persisted) return;
   if (sb && hasStoredSession()) return;
   const loadingStuck = els.viewHome && !els.viewHome.hidden;
@@ -3064,7 +3032,6 @@ async function doClaim() {
 // вместо чекаута или старта отдаём женщину экрану пароля (её обычный путь после оплаты).
 // Порядок принципиален: сначала проверяем доступ, и только потом читаем адрес.
 async function routeHomeOrCheckout(opts) {
-  scLog("routeHomeOrCheckout: вход", { сессия: !!(sb && hasStoredSession()), адрес: location.search });
   const paidFallback = opts && typeof opts.paidFallback === "function" ? opts.paidFallback : null;
   const again = () => routeHomeOrCheckout(opts);
   // reason от get-home: expired -> экран подписки "ЗАКОНЧИЛАСЬ" без дома (карта, дата,
@@ -3081,11 +3048,10 @@ async function routeHomeOrCheckout(opts) {
 
   // Синхронный пик сохранённой сессии -> прячем чекаут сразу, без мигания.
   // Сессии НЕТ вообще -> человек не залогинен, это не сетевая ситуация -> старт.
-  if (!sb || !hasStoredSession()) { scLog("маршрут: сессии нет -> noSession"); noSession(); return; }
+  if (!sb || !hasStoredSession()) { noSession(); return; }
 
   showHomeShell(); // чекаут скрыт, показываем загрузку дома, пока проверяем доступ
   const s = await getSessionState({ retry: true, onAttempt: homeProgress });
-  scLog("маршрут: состояние сессии", { state: s.state });
   if (s.state === "unreachable") { showConnection(again); return; }
   // Сессия честно истекла. НЕ чекаут: у платящей женщины ключ в localStorage есть,
   // поэтому ранняя ветка showStart выше не сработала, и она упиралась в предложение
@@ -3351,14 +3317,12 @@ function hideContentViews() {
   const vsub = document.getElementById("view-subscription"); if (vsub) vsub.hidden = true;
 }
 function backToHome() {
-  scLog("backToHome", { есть_дом: !!homeData, сессия: !!(sb && hasStoredSession()) });
   // ⚠️ У ГОСТЬИ ДОМА НЕТ. Она попала сюда стрелкой приложения из бесплатного дня, и
   // раньше упиралась в пустой каркас дома с текстом «Проверяем доступ…», оставшимся
   // от пробы маршрута на загрузке. Событий браузера при этом нет (адрес не меняется),
   // поэтому ни popstate, ни сторож её не спасали: сторож взводится только в
   // showHomeShell, а сюда приходят мимо него. Найдено 21.09 по журналу Владлена.
   if (!homeData) {
-    scLog("backToHome: дома нет -> витрина");
     hideContentViews();
     showShowcase();
     return;
@@ -3839,7 +3803,6 @@ const NAV_VIEWS = {
 };
 let navStack = [];
 function navTo(view, arg) {
-  scLog("navTo", { экран: view, арг: arg });
   const top = navStack[navStack.length - 1];
   // повторный переход на тот же экран (напр. тап по мини-плееру на своём же дне)
   // кадр не плодит, иначе "назад" вернёт туда же
@@ -3847,7 +3810,6 @@ function navTo(view, arg) {
   NAV_VIEWS[view](arg);
 }
 function navBack() {
-  scLog("navBack: стрелка приложения", { стек: navStack.map((f) => f.view) });
   navStack.pop();
   const prev = navStack[navStack.length - 1];
   if (!prev) { backToHome(); return; }
@@ -3963,7 +3925,7 @@ if (startParams.get("paid") === "1" && startParams.get("order")) {
   const order = startParams.get("order");
   if (sb && hasStoredSession()) routeHomeOrCheckout({ paidFallback: () => enterPaymentReturn(order) });
   else enterPaymentReturn(order);
-} else if ((scLog("старт: развилка", { paid: startParams.get("paid"), plan: startParams.get("plan"), сессия: !!(sb && hasStoredSession()), в_рамке: window.top !== window.self }), !(sb && hasStoredSession()))) {
+} else if (!(sb && hasStoredSession())) {
   // НЕ ЗАЛОГИНЕНА -> ВИТРИНА. Это её домашний экран, а не лендинг: те же компоненты,
   // что у подписчицы, с замками. Метка ?from=demo-<апп> больше ничего не решает -
   // женщина из демо попадает туда же, куда и пришедшая по прямой ссылке.
