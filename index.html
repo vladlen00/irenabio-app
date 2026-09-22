@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=75">
+  <link rel="stylesheet" href="style.css?v=76">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. У обоих есть кириллица
@@ -408,6 +408,21 @@
           <p id="day-loading" class="day-loading">Загрузка…</p>
           <div id="day-blocks"></div>
           <button type="button" class="day-done" id="day-done" hidden><i class="ti ti-circle-check"></i> Отметить день пройденным</button>
+          <!-- Призыв в конце бесплатного дня. Только для гостьи: у подписчицы блок скрыт.
+               Цена приезжает из get-public, руками её здесь писать нельзя. -->
+          <div class="day-buy" id="day-buy" hidden>
+            <div class="home-tools-h">Понравилось?</div>
+            <div class="card home-sub sc-buy" id="day-buy-card" role="button">
+              <div class="home-sub-left">
+                <i class="ti ti-diamond"></i>
+                <div>
+                  <div class="home-sub-title">Открыть полный доступ</div>
+                  <div class="home-sub-until" id="day-buy-sub"></div>
+                </div>
+              </div>
+              <i class="ti ti-chevron-right home-sub-arrow"></i>
+            </div>
+          </div>
           <p class="day-error" id="day-error" hidden></p>
         </div>
       </div>
@@ -761,6 +776,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=126"></script>
+  <script src="app.js?v=127"></script>
 </body>
 </html>

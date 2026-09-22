@@ -1295,6 +1295,14 @@ function checkoutBack() {
   if (t === "subscription") { openSubscription(); return; }
   if (t === "login") { showLogin(); return; }
   if (t === "showcase") { showShowcase(); return; }
+  if (t === "day" && currentDayId) {
+    openFreeDay(currentDayId, null, true);
+    // Адрес обязан вернуться ко дню. Без этого в строке остаётся #checkout, и
+    // перезагрузка страницы открыла бы кассу, из которой женщина только что ушла.
+    // Меняем ЗАМЕНОЙ записи, а не новой: лишний кадр заставил бы жать "назад" дважды.
+    try { history.replaceState({ sc: "day", arg: currentDayId }, "", "#day"); } catch (e) {}
+    return;
+  }
   showStart();
 }
 
@@ -2571,9 +2579,18 @@ async function openFreeDay(dayId, forceHost, fromHistory) {
   // При возврате ПО истории кадр не плодим, иначе "назад" зациклится на дне.
   if (!fromHistory && !forceHost) scPushView("day", dayId);
   const sheet = document.getElementById("lock-sheet"); if (sheet) sheet.hidden = true;
+  // Гасим ВСЁ, откуда сюда можно прийти, а не только витрину. Экраны этого приложения
+  // не заменяют друг друга, а показываются и прячутся поимённо, и забытый экран не
+  // исчезает, а дорисовывается СНИЗУ во всю длину. Так уже было дважды: день оставался
+  // под витриной, а с 22.09.2026 из кассы можно вернуться в день, и под ним оставалась
+  // касса. hideEntryViews сам прячет витрину и зовёт scChrome(false).
   hideContentViews();
-  scChrome(false);
-  document.getElementById("view-showcase").hidden = true;
+  hidePayFlowExtra();
+  els.viewCheckout.hidden = true;
+  if (els.viewLavaReturn) els.viewLavaReturn.hidden = true;
+  els.viewPassword.hidden = true;
+  els.viewAccess.hidden = true;
+  hideEntryViews();
   document.getElementById("view-day").hidden = false;
   const loading = document.getElementById("day-loading");
   const blocksEl = document.getElementById("day-blocks");
@@ -2642,6 +2659,8 @@ async function openFreeDay(dayId, forceHost, fromHistory) {
   }
   const bar = document.getElementById("sc-bottom-btn");
   if (bar) bar.addEventListener("click", scGoCheckout);
+  const dayBuy = document.getElementById("day-buy-card");
+  if (dayBuy) dayBuy.addEventListener("click", scGoCheckoutFromDay);
   const sup = document.getElementById("sc-support-btn");
   if (sup) sup.addEventListener("click", () => {
     const box = document.getElementById("sc-support-contacts");
@@ -2650,6 +2669,46 @@ async function openFreeDay(dayId, forceHost, fromHistory) {
     box.hidden = !box.hidden;
   });
 })();
+
+// Призыв в конце бесплатного дня. Показывается ТОЛЬКО гостье: у подписчицы доступ
+// уже есть, и предлагать ей купить то, что куплено, значит выглядеть глупо.
+//
+// Цена берётся из get-public и больше ниоткуда: вписать её сюда руками значит
+// завести второй источник правды и разъехаться с кассой в первый же месяц.
+async function showDayBuy() {
+  const box = document.getElementById("day-buy");
+  if (!box) return;
+  const sub = document.getElementById("day-buy-sub");
+  const fill = () => {
+    const price = scPrice(publicData && publicData.price);
+    if (sub) {
+      sub.textContent = price
+        ? ("Всё приложение за " + price + " в месяц, отмена в любой момент")
+        : "Откроется сразу после оплаты, отмена в любой момент";
+    }
+  };
+  fill();
+  box.hidden = false;
+  // Женщина могла прийти прямо в день по якорю, минуя витрину: тогда состава и цены
+  // ещё нет. Догружаем тихо и дописываем цену - блок при этом уже на экране, и без
+  // цены он честен, просто беднее.
+  if (!publicData) {
+    const r = await loadPublic("library");
+    if (r.state === "ok" && r.data && r.data.ok) { publicData = r.data; fill(); }
+  }
+}
+
+// Из бесплатного дня в кассу. Отличается от scGoCheckout одним: "назад" возвращает
+// в ТОТ ЖЕ день, а не на витрину. Женщина ушла покупать с середины материала, и
+// выбрасывать её на главную значит заставить искать это место заново.
+function scGoCheckoutFromDay() {
+  const sheet = document.getElementById("lock-sheet"); if (sheet) sheet.hidden = true;
+  scChrome(false);
+  document.getElementById("view-day").hidden = true;
+  checkoutBackTo = "day";
+  scPushView("checkout");
+  showCheckout();
+}
 
 function scGoCheckout() {
   const sheet = document.getElementById("lock-sheet"); if (sheet) sheet.hidden = true;
@@ -3514,7 +3573,8 @@ function renderDay(data, opts) {
   const doneBtn = document.getElementById("day-done");
   // Гостья: отмечать прогресс некуда, аккаунта ещё нет. Кнопку не показываем вовсе,
   // а не гасим - неработающая кнопка хуже её отсутствия.
-  if (opts && opts.guest) { doneBtn.hidden = true; return; }
+  if (opts && opts.guest) { doneBtn.hidden = true; showDayBuy(); return; }
+  const dayBuy = document.getElementById("day-buy"); if (dayBuy) dayBuy.hidden = true;
   const completed = new Set((homeData && homeData.progress && homeData.progress.completed_day_ids) || []);
   doneBtn.hidden = false;
   setDoneState(doneBtn, completed.has(day.id));
@@ -3952,11 +4012,13 @@ if (startParams.get("paid") === "1" && startParams.get("order")) {
   // про её подписку. Сохранённый ключ может быть протухшим - тогда сюда мы не попадём,
   // а попадём в routeHomeOrCheckout, и он покажет витрину сам, уже получив отказ.
   //
-  // ИСКЛЮЧЕНИЕ: метку ?from=demo-<апп> ставит ровно одна кнопка - «Открыть полный
-  // доступ» в демо-копии. Женщина уже решилась, и круг по витрине её только тормозит,
-  // поэтому ведём сразу в кассу. «Назад» и стрелкой, и браузером возвращает на витрину:
-  // scGoCheckout ставит checkoutBackTo = "showcase" и кадр истории.
-  if (/^demo-/.test(startParams.get("from") || "")) scGoCheckout();
+  // ИСКЛЮЧЕНИЕ: ?buy=1. В демо-копии ДВЕ кнопки, и обе ставят ?from=demo-<апп>:
+  // «Что ещё есть» (женщина хочет посмотреть, что внутри - ей витрина) и «Открыть
+  // полный доступ» (она уже решилась - ей касса). По одной метке их не различить,
+  // поэтому кнопка покупки добавляет ?buy=1, а «Что ещё есть» остаётся без неё.
+  // «Назад» с кассы и стрелкой, и браузером ведёт на витрину: scGoCheckout ставит
+  // checkoutBackTo = "showcase" и кадр истории.
+  if (startParams.get("buy") === "1") scGoCheckout();
   else showShowcase();
 } else {
   routeHomeOrCheckout();                           // дом / чекаут / (stash -> экран ожидания)
