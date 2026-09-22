@@ -2149,7 +2149,14 @@ function openSheetByGroup(group) {
 (function wireMiniAppTiles() {
   // Делегат висит на .home-body, а не на .home-tools: Подружка уехала из сетки
   // в широкую карточку и осталась бы без обработчика.
-  const tools = document.querySelector(".home-body");
+  //
+  // ⚠️ СЕЛЕКТОР ОБЯЗАН БЫТЬ ПРИВЯЗАН К #view-home. Витрина повторяет разметку дома,
+  // и у неё СВОЙ .home-body, который лежит в документе ВЫШЕ. Голый
+  // querySelector(".home-body") с 22.09.2026 находил витрину, а дом подписчицы
+  // оставался вообще без обработчика: «Тренировки», «Расслабление», «Трекеры» и
+  // карточка Подружки переставали нажиматься. «Продолжить» и «Все спринты» при этом
+  // работали - у них свои привязки, и поломка выглядела выборочной.
+  const tools = document.querySelector("#view-home .home-body");
   if (tools) {
     tools.addEventListener("click", (e) => {
       const grouped = e.target.closest("[data-group]");
@@ -2768,6 +2775,12 @@ function showLogin() {
   hidePayFlowExtra();
   if (siteHeader) siteHeader.hidden = false;
   if (siteFooter) siteFooter.hidden = false;
+  // Витрину гасим ЗДЕСЬ. Функция написана до витрины и знала только про старт:
+  // с 22.09.2026 «Войти» в герое показывала форму входа ПОД витриной, за экраном,
+  // а заодно поднимала шапку сайта над героем. Со стороны женщины кнопка просто
+  // не работала. scChrome(false) убирает полоску с ценой и класс sc-open.
+  const vsc = document.getElementById("view-showcase"); if (vsc) vsc.hidden = true;
+  scChrome(false);
   const vs = document.getElementById("view-start"); if (vs) vs.hidden = true;
   els.viewCheckout.hidden = true;
   const vr0 = document.getElementById("view-reset"); if (vr0) vr0.hidden = true;
@@ -2990,7 +3003,11 @@ async function doClaim() {
   bind("start-login", (e) => { e.preventDefault(); showLogin(); });
   bind("start-signup", (e) => { e.preventDefault(); checkoutBackTo = "start"; showCheckout(); });
   bind("btn-login", (e) => { e.preventDefault(); doLogin(); });
-  bind("login-back", (e) => { e.preventDefault(); showStart(); });
+  // «Назад» с формы входа ведёт на ВИТРИНУ: это домашний экран незалогиненной.
+  // Старт остался запасным экраном - на него падает сама showShowcase, если
+  // витрина не загрузилась. До 22.09.2026 здесь был showStart, и женщина,
+  // передумавшая входить, попадала не туда, откуда пришла.
+  bind("login-back", (e) => { e.preventDefault(); showShowcase(); });
   bind("login-to-signup", (e) => { e.preventDefault(); checkoutBackTo = "login"; showCheckout(); });
   bind("login-to-reset", (e) => { e.preventDefault(); showReset(); });
   bind("btn-reset", (e) => { e.preventDefault(); doReset(); });
@@ -3934,7 +3951,13 @@ if (startParams.get("paid") === "1" && startParams.get("order")) {
   // поэтому правило «нет вердикта - нет чекаута» не задето: мы ничего не утверждаем
   // про её подписку. Сохранённый ключ может быть протухшим - тогда сюда мы не попадём,
   // а попадём в routeHomeOrCheckout, и он покажет витрину сам, уже получив отказ.
-  showShowcase();
+  //
+  // ИСКЛЮЧЕНИЕ: метку ?from=demo-<апп> ставит ровно одна кнопка - «Открыть полный
+  // доступ» в демо-копии. Женщина уже решилась, и круг по витрине её только тормозит,
+  // поэтому ведём сразу в кассу. «Назад» и стрелкой, и браузером возвращает на витрину:
+  // scGoCheckout ставит checkoutBackTo = "showcase" и кадр истории.
+  if (/^demo-/.test(startParams.get("from") || "")) scGoCheckout();
+  else showShowcase();
 } else {
   routeHomeOrCheckout();                           // дом / чекаут / (stash -> экран ожидания)
 }
