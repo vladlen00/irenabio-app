@@ -2462,6 +2462,16 @@ function scDaysTotal(s) {
   return s.estimated_days || (s.days_total > 1 ? s.days_total : 0);
 }
 
+// «Скоро» (решение Владлена 23.09.2026): программа залита не целиком, и это не идущий сейчас
+// спринт. План известен (estimated_days), а опубликовано меньше: витрина не продаёт то, чего
+// ещё нет в приложении. Дольём все дни - days_total догонит план, и метка сама станет
+// «в подписке». Бесплатную программу правило не трогает, идущую сейчас (is_new) тоже.
+// Только витрина: у подписчицы библиотека прежняя.
+function scIncomplete(s) {
+  return !(s.free_days || []).length && !s.is_new &&
+    s.estimated_days > 0 && s.days_total < s.estimated_days;
+}
+
 // Постер программы. Обложка НЕ гасится: закрытость несут метка и замок.
 function scPosterHtml(s) {
   const free = (s.free_days || []).length;
@@ -2472,6 +2482,8 @@ function scPosterHtml(s) {
     ? '<span class="poster-badge poster-badge-free">' + escapeHtml(plurDays(free)) + " бесплатно</span>"
     : soon
       ? '<span class="poster-badge poster-badge-sub">с ' + escapeHtml(scDateRu(s.starts_at)) + "</span>"
+      : scIncomplete(s)
+        ? '<span class="poster-badge poster-badge-sub">скоро</span>'
       : s.is_new
         ? '<span class="poster-badge poster-badge-new">новая</span>'
         : '<span class="poster-badge poster-badge-sub">в подписке</span>';
@@ -2521,6 +2533,21 @@ function openLockSheet(kind, payload) {
           : '<div class="lock-day free" data-demo="' + escapeHtml(it.demo) + '"><i class="ti ti-player-play"></i>' +
             "<span>" + escapeHtml(it.name) + "</span><span class=\"sc-chip sc-chip-try\">попробовать</span></div>"
         ).join("") +
+        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>Открыть всё за ' + escapeHtml(price) + " в месяц</button>" +
+        hurry +
+      "</div>";
+  } else if (scIncomplete(payload)) {
+    // Программа ещё не залита целиком: обложка, название и «скоро». Списка дней нет (он был бы
+    // из одного дня), кнопки покупки ЭТОЙ программы нет. Кнопка открыть всё остальное остаётся.
+    const s = payload;
+    const cover = coverUrl(s.cover_slug, "wide") || coverUrl(s.cover_slug, "poster");
+    panel.innerHTML =
+      '<div class="lock-cover' + (cover ? "" : " poster-blank") + '"' +
+        (cover ? ' style="background-image:url(\'' + cover + '\')"' : "") + '><span class="lock-grab"></span></div>' +
+      '<div class="lock-body">' +
+        '<div class="lock-kick">' + escapeHtml(plurDays(scDaysTotal(s))) + " · скоро</div>" +
+        '<div class="lock-title">' + escapeHtml(s.title || "") + "</div>" +
+        '<div class="lock-lead">Скоро в приложении</div>' +
         '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>Открыть всё за ' + escapeHtml(price) + " в месяц</button>" +
         hurry +
       "</div>";
