@@ -2095,6 +2095,10 @@ const MINI_APPS = {
   // из текста дня (Анти-хаос, день 1). Версии сверены с RELAX_WEB_APPS студии 21.09.
   meditation: { url: "https://vladlen00.github.io/meditation/", v: "2" },       // «Глубокое расслабление», дневная
   sleep:      { url: "https://vladlen00.github.io/sleep-meditation/", v: "2" }, // «Глубокий сон», ночная
+  // Ещё две практики Студии для меток из дней «Анти-хаоса» (день 5 и день 8). Версии сверены
+  // с RELAX_WEB_APPS студии 23.09.2026.
+  breathing446: { url: "https://vladlen00.github.io/breathing446/", v: "4" },        // «Дыхание 4·4·6»
+  anxiety:    { url: "https://vladlen00.github.io/anxiety-meditation/", v: "2" },  // «Внутреннее спокойствие», 19 мин
   // Тест «Возраст тела»: плитки на доме нет, открывается меткой из текста дня.
   // bodyage БЕЗ path СОЗНАТЕЛЬНО: общий ключ темы irena_theme, наш index.html его
   // затирает - выбор темы перестал бы запоминаться. См. исключение в sw.js.
@@ -2201,6 +2205,8 @@ const DAY_LINK_ROUTES = {
   cycle:      (el) => openMiniApp("cycle", el),      // трекер «Цикл», день 1 спринта «Основы питания»
   meditation: (el) => openMiniApp("meditation", el), // «Глубокое расслабление», день 1 «Анти-хаоса»
   sleep:      (el) => openMiniApp("sleep", el),      // «Глубокий сон», день 1 «Анти-хаоса»
+  breathing446: (el) => openMiniApp("breathing446", el), // «Дыхание 4·4·6», день 5 «Анти-хаоса»
+  anxiety:    (el) => openMiniApp("anxiety", el),    // «Внутреннее спокойствие», день 8 «Анти-хаоса»
 };
 document.addEventListener("click", (e) => {
   const a = e.target.closest('a[href^="' + DAY_LINK_PREFIX + '"]');
