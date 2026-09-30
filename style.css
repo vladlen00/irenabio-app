@@ -1097,6 +1097,9 @@ body.sc-open.has-mini { padding-bottom: calc(var(--sc-bar-h, 76px) + 80px + env(
 /* ШТОРКА ЗАМКА. Панель та же, что у шторок дома; внутри три разных содержимого. */
 .lock-panel { padding: 0 0 calc(24px + env(safe-area-inset-bottom, 0px)); overflow: hidden; }
 .lock-cover { position: relative; height: 210px; background: var(--hero-grad); background-size: cover; background-position: center; }
+/* Обложка «Биохакинга отношений»: головы у самого верха кадра, полоса 210 px по центру
+   их срезала. Только у неё кадр прижат к верху, остальные программы не тронуты. */
+.lock-cover[data-cover="relationships"] { background-position: center top; }
 .lock-cover::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, var(--menu-bg), rgba(23,18,26,0) 60%); }
 .lock-grab { position: absolute; top: 10px; left: 50%; margin-left: -20px; width: 40px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.5); z-index: 2; }
 .lock-body { padding: 0 20px; margin-top: -26px; position: relative; display: flex; flex-direction: column; gap: 12px; }

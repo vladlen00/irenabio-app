@@ -1186,7 +1186,7 @@ function escapeHtml(s) {
 // ⚠️ COVER_V ЖИВЁТ ВНУТРИ ЭТОГО ФАЙЛА, поэтому его бамп ТРЕБУЕТ бампа app.js?v= в
 // index.html. Иначе браузер отдаст закэшированный бандл со старым COVER_V и старую
 // картинку - счётчик обложек сам себя не доставит.
-const COVER_V = 5;
+const COVER_V = 6;
 // ICON_V здесь СОЗНАТЕЛЬНО НЕТ. Иконки плиток, медальон Подружки и аватар стоят
 // статикой в index.html и версионируются прямо в src (`icons/…png?v=N`). Константа
 // в JS их не касалась бы и стала бы вторым источником правды, который молча
@@ -2507,11 +2507,13 @@ function scPosterHtml(s) {
     ? '<span class="poster-badge poster-badge-free">' + escapeHtml(plurDays(free)) + " бесплатно</span>"
     : "";
   const lock = free ? "" : '<span class="poster-lock"><i class="ti ti-lock"></i></span>';
-  const meta = scNotYet(s) ? "скоро" : scDaysTotal(s) > 0 ? plurDays(scDaysTotal(s)) : (soon ? "скоро" : (s.is_new ? "идёт сейчас" : ""));
+  // У программы, которой ещё нет, строки под названием нет вовсе: «скоро» сказано в
+  // шторке, а двухстрочное название с подписью залезало на картинку (30.09).
+  const meta = scNotYet(s) ? "" : scDaysTotal(s) > 0 ? plurDays(scDaysTotal(s)) : (soon ? "скоро" : (s.is_new ? "идёт сейчас" : ""));
   return '<div class="poster' + (cover ? "" : " poster-blank") + '" data-sprint="' + escapeHtml(s.id) + '" role="button"' +
       (cover ? ' style="background-image: url(\'' + cover + '\')"' : "") + ">" +
     badge + lock +
-    '<div class="poster-info"><b>' + escapeHtml(s.title || "") + "</b><span>" + escapeHtml(meta) + "</span></div></div>";
+    '<div class="poster-info"><b>' + escapeHtml(s.title || "") + "</b>" + (meta ? "<span>" + escapeHtml(meta) + "</span>" : "") + "</div></div>";
 }
 
 // ===================== ШТОРКА ЗАМКА =====================
@@ -2561,7 +2563,7 @@ function openLockSheet(kind, payload) {
     const s = payload;
     const cover = coverUrl(s.cover_slug, "wide") || coverUrl(s.cover_slug, "poster");
     panel.innerHTML =
-      '<div class="lock-cover' + (cover ? "" : " poster-blank") + '"' +
+      '<div class="lock-cover' + (cover ? "" : " poster-blank") + '" data-cover="' + escapeHtml(s.cover_slug || "") + '"' +
         (cover ? ' style="background-image:url(\'' + cover + '\')"' : "") + '><span class="lock-grab"></span></div>' +
       '<div class="lock-body">' +
         '<div class="lock-kick">' + escapeHtml(scDaysTotal(s) > 0 ? plurDays(scDaysTotal(s)) + " · скоро" : "скоро") + "</div>" +
@@ -2583,7 +2585,7 @@ function openLockSheet(kind, payload) {
       : "скоро";
     const cover = coverUrl(s.cover_slug, "wide") || coverUrl(s.cover_slug, "poster");
     panel.innerHTML =
-      '<div class="lock-cover' + (cover ? "" : " poster-blank") + '"' +
+      '<div class="lock-cover' + (cover ? "" : " poster-blank") + '" data-cover="' + escapeHtml(s.cover_slug || "") + '"' +
         (cover ? ' style="background-image:url(\'' + cover + '\')"' : "") + '><span class="lock-grab"></span></div>' +
       '<div class="lock-body">' +
         '<div class="lock-kick">' + escapeHtml(kicker) + "</div>" +
