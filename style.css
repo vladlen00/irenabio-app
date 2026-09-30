@@ -1134,31 +1134,28 @@ body.sc-open.has-mini { padding-bottom: calc(var(--sc-bar-h, 76px) + 80px + env(
    печатает: второго места, где решают, что новое, быть не должно. */
 .poster-badge-new { background: #F2C6E4; color: #3A0E22; }
 
-/* ===== ДЫМОК ЗА СКРУГЛЕНИЕМ: общий приём, 30.09.2026 =====
-   Размытый слой (filter: blur у ::before) WebView выносит в свой слой отрисовки и
-   обрезает по ПРЯМОУГОЛЬНИКУ overflow:hidden, не по border-radius: цветной дымок
-   закрашивает углы, и карточка выглядит обрезанной прямо. В браузере и в playwright
-   это не видно, только на телефоне. У .home-wide маску на саму карточку вешать нельзя
-   (срезала бы внешнюю тень), поэтому дымок переезжает во вложенную обёртку .fx-clip:
-   она скруглена так же (inherit), режет себя маской, а тень остаётся на карточке.
-   ПРАВИЛО: любой новый блок с размытым дымком и тенью - дымок только в .fx-clip. */
-.fx-clip {
-  position: absolute; inset: 0; z-index: 0; pointer-events: none;
-  border-radius: inherit; overflow: hidden;
-  -webkit-mask-image: radial-gradient(#fff, #000);
-}
-.home-wide > .fx-clip { position: absolute; z-index: 0; }
-.fx-clip::before {
-  content: ""; position: absolute; inset: -50%;
+/* ===== СКРУГЛЕНИЕ БЕЗ РАЗМЫТИЯ: «Подружка» на витрине и на доме, 30.09.2026 =====
+   Дымок .home-wide рисовался ::before с filter: blur. Настоящий iOS WebKit выносит
+   размытый слой в отдельный слой отрисовки и режет его по ПРЯМОУГОЛЬНИКУ: углы
+   карточки закрашивались до квадрата. Маска на вложенной обёртке (.fx-clip, первая
+   попытка того же дня) на iPhone не помогла, хотя в Chrome и WebKit playwright всё было
+   чисто: эмуляторы этот дефект НЕ показывают, проверять только на телефоне.
+   Поэтому размытия у карточки нет ВООБЩЕ: тот же дымок нарисован радиальными
+   градиентами прямо в фоне самой карточки, без псевдоэлементов и фильтров.
+   ПРАВИЛО: у скруглённого блока не бывает filter: blur ни на нём, ни на его детях. */
+.home-wide.wide-flat {
+  isolation: isolate;
+  -webkit-transform: translateZ(0); transform: translateZ(0);
   background:
-    radial-gradient(42% 78% at 6% 22%, rgba(190,110,255,.75) 0%, transparent 68%),
-    radial-gradient(40% 70% at 52% 96%, rgba(255,90,150,.62) 0%, transparent 70%),
-    radial-gradient(46% 80% at 96% 30%, rgba(255,190,110,.70) 0%, transparent 68%);
-  filter: blur(26px);
+    /* свечение под медальоном (было ::after с blur 10px) */
+    radial-gradient(56px 56px at 51px 50%, rgba(255,190,205,.42) 0%, rgba(255,190,205,0) 100%),
+    /* три пятна дымка (было ::before с blur 26px) */
+    radial-gradient(70% 150% at 0% 15%, rgba(190,110,255,.55) 0%, rgba(190,110,255,0) 70%),
+    radial-gradient(60% 120% at 52% 115%, rgba(255,90,150,.45) 0%, rgba(255,90,150,0) 70%),
+    radial-gradient(65% 150% at 100% 25%, rgba(255,190,110,.55) 0%, rgba(255,190,110,0) 70%),
+    var(--brand-grad);
 }
-/* Витринная «Подружка» берёт дымок из .fx-clip, свой ::before гасим. Карточку
-   подписчицы (дом) не трогаем. */
-.sc-pod::before { content: none; }
+.home-wide.wide-flat::before, .home-wide.wide-flat::after { content: none; }
 
 /* ===== БЕСПЛАТНЫЙ УРОК: карточка на витрине ===== */
 .sc-urok {

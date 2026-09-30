@@ -2489,6 +2489,11 @@ function scIncomplete(s) {
   return !(s.free_days || []).length && !s.is_new &&
     s.estimated_days > 0 && s.days_total < s.estimated_days;
 }
+// Программа, которой ещё нет: черновик (s.soon от get-public) или вовсе без дней.
+// По нажатию та же шторка «Скоро откроется», что у недолитых.
+function scNotYet(s) {
+  return !!s.soon || (!(s.free_days || []).length && !(s.days_total > 0));
+}
 
 // Постер программы. Обложка НЕ гасится: закрытость несут метка и замок.
 function scPosterHtml(s) {
@@ -2496,15 +2501,13 @@ function scPosterHtml(s) {
   const cover = coverUrl(s.cover_slug, "poster");
   const startsMs = s.starts_at ? Date.parse(s.starts_at) : NaN;
   const soon = !free && s.days_total === 0 && Number.isFinite(startsMs);
+  // Единственная метка на постере - бесплатные дни (решение 30.09). «В подписке»,
+  // «скоро», «новая» и дата старта сняты: закрытость несёт замок.
   const badge = free
     ? '<span class="poster-badge poster-badge-free">' + escapeHtml(plurDays(free)) + " бесплатно</span>"
-    : soon
-      ? '<span class="poster-badge poster-badge-sub">с ' + escapeHtml(scDateRu(s.starts_at)) + "</span>"
-      : s.is_new
-        ? '<span class="poster-badge poster-badge-new">новая</span>'
-        : "";   // «в подписке» и «скоро» сняты 30.09: закрытость и так несёт замок
+    : "";
   const lock = free ? "" : '<span class="poster-lock"><i class="ti ti-lock"></i></span>';
-  const meta = scDaysTotal(s) > 0 ? plurDays(scDaysTotal(s)) : (soon ? "скоро" : (s.is_new ? "идёт сейчас" : ""));
+  const meta = scNotYet(s) ? "скоро" : scDaysTotal(s) > 0 ? plurDays(scDaysTotal(s)) : (soon ? "скоро" : (s.is_new ? "идёт сейчас" : ""));
   return '<div class="poster' + (cover ? "" : " poster-blank") + '" data-sprint="' + escapeHtml(s.id) + '" role="button"' +
       (cover ? ' style="background-image: url(\'' + cover + '\')"' : "") + ">" +
     badge + lock +
@@ -2552,7 +2555,7 @@ function openLockSheet(kind, payload) {
         '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>Открыть всё за ' + escapeHtml(price) + " в месяц</button>" +
         hurry +
       "</div>";
-  } else if (scIncomplete(payload)) {
+  } else if (scIncomplete(payload) || scNotYet(payload)) {
     // Программа ещё не залита целиком: обложка, название и «скоро». Списка дней нет (он был бы
     // из одного дня), кнопки покупки ЭТОЙ программы нет. Кнопка открыть всё остальное остаётся.
     const s = payload;
@@ -2561,7 +2564,7 @@ function openLockSheet(kind, payload) {
       '<div class="lock-cover' + (cover ? "" : " poster-blank") + '"' +
         (cover ? ' style="background-image:url(\'' + cover + '\')"' : "") + '><span class="lock-grab"></span></div>' +
       '<div class="lock-body">' +
-        '<div class="lock-kick">' + escapeHtml(plurDays(scDaysTotal(s))) + " · скоро</div>" +
+        '<div class="lock-kick">' + escapeHtml(scDaysTotal(s) > 0 ? plurDays(scDaysTotal(s)) + " · скоро" : "скоро") + "</div>" +
         '<div class="lock-title">' + escapeHtml(s.title || "") + "</div>" +
         '<div class="lock-lead">Скоро откроется</div>' +
         '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>Открыть всё за ' + escapeHtml(price) + " в месяц</button>" +

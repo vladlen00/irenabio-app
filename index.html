@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=77">
+  <link rel="stylesheet" href="style.css?v=79">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. У обоих есть кириллица
@@ -109,11 +109,7 @@
 
           <!-- Подружка: та же широкая карточка, что на доме. Метка "пример ›" вместо
                стрелки: нажатие открывает не аппу, а переписку-образец. -->
-          <div class="home-wide sc-pod" id="sc-pod" role="button">
-            <!-- Дымок карточки живёт ВНУТРИ этой обёртки, а не в ::before самой карточки:
-                 WebView обрезает размытый слой по прямоугольнику и срезает скругление.
-                 Правило и причина - в style.css у .fx-clip. -->
-            <span class="fx-clip" aria-hidden="true"></span>
+          <div class="home-wide wide-flat sc-pod" id="sc-pod" role="button">
             <img class="home-wide-ic" src="icons/podruzhka-card.png?v=1" alt="" width="66" height="66">
             <div class="home-wide-txt">
               <b>Подружка</b>
@@ -327,7 +323,7 @@
 
           <!-- Подружка вынесена из сетки в широкую карточку на брендовом градиенте (макет).
                data-app читает тот же делегат, что и плитки. -->
-          <div class="home-wide" data-app="podruzhka" role="button">
+          <div class="home-wide wide-flat" data-app="podruzhka" role="button">
             <img class="home-wide-ic" src="icons/podruzhka-card.png?v=1" alt="" width="66" height="66">
             <div class="home-wide-txt">
               <b>Подружка</b>
@@ -805,6 +801,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=130"></script>
+  <script src="app.js?v=131"></script>
 </body>
 </html>
