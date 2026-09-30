@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=76">
+  <link rel="stylesheet" href="style.css?v=77">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. У обоих есть кириллица
@@ -92,7 +92,7 @@
                Своего у витрины здесь ничего нет, кроме текста кнопки. -->
           <div class="home-kicker" id="sc-kick"></div>
           <div class="home-headline" id="sc-headline"></div>
-          <p class="home-subhead" id="sc-lead">Первые три дня открыты бесплатно, без регистрации.</p>
+          <p class="home-subhead" id="sc-lead">Первые дни открыты бесплатно, без регистрации.</p>
           <div class="home-cta" id="sc-play" role="button">
             <span class="home-cta-ic"><i class="ti ti-player-play-filled"></i></span>
             <span>Слушать бесплатно</span>
@@ -110,6 +110,10 @@
           <!-- Подружка: та же широкая карточка, что на доме. Метка "пример ›" вместо
                стрелки: нажатие открывает не аппу, а переписку-образец. -->
           <div class="home-wide sc-pod" id="sc-pod" role="button">
+            <!-- Дымок карточки живёт ВНУТРИ этой обёртки, а не в ::before самой карточки:
+                 WebView обрезает размытый слой по прямоугольнику и срезает скругление.
+                 Правило и причина - в style.css у .fx-clip. -->
+            <span class="fx-clip" aria-hidden="true"></span>
             <img class="home-wide-ic" src="icons/podruzhka-card.png?v=1" alt="" width="66" height="66">
             <div class="home-wide-txt">
               <b>Подружка</b>
@@ -119,6 +123,10 @@
           </div>
 
           <div class="home-tools" id="sc-tools"></div>
+
+          <!-- Бесплатный урок «Игры в долгую». Открыт всем, без входа. Содержимое из
+               FREE_LESSON в app.js, прямая ссылка app.irenabio.com/#urok. -->
+          <div class="card sc-urok" id="sc-urok" role="button" hidden></div>
 
           <div class="home-tools-h">Программы</div>
           <div class="shelf" id="sc-shelf"></div>
@@ -390,6 +398,27 @@
             <p class="lib-sub">Открыты все. Начни с того, что откликается сейчас</p>
           </div>
           <div class="shelf" id="sprints-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ЭКРАН БЕСПЛАТНОГО УРОКА (гостья, #urok). Плеер, блок покупки, содержание
+         по таймкодам, блок покупки ещё раз. Наполняет openUrok() в app.js. -->
+    <section id="view-urok" hidden>
+      <div class="day">
+        <div class="day-hero urok-hero">
+          <div class="day-topbar">
+            <div class="day-back" id="urok-back" role="button" aria-label="Назад"><i class="ti ti-arrow-left"></i></div>
+            <span class="day-kicker">Бесплатный урок</span>
+          </div>
+          <div class="day-title" id="urok-title"></div>
+        </div>
+        <div class="day-body">
+          <div class="urok-frame"><iframe id="urok-frame" title="Видеоурок" allow="autoplay; fullscreen; encrypted-media; picture-in-picture; screen-wake-lock" allowfullscreen></iframe></div>
+          <div class="urok-buy-slot"></div>
+          <div class="home-tools-h urok-toc-h">Содержание урока</div>
+          <div class="card urok-toc" id="urok-toc"></div>
+          <div class="urok-buy-slot"></div>
         </div>
       </div>
     </section>
@@ -776,6 +805,6 @@
 
   <!-- supabase-js только для auth-экранов (пароль + гейт); чекаут работает без него -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js?v=129"></script>
+  <script src="app.js?v=130"></script>
 </body>
 </html>

@@ -1295,6 +1295,15 @@ function checkoutBack() {
   if (t === "subscription") { openSubscription(); return; }
   if (t === "login") { showLogin(); return; }
   if (t === "showcase") { showShowcase(); return; }
+  if (t === "urok") {
+    // Кадр кассы лежит в истории поверх кадра урока: снимаем его, и «назад» браузера
+    // потом уведёт с урока на витрину, а не на второй такой же урок. Урок откроет
+    // разбор якоря (hashchange на #urok). Кадра кассы нет (пришли иначе) - открываем сами.
+    if (location.hash === "#checkout") { history.back(); return; }
+    openUrok(true);
+    try { history.replaceState({ sc: "urok" }, "", "#urok"); } catch (e) {}
+    return;
+  }
   if (t === "day" && currentDayId) {
     openFreeDay(currentDayId, null, true);
     // Адрес обязан вернуться ко дню. Без этого в строке остаётся #checkout, и
@@ -2226,6 +2235,7 @@ function hideEntryViews() {
   const vr = document.getElementById("view-reset"); if (vr) vr.hidden = true;
   const vc = document.getElementById("view-claim"); if (vc) vc.hidden = true;
   const vd = document.getElementById("view-showcase"); if (vd) vd.hidden = true;
+  hideUrok();
   scChrome(false);
 }
 // ===================== ВИТРИНА (домашний экран для незалогиненной) =====================
@@ -2242,10 +2252,10 @@ function hideEntryViews() {
 let publicData = null;
 
 // Демо-копии мини-аппов. Ведут на github.io и НЕ требуют ни сессии, ни токена.
+// С 30.09.2026 дыхание 4-4-6 и тест «Возраст тела» больше не бесплатные: их демо
+// убраны отсюда, а сами демо-страницы сняты с публикации (Pages выключен).
 const DEMO_LINKS = {
   oneday:       "https://vladlen00.github.io/oneday-demo/",
-  breathing446: "https://vladlen00.github.io/breathing446-demo/",
-  bodyage:      "https://vladlen00.github.io/bodyage-demo/",
   glutes:       "https://vladlen00.github.io/glutes-demo/",
   workout:      "https://vladlen00.github.io/workout-demo/",
 };
@@ -2262,17 +2272,18 @@ const SC_TOOLS = [
       { name: "Биохакинг ягодиц: разбор техники", demo: "glutes" },
       { name: "Остальные тренировки и разборы", locked: true },
     ] },
-  { key: "relax", icon: "relax", name: "Расслабление", sub: "медитации, дыхание", chip: "2 пробные", try: true,
+  { key: "relax", icon: "relax", name: "Расслабление", sub: "медитации, дыхание", chip: "1 пробная", try: true,
     title: "Расслабление",
     items: [
       { name: "Медитация «Один день»", demo: "oneday" },
-      { name: "Дыхание 4-4-6", demo: "breathing446" },
+      { name: "Дыхание 4-4-6", locked: true },
       { name: "Ещё 12 практик", locked: true },
     ] },
-  { key: "trackers", icon: "trackers", name: "Трекеры", sub: "здоровье и цикл", chip: "тест бесплатно", try: true,
+  // Без chip: бесплатного внутри больше нет, метка на плитке не рисуется.
+  { key: "trackers", icon: "trackers", name: "Трекеры", sub: "здоровье и цикл",
     title: "Трекеры",
     items: [
-      { name: "Возраст тела: тест целиком", demo: "bodyage" },
+      { name: "Возраст тела: тест", locked: true },
       { name: "Цикл", locked: true },
       { name: "Чекины", locked: true },
     ] },
@@ -2399,6 +2410,10 @@ function renderShowcase(d) {
   const totalN = freeSprint.days_total || 0;
   document.getElementById("sc-bar").style.width = totalN > 0 ? Math.round((freeN / totalN) * 100) + "%" : "0";
   document.getElementById("sc-count").textContent = totalN > 0 ? (freeN + " из " + totalN + " открыты") : "";
+  // Подпись героя из того же числа, что метка и счётчик: руками её больше не пишем.
+  const lead = document.getElementById("sc-lead");
+  lead.hidden = freeN === 0;
+  lead.textContent = freeLeadText(freeN);
   document.getElementById("sc-alldays").onclick = () => openLockSheet("sprint", freeSprint);
 
   // ===== ИНСТРУМЕНТЫ =====
@@ -2406,13 +2421,16 @@ function renderShowcase(d) {
   toolsEl.innerHTML = SC_TOOLS.map((t) => {
     const chip = t.key === "library"
       ? '<span class="sc-chip sc-chip-lock">' + escapeHtml(plurPrograms(d.sprints.length)) + "</span>"
-      : '<span class="sc-chip sc-chip-try">' + escapeHtml(t.chip) + "</span>";
+      : t.chip ? '<span class="sc-chip sc-chip-try">' + escapeHtml(t.chip) + "</span>" : "";
     return '<div class="t5" data-tool="' + t.key + '" role="button">' +
       '<img class="t5ic" src="icons/' + t.icon + '.png?v=1" alt="" width="32" height="32">' +
       chip +
       '<div class="t5n">' + escapeHtml(t.name) + "</div>" +
       '<div class="t5s">' + escapeHtml(t.sub) + "</div></div>";
   }).join("");
+
+  // ===== БЕСПЛАТНЫЙ УРОК =====
+  renderUrokCard();
 
   // ===== ПОЛКА ПРОГРАММ =====
   document.getElementById("sc-shelf").innerHTML = d.sprints.map(scPosterHtml).join("");
@@ -2482,11 +2500,9 @@ function scPosterHtml(s) {
     ? '<span class="poster-badge poster-badge-free">' + escapeHtml(plurDays(free)) + " бесплатно</span>"
     : soon
       ? '<span class="poster-badge poster-badge-sub">с ' + escapeHtml(scDateRu(s.starts_at)) + "</span>"
-      : scIncomplete(s)
-        ? '<span class="poster-badge poster-badge-sub">скоро</span>'
       : s.is_new
         ? '<span class="poster-badge poster-badge-new">новая</span>'
-        : '<span class="poster-badge poster-badge-sub">в подписке</span>';
+        : "";   // «в подписке» и «скоро» сняты 30.09: закрытость и так несёт замок
   const lock = free ? "" : '<span class="poster-lock"><i class="ti ti-lock"></i></span>';
   const meta = scDaysTotal(s) > 0 ? plurDays(scDaysTotal(s)) : (soon ? "скоро" : (s.is_new ? "идёт сейчас" : ""));
   return '<div class="poster' + (cover ? "" : " poster-blank") + '" data-sprint="' + escapeHtml(s.id) + '" role="button"' +
@@ -2547,7 +2563,7 @@ function openLockSheet(kind, payload) {
       '<div class="lock-body">' +
         '<div class="lock-kick">' + escapeHtml(plurDays(scDaysTotal(s))) + " · скоро</div>" +
         '<div class="lock-title">' + escapeHtml(s.title || "") + "</div>" +
-        '<div class="lock-lead">Скоро в приложении</div>' +
+        '<div class="lock-lead">Скоро откроется</div>' +
         '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>Открыть всё за ' + escapeHtml(price) + " в месяц</button>" +
         hurry +
       "</div>";
@@ -2755,6 +2771,151 @@ function scGoCheckout() {
   showCheckout();
 }
 
+// Подпись героя витрины по числу бесплатных дней: «Первые два дня открыты ...».
+function freeLeadText(n) {
+  const words = { 2: "два", 3: "три", 4: "четыре", 5: "пять" };
+  if (n === 1) return "Первый день открыт бесплатно, без регистрации.";
+  return "Первые " + (words[n] || String(n)) + " " + (words[n] ? "дня" : "дней") + " открыты бесплатно, без регистрации.";
+}
+
+// ===================== БЕСПЛАТНЫЙ УРОК (#urok) =====================
+// Вступление к курсу «Игра в долгую», открыто ВСЕМ без входа: это решение Владлена,
+// гейта у урока нет ни здесь, ни на сервере. В курсе для подписчиц (мини-апп dolgaya)
+// тот же ролик остаётся как есть. Разрешённый домен app.irenabio.com стоит у ролика
+// в Kinescope. Текст и таймкоды совпадают с курсом (dolgaya/content.js, пост 151).
+// Прямая ссылка для сторис: https://app.irenabio.com/#urok
+const FREE_LESSON = {
+  player: "raowFf45cesaV3j3tF2LuK",   // Kinescope, «7 сезонов отношений»
+  quality: "480p",                    // стартовое качество: бережёт трафик
+  title: "7 сезонов отношений",
+  duration: "31:15",
+  about: "Помнишь, как в начале всё было легко? А потом будто кто-то приглушил свет. " +
+    "У отношений есть сезоны, и через них проходит каждая пара.\n\n" +
+    "В этом уроке ты увидишь, как меняются отношения со временем, пройдёшь по сезонам " +
+    "от весны до новой весны и поймёшь, почему «остыли» бывает просто сменой сезона. " +
+    "С этого урока начинается весь курс.",
+  timecodes: [
+    [0, "Вступление: зачем мы здесь?"],
+    [216, "Отношения - это цикл (а не прямая линия)"],
+    [658, "Что тебя ждёт в этом обучении"],
+    [990, "Как меняются отношения со временем"],
+    [1107, "Весна: влюблённость и идеализация"],
+    [1206, "Лето: близость и растворение"],
+    [1269, "Осень: разочарование и первые кризисы"],
+    [1340, "Зима: холод, отдаление и усталость"],
+    [1650, "Новая весна: можно ли всё начать заново?"],
+  ],
+};
+
+function urokSrc(startSec) {
+  const q = new URLSearchParams({ quality: FREE_LESSON.quality });
+  if (startSec) { q.set("t", String(startSec)); q.set("autoplay", "1"); }
+  return "https://kinescope.io/embed/" + FREE_LESSON.player + "?" + q.toString();
+}
+
+// Карточка на витрине, над полкой программ.
+function renderUrokCard() {
+  const card = document.getElementById("sc-urok");
+  if (!card) return;
+  card.innerHTML =
+    '<div class="sc-urok-kick">Бесплатный урок · ' + escapeHtml(FREE_LESSON.duration) + "</div>" +
+    '<div class="sc-urok-title">' + escapeHtml(FREE_LESSON.title) + "</div>" +
+    '<p class="sc-urok-desc">' + escapeHtml(FREE_LESSON.about) + "</p>" +
+    '<span class="sc-urok-play"><i class="ti ti-player-play-filled"></i> Смотреть урок</span>';
+  card.hidden = false;
+}
+
+// Блок продажи на экране урока (под плеером и в конце). Цена только из get-public.
+function fillUrokBuy() {
+  const price = scPrice(publicData && publicData.price);
+  document.querySelectorAll("#view-urok .urok-buy-slot").forEach((slot) => {
+    slot.innerHTML =
+      '<div class="card urok-buy">' +
+        '<p class="urok-buy-lead">Это вступление к курсу «Игра в долгую». Все 7 сезонов, методички и задания в клубе.</p>' +
+        '<button type="button" class="btn btn-primary urok-buy-btn" data-urok-buy>' +
+          (price ? "Вступить в клуб за " + escapeHtml(price) + " в месяц" : "Вступить в клуб") + "</button>" +
+        '<div class="urok-buy-note">откроется сразу после оплаты, отмена в любой момент</div>' +
+      "</div>";
+  });
+}
+
+// Плеер НЕ перенаправляем сменой src: каждая навигация iframe пишет кадр в историю
+// браузера, и «назад» потом листал плеер, а не экраны (найдено 30.09 на прогоне:
+// history.back() с кассы откатывал видео, а касса оставалась). Вместо этого меняем
+// сам элемент: первая загрузка нового iframe в историю не попадает.
+function setUrokFrame(src) {
+  const old = document.getElementById("urok-frame");
+  if (!old) return;
+  const f = old.cloneNode(false);
+  if (src) f.src = src; else f.removeAttribute("src");
+  old.replaceWith(f);
+}
+
+function hideUrok() {
+  const v = document.getElementById("view-urok");
+  if (v && !v.hidden) {
+    v.hidden = true;
+    setUrokFrame(null);   // иначе видео играло бы дальше за другим экраном
+  }
+}
+
+async function openUrok(fromHistory) {
+  if (!fromHistory) scPushView("urok");
+  const sheet = document.getElementById("lock-sheet"); if (sheet) sheet.hidden = true;
+  // Гасим ВСЁ, откуда сюда можно прийти (правило экранов, см. openFreeDay).
+  hideContentViews();
+  hidePayFlowExtra();
+  els.viewCheckout.hidden = true;
+  if (els.viewLavaReturn) els.viewLavaReturn.hidden = true;
+  els.viewPassword.hidden = true;
+  els.viewAccess.hidden = true;
+  hideEntryViews();
+  if (siteHeader) siteHeader.hidden = true;
+  if (siteFooter) siteFooter.hidden = true;
+  const v = document.getElementById("view-urok");
+  document.getElementById("urok-title").textContent = FREE_LESSON.title;
+  const f = document.getElementById("urok-frame");
+  if (!f.getAttribute("src")) setUrokFrame(urokSrc(0));
+  const toc = document.getElementById("urok-toc");
+  toc.innerHTML = FREE_LESSON.timecodes.map(([sec, name]) =>
+    '<button type="button" class="urok-tc" data-urok-t="' + sec + '"><b>' +
+      Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0") + "</b><span>" + escapeHtml(name) + "</span></button>"
+  ).join("");
+  fillUrokBuy();
+  v.hidden = false;
+  window.scrollTo(0, 0);
+  // Пришла по прямой ссылке мимо витрины: цены ещё нет, догружаем тихо.
+  if (!publicData) {
+    const r = await loadPublic("library");
+    if (r.state === "ok" && r.data && r.data.ok) { publicData = r.data; fillUrokBuy(); }
+  }
+}
+
+// Из урока в кассу: «назад» вернёт на урок, а не на витрину.
+function scGoCheckoutFromUrok() {
+  scChrome(false);
+  hideUrok();
+  checkoutBackTo = "urok";
+  scPushView("checkout");
+  showCheckout();
+}
+
+(function wireUrok() {
+  const card = document.getElementById("sc-urok");
+  if (card) card.addEventListener("click", () => openUrok());
+  const v = document.getElementById("view-urok");
+  if (v) v.addEventListener("click", (e) => {
+    if (e.target.closest("[data-urok-buy]")) { scGoCheckoutFromUrok(); return; }
+    const tc = e.target.closest("[data-urok-t]");
+    if (tc) {
+      setUrokFrame(urokSrc(parseInt(tc.getAttribute("data-urok-t"), 10) || 0));
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  });
+  const back = document.getElementById("urok-back");
+  if (back) back.addEventListener("click", () => { hideUrok(); showShowcase(); });
+})();
+
 // ===== ИСТОРИЯ ГОСТЬИ =====
 // Приложение своей истории не вело вообще: все переходы - это показ и скрытие
 // секций, адрес не менялся. Поэтому "назад" из дня уходил на ПРЕДЫДУЩИЙ адрес в
@@ -2771,7 +2932,7 @@ let scHashSelf = false;
 // гарантии не даёт: 21.09 у Владлена "назад" ушёл в другой документ (старый ?plan=1m
 // из bfcache) мимо нашего popstate, и витрина не показывалась ничем.
 function scPushView(view, arg) {
-  const want = view === "day" ? "#day" : view === "checkout" ? "#checkout" : "";
+  const want = view === "day" ? "#day" : view === "checkout" ? "#checkout" : view === "urok" ? "#urok" : "";
   try {
     history.replaceState({ sc: view, arg: arg || null }, "", location.href);
   } catch (e) {}
@@ -2811,7 +2972,9 @@ function scRouteByHash(from) {
     const id = st.arg || currentDayId;
     if (id) { openFreeDay(id, null, true); return; }
   }
-  if (h === "#checkout") { showCheckout(); return; }
+  if (h === "#urok") { openUrok(true); return; }
+  if (h === "#checkout") { hideUrok(); showCheckout(); return; }
+  hideUrok();
   showShowcase();
 }
 
@@ -3424,6 +3587,7 @@ function hideContentViews() {
   const vs = document.getElementById("view-sprint"); if (vs) vs.hidden = true;
   const vd = document.getElementById("view-day"); if (vd) vd.hidden = true;
   const vsub = document.getElementById("view-subscription"); if (vsub) vsub.hidden = true;
+  hideUrok();
 }
 function backToHome() {
   // ⚠️ У ГОСТЬИ ДОМА НЕТ. Она попала сюда стрелкой приложения из бесплатного дня, и
@@ -4052,6 +4216,12 @@ if (startParams.get("paid") === "1" && startParams.get("order")) {
   // «Назад» с кассы и стрелкой, и браузером ведёт на витрину: scGoCheckout ставит
   // checkoutBackTo = "showcase" и кадр истории.
   if (startParams.get("buy") === "1") scGoCheckout();
+  else if (location.hash === "#urok") {
+    // Прямая ссылка на бесплатный урок (сторис, шапка инстаграма). Под урок кладём
+    // витрину основанием истории: «назад» из урока ведёт на неё, а не прочь с сайта.
+    scMarkShowcase();
+    openUrok();
+  }
   else showShowcase();
 } else {
   routeHomeOrCheckout();                           // дом / чекаут / (stash -> экран ожидания)

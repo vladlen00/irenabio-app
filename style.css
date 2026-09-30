@@ -1133,3 +1133,59 @@ body.sc-open.has-mini { padding-bottom: calc(var(--sc-bar-h, 76px) + 80px + env(
 /* Метка «новая» у самой свежей программы. Считает её сервер по данным, фронт только
    печатает: второго места, где решают, что новое, быть не должно. */
 .poster-badge-new { background: #F2C6E4; color: #3A0E22; }
+
+/* ===== ДЫМОК ЗА СКРУГЛЕНИЕМ: общий приём, 30.09.2026 =====
+   Размытый слой (filter: blur у ::before) WebView выносит в свой слой отрисовки и
+   обрезает по ПРЯМОУГОЛЬНИКУ overflow:hidden, не по border-radius: цветной дымок
+   закрашивает углы, и карточка выглядит обрезанной прямо. В браузере и в playwright
+   это не видно, только на телефоне. У .home-wide маску на саму карточку вешать нельзя
+   (срезала бы внешнюю тень), поэтому дымок переезжает во вложенную обёртку .fx-clip:
+   она скруглена так же (inherit), режет себя маской, а тень остаётся на карточке.
+   ПРАВИЛО: любой новый блок с размытым дымком и тенью - дымок только в .fx-clip. */
+.fx-clip {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  border-radius: inherit; overflow: hidden;
+  -webkit-mask-image: radial-gradient(#fff, #000);
+}
+.home-wide > .fx-clip { position: absolute; z-index: 0; }
+.fx-clip::before {
+  content: ""; position: absolute; inset: -50%;
+  background:
+    radial-gradient(42% 78% at 6% 22%, rgba(190,110,255,.75) 0%, transparent 68%),
+    radial-gradient(40% 70% at 52% 96%, rgba(255,90,150,.62) 0%, transparent 70%),
+    radial-gradient(46% 80% at 96% 30%, rgba(255,190,110,.70) 0%, transparent 68%);
+  filter: blur(26px);
+}
+/* Витринная «Подружка» берёт дымок из .fx-clip, свой ::before гасим. Карточку
+   подписчицы (дом) не трогаем. */
+.sc-pod::before { content: none; }
+
+/* ===== БЕСПЛАТНЫЙ УРОК: карточка на витрине ===== */
+.sc-urok {
+  background: var(--card); border: 0.5px solid var(--border); border-radius: 20px;
+  padding: 16px 18px 18px; margin: 4px 0 22px; cursor: pointer;
+  background-image: linear-gradient(135deg, rgba(198,60,116,.22), rgba(123,46,158,.10) 60%, transparent);
+}
+.sc-urok-kick { font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--accent-deep); }
+.sc-urok-title { font-family: 'Playfair Display', Georgia, serif; font-size: 22px; font-weight: 500; line-height: 1.2; margin-top: 6px; }
+.sc-urok-desc { font-size: 13.5px; line-height: 1.55; color: var(--muted-home); margin: 10px 0 14px; white-space: pre-line; }
+.sc-urok-play { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px;
+  background: var(--brand-grad); color: #fff; font-size: 14px; font-weight: 600; }
+
+/* ===== БЕСПЛАТНЫЙ УРОК: экран ===== */
+.urok-hero { padding-bottom: 18px; }
+/* Ширина от высоты окна: кадр 9:16 не выше 62% экрана, чтобы блок покупки под ним
+   выглядывал снизу без прокрутки. */
+.urok-frame { position: relative; width: min(100%, calc(62vh * 9 / 16)); margin: 0 auto; aspect-ratio: 9 / 16;
+  border-radius: 20px; overflow: hidden; background: #000; -webkit-mask-image: radial-gradient(#fff, #000); }
+.urok-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.urok-buy { padding: 16px; margin-top: 14px; text-align: center; }
+.urok-buy-lead { font-size: 14px; line-height: 1.5; margin: 0 0 12px; }
+.urok-buy-btn { width: 100%; }
+.urok-buy-note { font-size: 12px; color: var(--muted-home); margin-top: 8px; }
+.urok-toc-h { margin-top: 24px; }
+.urok-toc { padding: 4px 14px; }
+.urok-tc { display: flex; gap: 12px; width: 100%; padding: 11px 0; background: none; border: 0;
+  border-bottom: 0.5px solid var(--border); color: inherit; font: inherit; font-size: 14px; line-height: 1.4; text-align: left; cursor: pointer; }
+.urok-tc:last-child { border-bottom: 0; }
+.urok-tc b { flex: 0 0 44px; color: var(--accent-deep); font-weight: 600; }
