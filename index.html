@@ -36,11 +36,10 @@
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
   <link rel="stylesheet" href="style.css?v=80">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- Заголовки Playfair Display Medium, интерфейс Onest. У обоих есть кириллица
-       (проверено по ответу fonts.googleapis.com: подмножество cyrillic отдаётся). -->
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Заголовки Playfair Display Medium, интерфейс Onest. Файлы Google Fonts у себя (с 01.10.2026),
+       собирает biohack/tools/irenabio-app/build_fonts.py. Браузер качает только нужные
+       подмножества по unicode-range, как и с Google. -->
+  <link href="fonts.css?v=1" rel="stylesheet">
   <!-- Иконки Tabler 2.47.0: подмножество у себя (4 КБ вместо 761 КБ с jsdelivr).
        Новая иконка в коде = перезапустить biohack/tools/irenabio-app/build_icons.py и поднять ?v=. -->
   <link href="icons.css?v=1" rel="stylesheet">
