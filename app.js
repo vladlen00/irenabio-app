@@ -8,7 +8,7 @@
 
 // Метка сборки. Печатается в консоль при загрузке, чтобы можно было убедиться,
 // что браузер взял свежий app.js, а не кэш. Поднимать вместе с ?v= в index.html.
-const APP_BUILD = "2026-10-01 постеры при снимке, сборка #12";
+const APP_BUILD = "2026-10-01 ссылка шторки при снимке, сборка #13";
 try {
   console.info("app.js build:", APP_BUILD);
   document.documentElement.setAttribute("data-build", APP_BUILD);
@@ -2711,7 +2711,7 @@ function openLockSheet(kind, payload) {
 // Нижняя ссылка в шторке программы. Есть своё демо - ведём в него; нет - в
 // бесплатный спринт. У самой бесплатной программы ссылки нет вовсе: она уже открыта.
 function scAltHtml(s, free) {
-  if (free.length > 0 || !publicData) return "";
+  if (free.length > 0) return "";
   const own = SPRINT_DEMO[s.cover_slug];
   if (own) return '<span class="lock-alt" data-demo="' + escapeHtml(own.demo) + '">' + escapeHtml(own.text) + "</span>";
   const title = scFreeSprintTitle();
