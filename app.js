@@ -8,7 +8,7 @@
 
 // Метка сборки. Печатается в консоль при загрузке, чтобы можно было убедиться,
 // что браузер взял свежий app.js, а не кэш. Поднимать вместе с ?v= в index.html.
-const APP_BUILD = "2026-10-01 шторка без цены, сборка #11";
+const APP_BUILD = "2026-10-01 постеры при снимке, сборка #12";
 try {
   console.info("app.js build:", APP_BUILD);
   document.documentElement.setAttribute("data-build", APP_BUILD);
@@ -1226,7 +1226,7 @@ function sprintById(id) {
   const own = homeSprints(homeData).find((s) => s.id === id);
   if (own) return own;
   // У гостьи homeData нет вовсе: обложку бесплатного дня берём из состава витрины.
-  return (publicData && (publicData.sprints || []).find((s) => s.id === id)) || null;
+  return scSprints().find((s) => s.id === id) || null;
 }
 
 function fmtDateRu(iso) {
@@ -2447,6 +2447,11 @@ async function showShowcase() {
 // сразу все, как раньше.
 let posterObserver = null;
 let scShelfHtml = "";
+// Что сейчас нарисовано на витрине: живой ответ или снимок. Нажатия на витрине ищут
+// программу ЗДЕСЬ, а не только в publicData: пока на экране снимок, publicData ещё null,
+// и постер молча не открывался (найдено 01.10.2026). Цена по-прежнему только из publicData.
+let scShown = null;
+function scSprints() { const d = publicData || scShown; return (d && d.sprints) || []; }
 function showPosterBg(el) {
   const u = el.getAttribute("data-bg");
   el.removeAttribute("data-bg");
@@ -2468,6 +2473,7 @@ function lazyPosters(root) {
 }
 
 function renderShowcase(d) {
+  scShown = d;
   const price = scPrice(d.price);
 
   // ===== ГЕРОЙ: спринт, в котором есть бесплатные дни =====
@@ -2714,7 +2720,7 @@ function scAltHtml(s, free) {
 }
 
 function scFreeSprintTitle() {
-  const s = (publicData.sprints || []).find((x) => (x.free_days || []).length > 0);
+  const s = scSprints().find((x) => (x.free_days || []).length > 0);
   return s ? s.title : "";
 }
 
@@ -2780,7 +2786,7 @@ async function openFreeDay(dayId, forceHost, fromHistory) {
       }
       const poster = e.target.closest("[data-sprint]");
       if (poster) {
-        const s = (publicData.sprints || []).find((x) => x.id === poster.getAttribute("data-sprint"));
+        const s = scSprints().find((x) => x.id === poster.getAttribute("data-sprint"));
         if (s) openLockSheet("sprint", s);
       }
     });
@@ -2792,7 +2798,7 @@ async function openFreeDay(dayId, forceHost, fromHistory) {
       if (e.target.closest("[data-lock-buy]")) { sheet.hidden = true; scGoCheckout(); return; }
       if (e.target.closest("[data-lock-free]")) {
         sheet.hidden = true;
-        const s = (publicData.sprints || []).find((x) => (x.free_days || []).length > 0);
+        const s = scSprints().find((x) => (x.free_days || []).length > 0);
         if (s && s.free_days[0]) openFreeDay(s.free_days[0].id);
         return;
       }
