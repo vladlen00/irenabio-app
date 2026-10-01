@@ -8,7 +8,7 @@
 
 // Метка сборки. Печатается в консоль при загрузке, чтобы можно было убедиться,
 // что браузер взял свежий app.js, а не кэш. Поднимать вместе с ?v= в index.html.
-const APP_BUILD = "2026-10-01 лёгкие постеры, сборка #10";
+const APP_BUILD = "2026-10-01 шторка без цены, сборка #11";
 try {
   console.info("app.js build:", APP_BUILD);
   document.documentElement.setAttribute("data-build", APP_BUILD);
@@ -2610,6 +2610,11 @@ function scPosterHtml(s) {
 function openLockSheet(kind, payload) {
   const panel = document.getElementById("lock-panel");
   const price = scPrice(publicData && publicData.price);
+  // Цены может ещё не быть: витрина рисуется из снимка без цены, и шторку можно открыть
+  // раньше живого get-public. Тогда тексты без числа, а не «Открыть за в месяц» (01.10.2026).
+  const buyAll = price ? "Открыть всё за " + price + " в месяц" : "Оформить подписку";
+  const buyOne = price ? "Открыть за " + price + " в месяц" : "Оформить подписку";
+  const podNote = price ? "в подписке за " + price + " в месяц · отмена в любой момент" : "в подписке · отмена в любой момент";
   const n = publicData && publicData.price_notice;
   const hurry = n ? '<div class="lock-note"><b>' + escapeHtml(scPrice(n.current)) + " закрепятся за тобой, если успеть до " +
                     escapeHtml(scDateRu(n.last_day)) + "</b></div>" : "";
@@ -2630,7 +2635,7 @@ function openLockSheet(kind, payload) {
           "<div><i>•</i><span>Отвечает по материалам Ирены, а не по интернету</span></div>" +
         "</div>" +
         '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>Открыть Подружку</button>' +
-        '<div class="lock-note">в подписке за ' + escapeHtml(price) + " в месяц · отмена в любой момент</div>" +
+        '<div class="lock-note">' + escapeHtml(podNote) + "</div>" +
         hurry +
       "</div>";
   } else if (kind === "tool") {
@@ -2643,7 +2648,7 @@ function openLockSheet(kind, payload) {
           : '<div class="lock-day free" data-demo="' + escapeHtml(it.demo) + '"><i class="ti ti-player-play"></i>' +
             "<span>" + escapeHtml(it.name) + "</span><span class=\"sc-chip sc-chip-try\">попробовать</span></div>"
         ).join("") +
-        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>Открыть всё за ' + escapeHtml(price) + " в месяц</button>" +
+        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>' + escapeHtml(buyAll) + "</button>" +
         hurry +
       "</div>";
   } else if (scIncomplete(payload) || scNotYet(payload)) {
@@ -2658,7 +2663,7 @@ function openLockSheet(kind, payload) {
         '<div class="lock-kick">' + escapeHtml(scDaysTotal(s) > 0 ? plurDays(scDaysTotal(s)) + " · скоро" : "скоро") + "</div>" +
         '<div class="lock-title">' + escapeHtml(s.title || "") + "</div>" +
         '<div class="lock-lead">Скоро откроется</div>' +
-        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>Открыть всё за ' + escapeHtml(price) + " в месяц</button>" +
+        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>' + escapeHtml(buyAll) + "</button>" +
         hurry +
       "</div>";
   } else {
@@ -2689,7 +2694,7 @@ function openLockSheet(kind, payload) {
         }).join("") +
         (rest > 0 ? '<div class="lock-day rest"><i class="n">…</i><span>и ещё ' + escapeHtml(plurDays(rest)) + "</span></div>" : "") +
         "</div>" : "") +
-        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>Открыть за ' + escapeHtml(price) + " в месяц</button>" +
+        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>' + escapeHtml(buyOne) + "</button>" +
         scAltHtml(s, free) +
         hurry +
       "</div>";
