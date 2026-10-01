@@ -1,0 +1,27 @@
+/* Tabler Icons 2.47.0, MIT. Подмножество: только иконки из кода приложения.
+   Не править руками: собирается biohack/tools/irenabio-app/build_icons.py. */
+@font-face{font-family:"tabler-icons";font-style:normal;font-weight:400;font-display:block;src:url("fonts/tabler-subset.woff2?v=1") format("woff2")}
+.ti{font-family:"tabler-icons" !important;speak:none;font-style:normal;font-weight:normal;font-variant:normal;text-transform:none;line-height:1;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+.ti-arrow-left:before{content:"\ea19"}
+.ti-barbell:before{content:"\eff0"}
+.ti-books:before{content:"\eff2"}
+.ti-check:before{content:"\ea5e"}
+.ti-chevron-right:before{content:"\ea61"}
+.ti-circle-check:before{content:"\ea67"}
+.ti-circle-dot:before{content:"\efb1"}
+.ti-credit-card:before{content:"\ea84"}
+.ti-crown:before{content:"\ed12"}
+.ti-diamond:before{content:"\eb65"}
+.ti-file-type-pdf:before{content:"\fb10"}
+.ti-flame:before{content:"\ec2c"}
+.ti-flower:before{content:"\eff6"}
+.ti-heartbeat:before{content:"\ef92"}
+.ti-help-circle:before{content:"\f91d"}
+.ti-lock:before{content:"\eae2"}
+.ti-logout:before{content:"\eba8"}
+.ti-menu-2:before{content:"\ec42"}
+.ti-pin:before{content:"\ec9c"}
+.ti-player-pause:before{content:"\ed45"}
+.ti-player-play:before{content:"\ed46"}
+.ti-player-play-filled:before{content:"\f691"}
+.ti-x:before{content:"\eb55"}
