@@ -8,7 +8,7 @@
 
 // Метка сборки. Печатается в консоль при загрузке, чтобы можно было убедиться,
 // что браузер взял свежий app.js, а не кэш. Поднимать вместе с ?v= в index.html.
-const APP_BUILD = "2026-10-01 снимок витрины, сборка #9";
+const APP_BUILD = "2026-10-01 лёгкие постеры, сборка #10";
 try {
   console.info("app.js build:", APP_BUILD);
   document.documentElement.setAttribute("data-build", APP_BUILD);
@@ -1183,10 +1183,12 @@ function escapeHtml(s) {
 // читалась бледным пятном. Тесный кроп срезает лобную часть и края мозжечка, зато
 // средняя яркость плитки под фильтром выросла с 0.007 до 0.012, а контраст заголовка
 // под фильтром не пострадал (11.02 -> 10.89 при пороге AA 4.5).
+// v7 (2026-10-01): постеры ужаты 800x600 -> 520x390 (3x от коробки 173x130), вес
+// полки 338 -> 165 КБ. Делает biohack/tools/irenabio-app/shrink_posters.py.
 // ⚠️ COVER_V ЖИВЁТ ВНУТРИ ЭТОГО ФАЙЛА, поэтому его бамп ТРЕБУЕТ бампа app.js?v= в
 // index.html. Иначе браузер отдаст закэшированный бандл со старым COVER_V и старую
 // картинку - счётчик обложек сам себя не доставит.
-const COVER_V = 6;
+const COVER_V = 7;
 // ICON_V здесь СОЗНАТЕЛЬНО НЕТ. Иконки плиток, медальон Подружки и аватар стоят
 // статикой в index.html и версионируются прямо в src (`icons/…png?v=N`). Константа
 // в JS их не касалась бы и стала бы вторым источником правды, который молча
@@ -2438,6 +2440,33 @@ async function showShowcase() {
   showStart();
 }
 
+// ===== ЛЕНИВЫЕ ПОСТЕРЫ (01.10.2026) =====
+// Полка программ ниже первого экрана, а восемь постеров грузились сразу, вместе с
+// героем. Теперь адрес лежит в data-bg и ставится в background-image, когда постер
+// подъехал к экрану ближе 250 px. Без IntersectionObserver (очень старый браузер) -
+// сразу все, как раньше.
+let posterObserver = null;
+let scShelfHtml = "";
+function showPosterBg(el) {
+  const u = el.getAttribute("data-bg");
+  el.removeAttribute("data-bg");
+  if (u) el.style.backgroundImage = "url('" + u + "')";
+}
+function lazyPosters(root) {
+  const list = root.querySelectorAll("[data-bg]");
+  if (!("IntersectionObserver" in window)) { list.forEach(showPosterBg); return; }
+  if (!posterObserver) {
+    posterObserver = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        posterObserver.unobserve(e.target);
+        showPosterBg(e.target);
+      }
+    }, { rootMargin: "250px 0px" });
+  }
+  list.forEach((el) => posterObserver.observe(el));
+}
+
 function renderShowcase(d) {
   const price = scPrice(d.price);
 
@@ -2485,7 +2514,15 @@ function renderShowcase(d) {
   renderUrokCard();
 
   // ===== ПОЛКА ПРОГРАММ =====
-  document.getElementById("sc-shelf").innerHTML = d.sprints.map(scPosterHtml).join("");
+  // Та же разметка, что уже на экране (снимок совпал с живым ответом), - не трогаем:
+  // пересобранные постеры на кадр остались бы без картинки, и полка мигнула бы.
+  const shelfHtml = d.sprints.map(scPosterHtml).join("");
+  if (shelfHtml !== scShelfHtml) {
+    scShelfHtml = shelfHtml;
+    const shelfEl = document.getElementById("sc-shelf");
+    shelfEl.innerHTML = shelfHtml;
+    lazyPosters(shelfEl);
+  }
 
   // ===== ПРОДАЮЩАЯ КАРТОЧКА И ПОЛОСКА =====
   document.getElementById("sc-buy-title").textContent = price ? ("Всё приложение за " + price + " в месяц") : "Оформить подписку";
@@ -2563,7 +2600,7 @@ function scPosterHtml(s) {
   // шторке, а двухстрочное название с подписью залезало на картинку (30.09).
   const meta = scNotYet(s) ? "" : scDaysTotal(s) > 0 ? plurDays(scDaysTotal(s)) : (soon ? "скоро" : (s.is_new ? "идёт сейчас" : ""));
   return '<div class="poster' + (cover ? "" : " poster-blank") + '" data-sprint="' + escapeHtml(s.id) + '" role="button"' +
-      (cover ? ' style="background-image: url(\'' + cover + '\')"' : "") + ">" +
+      (cover ? ' data-bg="' + cover + '"' : "") + ">" +
     badge + lock +
     '<div class="poster-info"><b>' + escapeHtml(s.title || "") + "</b>" + (meta ? "<span>" + escapeHtml(meta) + "</span>" : "") + "</div></div>";
 }
@@ -4091,7 +4128,7 @@ function posterHtml(s, isCurrent) {
   const cls = "poster" + (isSoon ? " poster-soon" : days.length ? "" : " poster-empty");
   return '<div class="' + cls + '"' +
       (isSoon ? ' aria-disabled="true"' : ' data-sprint-id="' + escapeHtml(s.id) + '" role="button"') +
-      (cover ? ' style="background-image: url(\'' + cover + '\')"' : "") + ">" +
+      (cover ? ' data-bg="' + cover + '"' : "") + ">" +
     (isSoon ? '<span class="poster-badge poster-badge-soon">Скоро</span>'
             : isCurrent ? '<span class="poster-badge">Ты здесь</span>' : "") +
     '<div class="poster-info">' +
@@ -4114,6 +4151,7 @@ function openSprints() {
   for (const s of shelf) html += posterHtml(s, !!current && s.id === current.id);
   if (!html) html = '<p class="home-loading">Пока ни одного спринта.</p>';
   document.getElementById("sprints-list").innerHTML = html;
+  lazyPosters(document.getElementById("sprints-list"));
   window.scrollTo(0, 0);
 }
 
