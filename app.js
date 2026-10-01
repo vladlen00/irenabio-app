@@ -8,7 +8,7 @@
 
 // Метка сборки. Печатается в консоль при загрузке, чтобы можно было убедиться,
 // что браузер взял свежий app.js, а не кэш. Поднимать вместе с ?v= в index.html.
-const APP_BUILD = "2026-09-22 витрина, сборка #8";
+const APP_BUILD = "2026-10-01 снимок витрины, сборка #9";
 try {
   console.info("app.js build:", APP_BUILD);
   document.documentElement.setAttribute("data-build", APP_BUILD);
@@ -2335,6 +2335,52 @@ async function loadPublic(action, extra) {
   }, { retry: true });
 }
 
+// ===== СНИМОК ВИТРИНЫ (01.10.2026) =====
+// Витрина рисуется СРАЗУ из снимка, а живой ответ get-public приезжает в фоне и тихо
+// перерисовывает её. Раньше всё ниже Подружки ждало один запрос: p50 1.7 с, а при
+// сбое через 27 с женщину выбрасывало на экран старта (замер 30.09, HANDOVER).
+//
+// Снимков два, берётся более свежий:
+//   - вшитый в index.html (#sc-snapshot), собирается tools/showcase/bake_snapshot.py
+//     в biohack; он нужен на первый заход, когда своего ещё нет;
+//   - последний живой ответ в localStorage.
+//
+// ЦЕНЫ В СНИМКЕ НЕТ И БЫТЬ НЕ ДОЛЖНО: касса только серверная. Из снимка цена и плашка
+// подорожания вырезаются, пока нет живого ответа, витрина пишет «Оформить подписку».
+// Бесплатный день тоже открывается только через get-public: id дня из снимка сам по
+// себе ничего не открывает, гейт is_free на сервере.
+const SC_STORE_KEY = "irenabio_sc_library";
+let publicLibPromise = null;
+
+function scValid(d) { return !!(d && d.ok && Array.isArray(d.sprints) && d.sprints.length > 0); }
+function scStripPrice(d) { const c = Object.assign({}, d); delete c.price; delete c.price_notice; return c; }
+
+function readShowcaseSnapshot() {
+  let baked = null, stored = null;
+  try { const el = document.getElementById("sc-snapshot"); if (el) baked = JSON.parse(el.textContent); } catch (e) {}
+  try { stored = JSON.parse(localStorage.getItem(SC_STORE_KEY) || "null"); } catch (e) {}
+  const b = baked && scValid(baked.data) ? baked : null;
+  const s = stored && scValid(stored.data) ? stored : null;
+  const pick = b && s ? ((s.at || 0) > (b.at || 0) ? s : b) : (s || b);
+  return pick ? scStripPrice(pick.data) : null;
+}
+
+// Один запрос библиотеки на всех: витрина, урок и день иначе слали бы по своему.
+function loadPublicLibrary() {
+  if (publicData) return Promise.resolve(publicData);
+  if (!publicLibPromise) {
+    publicLibPromise = loadPublic("library").then((r) => {
+      const d = r.data || {};
+      if (r.state === "ok" && scValid(d)) {
+        publicData = d;
+        try { localStorage.setItem(SC_STORE_KEY, JSON.stringify({ at: Date.now(), data: scStripPrice(d) })); } catch (e) {}
+      }
+      return publicData;
+    }).finally(() => { publicLibPromise = null; });
+  }
+  return publicLibPromise;
+}
+
 // Полоска с ценой живёт только вместе с витриной.
 function scChrome(on) {
   const bar = document.getElementById("sc-bottom");
@@ -2371,19 +2417,25 @@ async function showShowcase() {
   window.scrollTo(0, 0);
 
   if (publicData) { renderShowcase(publicData); return; }
-  const r = await loadPublic("library");
-  const data = r.data || {};
-  if (r.state !== "ok" || !data.ok || !Array.isArray(data.sprints) || data.sprints.length === 0) {
-    // Витрина не загрузилась. Экран связи здесь НЕ показываем: он говорит "не смогли
-    // проверить ваш доступ", а про доступ гостьи мы ничего и не утверждали. Падаем на
-    // СТАРТ - там обе двери, "Войти" и "Оформить подписку", и ничего не обещано.
-    if (v) v.hidden = true;
-    scChrome(false);
-    showStart();
-    return;
-  }
-  publicData = data;
-  renderShowcase(data);
+  // Снимок рисуется сразу, без сети. Живой ответ ниже его заменит.
+  const snap = readShowcaseSnapshot();
+  if (snap) renderShowcase(snap);
+  const data = await loadPublicLibrary();
+  // Пока ждали, она могла уйти в день, урок или кассу. Рисовать витрину под ними
+  // нельзя: renderShowcase включает полоску с ценой. Данные уже в publicData,
+  // следующий showShowcase возьмёт их оттуда.
+  const stillHere = v && !v.hidden;
+  if (data) { if (stillHere) renderShowcase(data); return; }
+  // Живого ответа нет, но снимок на экране: витрина остаётся как есть, без цены.
+  // Экран старта только если показать нечего вовсе.
+  if (snap) return;
+  if (!stillHere) return;
+  // Витрина не загрузилась. Экран связи здесь НЕ показываем: он говорит "не смогли
+  // проверить ваш доступ", а про доступ гостьи мы ничего и не утверждали. Падаем на
+  // СТАРТ - там обе двери, "Войти" и "Оформить подписку", и ничего не обещано.
+  if (v) v.hidden = true;
+  scChrome(false);
+  showStart();
 }
 
 function renderShowcase(d) {
@@ -2746,10 +2798,7 @@ async function showDayBuy() {
   // Женщина могла прийти прямо в день по якорю, минуя витрину: тогда состава и цены
   // ещё нет. Догружаем тихо и дописываем цену - блок при этом уже на экране, и без
   // цены он честен, просто беднее.
-  if (!publicData) {
-    const r = await loadPublic("library");
-    if (r.state === "ok" && r.data && r.data.ok) { publicData = r.data; fill(); }
-  }
+  if (!publicData && await loadPublicLibrary()) fill();
 }
 
 // Из бесплатного дня в кассу. Отличается от scGoCheckout одним: "назад" возвращает
@@ -2890,10 +2939,7 @@ async function openUrok(fromHistory) {
   v.hidden = false;
   window.scrollTo(0, 0);
   // Пришла по прямой ссылке мимо витрины: цены ещё нет, догружаем тихо.
-  if (!publicData) {
-    const r = await loadPublic("library");
-    if (r.state === "ok" && r.data && r.data.ok) { publicData = r.data; fillUrokBuy(); }
-  }
+  if (!publicData && await loadPublicLibrary()) fillUrokBuy();
 }
 
 // Из урока в кассу: «назад» вернёт на урок, а не на витрину.
