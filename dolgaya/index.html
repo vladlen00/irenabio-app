@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Открываем…</title>
+
+<!-- ============================================================================
+     ЗАГЛУШКА-ПЕРЕХОДНИК курса «Игра в долгую». Копия glutes/index.html, поменян
+     только адрес. Вся логика и её причины описаны там.
+
+     В штатной работе sw.js перехватывает /dolgaya/ и отдаёт файлы с github.io.
+     Сюда приходят только без воркера (?sw=off, Safari вычистил воркер, ссылкой
+     поделились, иконка «Домой» поставлена отсюда) - и уходят на github.io с тем же
+     search и hash: в хэше едет irena_token, без него курс скажет «нет доступа».
+     location.replace, чтобы «назад» не запирал между двумя страницами.
+     ============================================================================ -->
+
+<style>html, body { margin: 0; height: 100%; background: #0B080C; }</style>
+<script>
+(function () {
+  var TARGET = "https://vladlen00.github.io/dolgaya/";
+  var to = TARGET + location.search + location.hash;
+  // replace может быть недоступен в редких обёртках - тогда обычный переход.
+  try { location.replace(to); } catch (e) { location.href = to; }
+})();
+</script>
+</head>
+<body>
+<!-- Виден только при выключенном JS. По-русски и без слова "ошибка". -->
+<noscript>
+  <p style="color:#F5F0E8;font:16px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:24px">
+    <a href="https://vladlen00.github.io/dolgaya/" style="color:#F5F0E8">Открыть курс</a>
+  </p>
+</noscript>
+</body>
+</html>

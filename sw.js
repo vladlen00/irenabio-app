@@ -107,7 +107,7 @@
 //
 // Плата за исключения одна: эти плитки продолжают вылетать в Safari на iOS.
 const MINI = [
-  "workout", "cycle", "glutes",
+  "workout", "cycle", "glutes", "dolgaya",
 ];
 
 const GH = "https://vladlen00.github.io";

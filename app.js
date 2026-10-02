@@ -2098,6 +2098,10 @@ const MINI_APPS = {
   podruzhka: { url: "https://biohack-tracker-blond.vercel.app/", v: "1", q: "startapp=ai" },
   zdorovie: { url: "https://biohack-tracker-blond.vercel.app/", v: "1", q: "startapp=checkin" },
   cycle: { url: "https://vladlen00.github.io/cycle/", v: "2", path: "/cycle/" },
+  // Курс «Игра в долгую», широкая карточка под Подружкой (02.10). С path, как glutes: вход тот же
+  // (verify-app-token), localStorage курс не трогает, ролики Kinescope разрешены и для
+  // app.irenabio.com. v сверен с START_ROUTES студии (/dolgaya/?v=2).
+  dolgaya: { url: "https://vladlen00.github.io/dolgaya/", v: "2", path: "/dolgaya/" },
   // relax БЕЗ path СОЗНАТЕЛЬНО: с нашего origin рвётся возврат из медитаций в студию
   // (кнопка возврата забирает остаток прошлой сессии и затирает им свежий токен).
   // Воспроизведено дважды на живом. См. исключение в sw.js.
@@ -2110,6 +2114,9 @@ const MINI_APPS = {
   // с RELAX_WEB_APPS студии 23.09.2026.
   breathing446: { url: "https://vladlen00.github.io/breathing446/", v: "4" },        // «Дыхание 4·4·6»
   anxiety:    { url: "https://vladlen00.github.io/anxiety-meditation/", v: "2" },  // «Внутреннее спокойствие», 19 мин
+  // «Один день» для метки из дня 3 «Биохакинга отношений» (02.10). Версия сверена с
+  // RELAX_WEB_APPS студии 02.10.2026.
+  oneday:     { url: "https://vladlen00.github.io/oneday/", v: "2" },
   // Тест «Возраст тела»: плитки на доме нет, открывается меткой из текста дня.
   // bodyage БЕЗ path СОЗНАТЕЛЬНО: общий ключ темы irena_theme, наш index.html его
   // затирает - выбор темы перестал бы запоминаться. См. исключение в sw.js.
@@ -2218,6 +2225,7 @@ const DAY_LINK_ROUTES = {
   sleep:      (el) => openMiniApp("sleep", el),      // «Глубокий сон», день 1 «Анти-хаоса»
   breathing446: (el) => openMiniApp("breathing446", el), // «Дыхание 4·4·6», день 5 «Анти-хаоса»
   anxiety:    (el) => openMiniApp("anxiety", el),    // «Внутреннее спокойствие», день 8 «Анти-хаоса»
+  oneday:     (el) => openMiniApp("oneday", el),     // «Один день», день 3 «Биохакинга отношений»
 };
 document.addEventListener("click", (e) => {
   const a = e.target.closest('a[href^="' + DAY_LINK_PREFIX + '"]');
