@@ -578,6 +578,13 @@ a:hover { text-decoration: underline; }
    а не прижат вправо, и затемнение плотнее дневного (.6 на 42%, .2 внизу). Правило
    скоупим по #view-sprint - ту же разметку .day-hero носят экран дня и подписка. */
 #view-sprint .day-hero { background-position: 70% center; }
+/* Обложка «Биохакинга отношений»: головы пары у самого верха кадра, и шапки дома, дня и
+   спринта по центру их срезали (iPhone, 02.10). Прижимаем к верху только её - у остальных
+   семи обложек кадр у верха хуже (проверено на 390 px: уходят лица и силуэты). Метку
+   data-cover ставит paintCover. Селектор с #view-sprint - чтобы перебить строку выше. */
+.home-hero[data-cover="relationships"],
+.day-hero[data-cover="relationships"],
+#view-sprint .day-hero[data-cover="relationships"] { background-position: center top; }
 .day-topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
 .day-back { width: 34px; height: 34px; border-radius: 10px; background: var(--glass); display: flex; align-items: center; justify-content: center; cursor: pointer; flex: 0 0 auto; }
 .day-back i { font-size: 18px; color: var(--ink-warm); }

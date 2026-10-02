@@ -1219,6 +1219,9 @@ function paintCover(el, slug, kind, shade) {
   if (!el) return;
   const url = coverUrl(slug, kind);
   el.style.backgroundImage = url ? (shade ? shade + ", " : "") + "url('" + url + "')" : "";
+  // Метка для CSS: у отдельных обложек свой кадр (relationships прижата к верху, как в
+  // шторке витрины). Пустая строка снимает правило, когда обложка сменилась.
+  el.setAttribute("data-cover", url ? slug : "");
 }
 // Спринт, которому принадлежит день. get-day отдаёт day.sprint_id, а cover_slug уже
 // лежит в homeData - отдельный запрос за обложкой не нужен.
@@ -2097,7 +2100,7 @@ const MINI_APPS = {
   // biohack-трекер - один апп, экран выбирается через ?startapp= (читается App.js из search).
   podruzhka: { url: "https://biohack-tracker-blond.vercel.app/", v: "1", q: "startapp=ai" },
   zdorovie: { url: "https://biohack-tracker-blond.vercel.app/", v: "1", q: "startapp=checkin" },
-  cycle: { url: "https://vladlen00.github.io/cycle/", v: "2", path: "/cycle/" },
+  cycle: { url: "https://vladlen00.github.io/cycle/", v: "3", path: "/cycle/" },
   // Курс «Игра в долгую», широкая карточка под Подружкой (02.10). С path, как glutes: вход тот же
   // (verify-app-token), localStorage курс не трогает, ролики Kinescope разрешены и для
   // app.irenabio.com. v сверен с START_ROUTES студии (/dolgaya/?v=2).
@@ -2105,27 +2108,32 @@ const MINI_APPS = {
   // relax БЕЗ path СОЗНАТЕЛЬНО: с нашего origin рвётся возврат из медитаций в студию
   // (кнопка возврата забирает остаток прошлой сессии и затирает им свежий токен).
   // Воспроизведено дважды на живом. См. исключение в sw.js.
-  relax: { url: "https://vladlen00.github.io/studio/", v: "15" },
+  relax: { url: "https://vladlen00.github.io/studio/", v: "16" },
   // Две медитации глубокого расслабления: плиток на доме нет, открываются метками
   // из текста дня (Анти-хаос, день 1). Версии сверены с RELAX_WEB_APPS студии 21.09.
-  meditation: { url: "https://vladlen00.github.io/meditation/", v: "2" },       // «Глубокое расслабление», дневная
-  sleep:      { url: "https://vladlen00.github.io/sleep-meditation/", v: "2" }, // «Глубокий сон», ночная
+  meditation: { url: "https://vladlen00.github.io/meditation/", v: "3" },       // «Глубокое расслабление», дневная
+  sleep:      { url: "https://vladlen00.github.io/sleep-meditation/", v: "3" }, // «Глубокий сон», ночная
   // Ещё две практики Студии для меток из дней «Анти-хаоса» (день 5 и день 8). Версии сверены
   // с RELAX_WEB_APPS студии 23.09.2026.
-  breathing446: { url: "https://vladlen00.github.io/breathing446/", v: "4" },        // «Дыхание 4·4·6»
-  anxiety:    { url: "https://vladlen00.github.io/anxiety-meditation/", v: "2" },  // «Внутреннее спокойствие», 19 мин
+  breathing446: { url: "https://vladlen00.github.io/breathing446/", v: "5" },        // «Дыхание 4·4·6»
+  anxiety:    { url: "https://vladlen00.github.io/anxiety-meditation/", v: "3" },  // «Внутреннее спокойствие», 19 мин
   // «Один день» для метки из дня 3 «Биохакинга отношений» (02.10). Версия сверена с
   // RELAX_WEB_APPS студии 02.10.2026.
-  oneday:     { url: "https://vladlen00.github.io/oneday/", v: "2" },
+  oneday:     { url: "https://vladlen00.github.io/oneday/", v: "3" },
   // Тест «Возраст тела»: плитки на доме нет, открывается меткой из текста дня.
   // bodyage БЕЗ path СОЗНАТЕЛЬНО: общий ключ темы irena_theme, наш index.html его
   // затирает - выбор темы перестал бы запоминаться. См. исключение в sw.js.
   bodyage: { url: "https://vladlen00.github.io/bodyage/", v: "1" },
 };
 
-async function openMiniApp(appKey, tileEl) {
+// opts.ret - куда мини-апп вернёт кнопкой «назад» на вебе (метки внутри дня: обратно в
+// этот день). Едет во фрагменте рядом с токеном, мини-апп кладёт его в свой sessionStorage.
+async function openMiniApp(appKey, tileEl, opts) {
   const app = MINI_APPS[appKey];
   if (!app || !tileEl || tileEl.dataset.busy === "1") return;
+  // Студия ХРАНИТ адрес возврата между своими медитациями (они возвращаются в неё без адреса),
+  // поэтому вход в неё с дома обязан явно сказать «назад - на дом», иначе остался бы давний день.
+  const ret = (opts && opts.ret) || (appKey === "relax" ? "https://app.irenabio.com/" : null);
   const sub = tileEl.querySelector(".t5s, .sheet-card-sub, .home-wide-sub");
   const subText = sub ? sub.textContent : "";
   const flash = (msg) => { if (sub) { sub.textContent = msg; setTimeout(() => { sub.textContent = subText; }, 3000); } };
@@ -2150,7 +2158,8 @@ async function openMiniApp(appKey, tileEl) {
     const data = r.data || {};
     if (res.ok && data.ok && data.token) {
       const frag = "#irena_token=" + encodeURIComponent(data.token) +
-                   "&exp=" + encodeURIComponent(data.expiresIn || 3600);
+                   "&exp=" + encodeURIComponent(data.expiresIn || 3600) +
+                   (ret ? "&irena_return=" + encodeURIComponent(ret) : "");
       const q = app.q ? "&" + app.q : "";   // напр. startapp=ai для biohack-экрана
       // Воркер активен И у аппа есть path -> свой origin. Иначе - старый абсолютный
       // адрес, ровно как было. Деградация мягкая: хуже сегодняшнего не станет
@@ -2215,17 +2224,25 @@ function openSheetByGroup(group) {
 // база, content-admin, get-day и upload.mjs не меняются.
 // Старый бандл метку не поймает и просто откроет дом - это не тупик.
 const DAY_LINK_PREFIX = "https://app.irenabio.com/#/";
+// ВОЗВРАТ В ДЕНЬ (02.10). Мини-апп, открытый меткой, на вебе возвращает кнопкой «назад»
+// сюда, на ?open_day=<id>: после входа routeHomeOrCheckout открывает этот день. Раньше
+// медитации вели в студию на github.io без токена («Доступ закрыт», no_web_token), а цикл
+// и студия - на дом. В Телеграме метки дня не живут (дни только на вебе), ТГ не задет.
+const dayReturnUrl = () => currentDayId ? "https://app.irenabio.com/?open_day=" + encodeURIComponent(currentDayId) : null;
+const openFromDay = (key, el) => openMiniApp(key, el, { ret: dayReturnUrl() });
 const DAY_LINK_ROUTES = {
-  relax:     (el) => openMiniApp("relax", el),   // Студия: медитации, дыхание, плеер
+  relax:     (el) => openFromDay("relax", el),   // Студия: медитации, дыхание, плеер
   trainings: () => openSheetByGroup("trainings"),
   trackers:  () => openSheetByGroup("trackers"),
+  // bodyage БЕЗ адреса возврата: кнопки «назад» на вебе у неё нет вовсе (выход - браузерный
+  // «назад»), читать адрес некому. Отдельный долг, см. HANDOVER 02.10.
   bodyage:   (el) => openMiniApp("bodyage", el), // тест «Возраст тела», день 1 спринта «Омоложение изнутри»
-  cycle:      (el) => openMiniApp("cycle", el),      // трекер «Цикл», день 1 спринта «Основы питания»
-  meditation: (el) => openMiniApp("meditation", el), // «Глубокое расслабление», день 1 «Анти-хаоса»
-  sleep:      (el) => openMiniApp("sleep", el),      // «Глубокий сон», день 1 «Анти-хаоса»
-  breathing446: (el) => openMiniApp("breathing446", el), // «Дыхание 4·4·6», день 5 «Анти-хаоса»
-  anxiety:    (el) => openMiniApp("anxiety", el),    // «Внутреннее спокойствие», день 8 «Анти-хаоса»
-  oneday:     (el) => openMiniApp("oneday", el),     // «Один день», день 3 «Биохакинга отношений»
+  cycle:      (el) => openFromDay("cycle", el),      // трекер «Цикл», день 1 спринта «Основы питания»
+  meditation: (el) => openFromDay("meditation", el), // «Глубокое расслабление», день 1 «Анти-хаоса»
+  sleep:      (el) => openFromDay("sleep", el),      // «Глубокий сон», день 1 «Анти-хаоса»
+  breathing446: (el) => openFromDay("breathing446", el), // «Дыхание 4·4·6», день 5 «Анти-хаоса»
+  anxiety:    (el) => openFromDay("anxiety", el),    // «Внутреннее спокойствие», день 8 «Анти-хаоса»
+  oneday:     (el) => openFromDay("oneday", el),     // «Один день», день 3 «Биохакинга отношений»
 };
 document.addEventListener("click", (e) => {
   const a = e.target.closest('a[href^="' + DAY_LINK_PREFIX + '"]');
@@ -3410,6 +3427,21 @@ async function doClaim() {
 // opts.paidFallback - что делать, если доступа/сессии НЕТ, а в адресе висит ?paid=1&order=:
 // вместо чекаута или старта отдаём женщину экрану пароля (её обычный путь после оплаты).
 // Порядок принципиален: сначала проверяем доступ, и только потом читаем адрес.
+// Возврат из мини-аппа, открытого меткой внутри дня: ?open_day=<id> (см. dayReturnUrl).
+// Параметр снимаем СРАЗУ: иначе перезагрузка или следующий заход снова уводили бы в день.
+// Чужое значение (не uuid) молча игнорируем - женщина просто остаётся на доме.
+function openReturnDay() {
+  let id = null;
+  try {
+    const url = new URL(location.href);
+    id = url.searchParams.get("open_day");
+    if (!id) return;
+    url.searchParams.delete("open_day");
+    history.replaceState(history.state, "", url);
+  } catch (e) { return; }
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) openDay(id);
+}
+
 async function routeHomeOrCheckout(opts) {
   const paidFallback = opts && typeof opts.paidFallback === "function" ? opts.paidFallback : null;
   const again = () => routeHomeOrCheckout(opts);
@@ -3447,7 +3479,7 @@ async function routeHomeOrCheckout(opts) {
     const home = r.data || {};
     // Доступ открыт -> чистим ?paid=1&order= СРАЗУ. Иначе адрес живёт в истории и на каждом
     // заходе снова показывает "Оплата прошла, задайте пароль" залогиненной женщине.
-    if (home.access) { stripPaidParams(); renderHome(home); return; }
+    if (home.access) { stripPaidParams(); renderHome(home); openReturnDay(); return; }
     noAccess(home.reason);       // сервер ответил и сказал: доступа нет
     return;
   }
@@ -4071,7 +4103,10 @@ function openSprint(sprintId) {
   setHeadline(document.getElementById("sprint-title"), sprint.title || "");
   document.getElementById("sprint-sub").textContent = "Авторская методика · проходите в своём темпе";
   const denom = sprint.estimated_days || days.length || 0;
-  const tilde = sprint.status === "active" ? "~" : "";
+  // Тильда - только при заявленном плане (estimated_days): «~25» значит «около 25». У идущего
+  // спринта без плана знаменатель = вышедшие дни, и «из ~3» читалось как «всего около трёх».
+  // Без плана пишем «0 из 3», как шапка дома.
+  const tilde = sprint.status === "active" && sprint.estimated_days ? "~" : "";
   document.getElementById("sprint-badge").textContent = completedVisible + " из " + tilde + denom;
   // То же правило, что и на доме: при нуле пройденных полосы нет, есть строка-статус.
   const started = completedVisible > 0;
