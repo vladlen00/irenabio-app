@@ -2315,18 +2315,35 @@ const SC_TOOLS = [
     ] },
   { key: "relax", icon: "relax", name: "Расслабление", sub: "медитации, дыхание", chip: "1 пробная", try: true,
     title: "Расслабление",
+    // Названия как в Студии практик (studio/index.html, вкладки Медитации, Дыхание, Музыка), 03.10.
     items: [
       { name: "Медитация «Один день»", demo: "oneday" },
-      { name: "Дыхание 4-4-6", locked: true },
-      { name: "Ещё 12 практик", locked: true },
+      { name: "Медитация чувственности", locked: true },
+      { name: "Утро на своей стороне", locked: true },
+      { name: "Глубокое расслабление", locked: true },
+      { name: "Глубокий сон", locked: true },
+      { name: "Внутреннее спокойствие", locked: true },
+      { name: "Медитация стройности", locked: true },
+      { name: "Детская медитация", locked: true },
+      { name: "Митохондрии", locked: true },
+      { name: "Идеальная реальность", locked: true },
+      { name: "Горит внутри", locked: true },
+      { name: "Отпускание контроля", locked: true },
+      { name: "Дыхание 4·7·8", locked: true },
+      { name: "Дыхание 4·4·6", locked: true },
+      { name: "Музыка для медитации", locked: true },
     ] },
   // Без chip: бесплатного внутри больше нет, метка на плитке не рисуется.
   { key: "trackers", icon: "trackers", name: "Трекеры", sub: "здоровье и цикл",
     title: "Трекеры",
+    // Строка пользы сверена с самими трекерами 03.10 (bodyage, cycle, трекер «Здоровье»).
     items: [
-      { name: "Возраст тела: тест", locked: true },
-      { name: "Цикл", locked: true },
-      { name: "Чекины", locked: true },
+      { name: "Возраст тела", locked: true,
+        desc: "тест из 7 блоков: сила, баланс, выносливость, сердце. Узнаешь, на сколько лет работает твоё тело" },
+      { name: "Цикл", locked: true,
+        desc: "календарь: в какой ты фазе, какой день цикла и когда примерно следующая менструация" },
+      { name: "Здоровье", locked: true,
+        desc: "каждый день отмечаешь сон, энергию, стресс и настроение и видишь, как они меняются" },
     ] },
   // Метка считается из базы, поэтому chip тут нет.
   { key: "library", icon: "sprints", name: "Все спринты", sub: "библиотека" },
@@ -2334,6 +2351,16 @@ const SC_TOOLS = [
 
 // Своё бесплатное демо у программы. Женщина, которая смотрит на ягодицы, должна
 // узнать, что можно попробовать ИХ, а не соседний спринт.
+// О чём программа, для шторки недолитой программы на витрине (03.10). Тексты из
+// оглавлений спринтов в канале (ЖКТ - пост 208, Питание - посты 264 и 265), не выдуманы.
+const SPRINT_ABOUT = {
+  "gut-body": "Минус вздутие, стабильное пищеварение и плоский живот. Микробиом, связь стресса и живота, " +
+    "как устроено пищеварение, омега-3, витамин D3 и клетчатка. И упражнения для мышц живота и тазового дна.",
+  nutrition: "Никаких диет, таблиц калорий и списков запрещённых продуктов: женская физиология требует другого " +
+    "подхода. Анализы и как их читать, здоровая тарелка, сколько раз в день есть, завтрак, обед и ужин " +
+    "по-женски, средиземноморское питание и железо.",
+};
+
 const SPRINT_DEMO = {
   glutes: { demo: "glutes", text: "Сначала посмотреть бесплатно: разбор техники" },
 };
@@ -2640,7 +2667,7 @@ function scPosterHtml(s) {
   // (is_new от get-public) метка «сейчас», замок при этом остаётся.
   const badge = free
     ? '<span class="poster-badge poster-badge-free">' + escapeHtml(plurDays(free)) + " бесплатно</span>"
-    : s.is_new ? '<span class="poster-badge poster-badge-new">сейчас</span>' : "";
+    : s.is_new ? '<span class="poster-badge poster-badge-new">идёт сейчас</span>' : "";
   const lock = free ? "" : '<span class="poster-lock"><i class="ti ti-lock"></i></span>';
   // У программы, которой ещё нет, строки под названием нет вовсе: «скоро» сказано в
   // шторке, а двухстрочное название с подписью залезало на картинку (30.09).
@@ -2703,7 +2730,8 @@ function openLockSheet(kind, payload) {
       '<div class="lock-body" style="margin-top:0;padding-top:18px">' +
         '<div class="lock-title" style="font-size:22px">' + escapeHtml(t.title) + "</div>" +
         t.items.map((it) => it.locked
-          ? '<div class="lock-day rest"><i class="ti ti-lock"></i><span>' + escapeHtml(it.name) + "</span></div>"
+          ? '<div class="lock-day rest"><i class="ti ti-lock"></i><span>' + escapeHtml(it.name) +
+            (it.desc ? '<small class="lock-day-desc">' + escapeHtml(it.desc) + "</small>" : "") + "</span></div>"
           : '<div class="lock-day free" data-demo="' + escapeHtml(it.demo) + '"><i class="ti ti-player-play"></i>' +
             "<span>" + escapeHtml(it.name) + "</span><span class=\"sc-chip sc-chip-try\">попробовать</span></div>"
         ).join("") +
@@ -2714,14 +2742,21 @@ function openLockSheet(kind, payload) {
     // Программа ещё не залита целиком: обложка, название и «скоро». Списка дней нет (он был бы
     // из одного дня), кнопки покупки ЭТОЙ программы нет. Кнопка открыть всё остальное остаётся.
     const s = payload;
+    const about = scIncomplete(s) ? SPRINT_ABOUT[s.cover_slug] || "" : "";
     const cover = coverUrl(s.cover_slug, "wide") || coverUrl(s.cover_slug, "poster");
     panel.innerHTML =
       '<div class="lock-cover' + (cover ? "" : " poster-blank") + '" data-cover="' + escapeHtml(s.cover_slug || "") + '"' +
         (cover ? ' style="background-image:url(\'' + cover + '\')"' : "") + '><span class="lock-grab"></span></div>' +
       '<div class="lock-body">' +
-        '<div class="lock-kick">' + escapeHtml(scDaysTotal(s) > 0 ? plurDays(scDaysTotal(s)) + " · скоро" : "скоро") + "</div>" +
+        '<div class="lock-kick">' + escapeHtml(about
+          ? (scDaysTotal(s) > 0 ? plurDays(scDaysTotal(s)) + " · в подписке" : "в подписке")
+          : (scDaysTotal(s) > 0 ? plurDays(scDaysTotal(s)) + " · скоро" : "скоро")) + "</div>" +
         '<div class="lock-title">' + escapeHtml(s.title || "") + "</div>" +
-        '<div class="lock-lead">Скоро откроется</div>' +
+        // Недолитая программа с описанием (03.10): о чём она и честная строка про дни.
+        // Черновику без описания по-прежнему «Скоро откроется».
+        (about
+          ? '<div class="lock-lead">' + escapeHtml(about) + '</div><div class="lock-note lock-note-left">Дни добавляются в приложение постепенно</div>'
+          : '<div class="lock-lead">Скоро откроется</div>') +
         '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>' + escapeHtml(buyAll) + "</button>" +
         hurry +
       "</div>";

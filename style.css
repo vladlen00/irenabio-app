@@ -1126,6 +1126,9 @@ body.sc-open.has-mini { padding-bottom: calc(var(--sc-bar-h, 76px) + 80px + env(
 /* Метка внутри строки НЕ должна тянуться: правило .lock-day span выше даёт flex:1
    всем span, и метка растягивалась на полстроки. Ей - своя ширина и правый край. */
 .lock-day .sc-chip { flex: 0 0 auto; margin-left: auto; }
+/* Строка пользы под названием закрытого пункта (трекеры, 03.10). */
+.lock-day-desc { display: block; font-size: 12.5px; line-height: 1.4; color: var(--muted); margin-top: 3px; }
+.lock-note.lock-note-left { text-align: left; margin-top: 10px; }
 .lock-day.free { cursor: pointer; }
 .lock-day.free .ti { color: var(--accent-deep); }
 .lock-day.rest { color: var(--muted); }
