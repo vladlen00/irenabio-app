@@ -2123,7 +2123,7 @@ const MINI_APPS = {
   // Тест «Возраст тела»: плитки на доме нет, открывается меткой из текста дня.
   // bodyage БЕЗ path СОЗНАТЕЛЬНО: общий ключ темы irena_theme, наш index.html его
   // затирает - выбор темы перестал бы запоминаться. См. исключение в sw.js.
-  bodyage: { url: "https://vladlen00.github.io/bodyage/", v: "1" },
+  bodyage: { url: "https://vladlen00.github.io/bodyage/", v: "2" },
 };
 
 // opts.ret - куда мини-апп вернёт кнопкой «назад» на вебе (метки внутри дня: обратно в
@@ -2234,9 +2234,7 @@ const DAY_LINK_ROUTES = {
   relax:     (el) => openFromDay("relax", el),   // Студия: медитации, дыхание, плеер
   trainings: () => openSheetByGroup("trainings"),
   trackers:  () => openSheetByGroup("trackers"),
-  // bodyage БЕЗ адреса возврата: кнопки «назад» на вебе у неё нет вовсе (выход - браузерный
-  // «назад»), читать адрес некому. Отдельный долг, см. HANDOVER 02.10.
-  bodyage:   (el) => openMiniApp("bodyage", el), // тест «Возраст тела», день 1 спринта «Омоложение изнутри»
+  bodyage:   (el) => openFromDay("bodyage", el), // тест «Возраст тела», день 1 спринта «Омоложение изнутри»
   cycle:      (el) => openFromDay("cycle", el),      // трекер «Цикл», день 1 спринта «Основы питания»
   meditation: (el) => openFromDay("meditation", el), // «Глубокое расслабление», день 1 «Анти-хаоса»
   sleep:      (el) => openFromDay("sleep", el),      // «Глубокий сон», день 1 «Анти-хаоса»
