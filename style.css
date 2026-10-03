@@ -369,13 +369,11 @@ a:hover { text-decoration: underline; }
 .home-kicker { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.72); letter-spacing: 2.4px; text-transform: uppercase; }
 .home-headline { font-size: 40px; font-weight: 500; line-height: 1.04; color: #fff; margin: 12px 0 10px; overflow-wrap: break-word; word-wrap: break-word; text-shadow: 0 2px 18px rgba(40,6,24,.55); }
 .home-headline.long { font-size: 30px; }              /* длинное имя дня -> мельче, БЕЗ многоточия */
-/* 210 - выбрано ЗАМЕРОМ, не на глаз: только на этой ширине первая строка перестаёт
-   доставать до светлых лепестков лотоса и контраст берёт порог AA 4.5 на всех семи
-   обложках (на 270 и 240 - 2.37 и 3.92). Затемнением это не лечилось в принципе.
-   ПОД НАБЛЮДЕНИЕМ: 210 - это чуть больше половины ширины экрана; если на живом
-   телефоне строка станет похожа на узкий колодец, решать иначе - например увести
-   подзаголовок вниз под пилюлю, где фон и так тёмный. */
-.home-subhead { font-size: 13.5px; line-height: 1.5; color: rgba(255,255,255,.8); max-width: 210px; overflow-wrap: break-word; text-shadow: 0 1px 12px rgba(40,6,24,.6); }
+/* Подпись на всю ширину (решение Владлена 03.10): узкая колонка 210px давала три строки
+   и высокую шапку. 210 когда-то выбрали замером контраста на светлых лепестках лотоса
+   (обложка Омоложения); там, где подпись ляжет на светлое, держит тень текста. */
+.home-subhead { font-size: 13.5px; line-height: 1.5; color: rgba(255,255,255,.86); overflow-wrap: break-word;
+  text-shadow: 0 1px 3px rgba(20,4,14,.75), 0 1px 12px rgba(40,6,24,.6); }
 /* Пилюля-плеер из макета. Волны и таймера НЕТ осознанно: get-home не отдаёт ни
    ссылку на аудио, ни длительность, рисовать их было бы враньём. Ведёт на день. */
 .home-cta {
@@ -490,6 +488,10 @@ a:hover { text-decoration: underline; }
 .home-wide-sub { font-size: 12.5px; color: rgba(255,255,255,.82); }
 
 .home-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+/* Кнопка героя и «все дни» одной строкой (03.10). */
+.home-cta-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+.home-cta-row .home-cta { margin-top: 0; }
+.home-cta-row .hero-alldays { margin-left: auto; }
 .home .t5 {
   position: relative; isolation: isolate; overflow: hidden; cursor: pointer;
   background: var(--tile); border: 1px solid var(--border); border-radius: 20px;
@@ -523,6 +525,8 @@ a:hover { text-decoration: underline; }
 .home .t5[data-app="relax"]       { --smoke-a: rgba(176,112,240,.58); --smoke-b: rgba(228,96,180,.46); }
 .home .t5[data-group="trackers"]  { --smoke-a: rgba(246,168,92,.52);  --smoke-b: rgba(196,62,96,.50); }
 .home .t5-archive                 { --smoke-a: rgba(92,142,244,.50);  --smoke-b: rgba(138,82,236,.54); }
+.home .t5[data-app="dolgaya"]     { --smoke-a: rgba(96,180,250,.46);  --smoke-b: rgba(240,90,190,.52); }
+.home .t5-handbook                { --smoke-a: rgba(110,140,250,.44); --smoke-b: rgba(236,96,170,.44); cursor: default; }
 /* Картиночные иконки плиток. Файлы 96px = @3x к отрисовке 32.
    Свечение берёт ЦВЕТА СВОЕЙ ПЛИТКИ, а не белый: белое даёт ватный ореол, цветное -
    неон. align-self обязателен - в колоночном флексе картинка иначе тянется по ширине. */

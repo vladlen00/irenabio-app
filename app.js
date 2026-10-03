@@ -1146,6 +1146,9 @@ const homeEls = {
   progressBar: document.getElementById("home-progress-bar"),
   progressRow: document.getElementById("home-progress-row"),
   progressCount: document.getElementById("home-count"),
+  // «все дни» переезжает в строку с кнопкой героя (03.10). Ссылку держим здесь: herobox
+  // перерисовывается через innerHTML, и после этого getElementById её уже не найдёт.
+  allDays: document.getElementById("home-alldays"),
   live: document.getElementById("home-live"),
   liveTitle: document.getElementById("home-live-title"),
   liveKick: document.getElementById("home-live-kick"),
@@ -1653,6 +1656,14 @@ function renderHome(data) {
     setKicker(document.getElementById("home-kick"), sprintTitle, whole ? "Пройден" : "Вы в графике");
   }
 
+  // --- «все дни» в одну строку с кнопкой героя (03.10): шапка ниже на целую строку ---
+  const heroCta = homeEls.herobox.querySelector(".home-cta");
+  const ctaRow = document.createElement("div");
+  ctaRow.className = "home-cta-row";
+  if (heroCta) { heroCta.replaceWith(ctaRow); ctaRow.append(heroCta); }
+  else homeEls.herobox.append(ctaRow);
+  if (homeEls.allDays) ctaRow.append(homeEls.allDays);
+
   // --- прогресс (в герое, под кнопкой) ---
   const denom = denomOf(sprint, days);
   const hasProgress = !!sprint && days.length > 0;
@@ -1665,9 +1676,9 @@ function renderHome(data) {
     homeEls.progressCount.hidden = !hasProgress || !started;
     if (!started) homeEls.progressCount.textContent = "";   // не оставлять число от прошлого рендера
   }
-  if (homeEls.progressRow) homeEls.progressRow.hidden = !hasProgress;
-  // Без полосы строке нужен её собственный отступ от кнопки - иначе она прилипает.
-  if (homeEls.progressRow) homeEls.progressRow.classList.toggle("solo", hasProgress && !started);
+  // В строке прогресса остался один счётчик: у новичка она не нужна вовсе.
+  if (homeEls.progressRow) homeEls.progressRow.hidden = !hasProgress || !started;
+  if (homeEls.allDays) homeEls.allDays.hidden = !hasProgress;
   if (hasProgress && started) {
     // Тильды у идущего спринта тут НЕТ (было "18 из ~14" в старой карточке): строка
     // в 10px на обложке должна читаться с одного взгляда, знак съедал её собранность.
@@ -4256,6 +4267,9 @@ function openSprints() {
   // сортируем ПО ВОЗРАСТАНИЮ. На выбор героя это не влияет: он берётся из
   // pickCurrentSprint по status === "active", order_index там не участвует.
   const shelf = all.slice().sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+  // Текущий спринт первым (03.10), остальные в прежнем порядке.
+  const curIdx = current ? shelf.findIndex((s) => s.id === current.id) : -1;
+  if (curIdx > 0) shelf.unshift(shelf.splice(curIdx, 1)[0]);
   hideContentViews();
   document.getElementById("view-sprints").hidden = false;
   let html = "";
