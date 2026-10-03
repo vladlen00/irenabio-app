@@ -3909,7 +3909,8 @@ function renderBlock(b) {
       const title = b.title ? '<div class="blk-video-title">' + escapeHtml(b.title) + '</div>' : "";
       return '<div class="card blk-video"><div class="blk-video-frame">' +
         '<iframe src="' + escapeHtml(src) + '" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>' +
-        '<div class="blk-video-cap"><div class="blk-video-kick">Тренировка дня</div>' + title + '</div></div>';
+        // Подпись по смыслу ролика (03.10): рецепт в дне Питания не «тренировка дня».
+        '<div class="blk-video-cap"><div class="blk-video-kick">' + (/трениров/i.test(b.title || "") ? "Тренировка дня" : "Видео") + '</div>' + title + '</div></div>';
     }
     case "task":
       return '<div class="blk-task"><div class="blk-task-h"><i class="ti ti-pin"></i><span>ЗАДАНИЕ ДНЯ</span></div>' +
