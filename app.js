@@ -1468,6 +1468,9 @@ function homeSprints(data) {
 // Живут спринтом особого вида: своя полка внизу «Всех спринтов», дни называются выпусками,
 // текущим спринтом (герой дома) не становятся никогда. На витрину их не отдаёт get-public.
 const isEpisodes = (s) => !!s && s.kind === "episodes";
+// Всё, что не обычный спринт: выпуски и скрытый контейнер справочника (kind=handbook, 03.10).
+// Ни то, ни другое не бывает текущим спринтом.
+const isSideSprint = (s) => !!s && !!s.kind && s.kind !== "sprint";
 
 // Текущий = идущий спринт. Если идущего нет (библиотека из одних архивных) -
 // тот, в котором женщина остановилась на середине, иначе первый по порядку.
@@ -1477,7 +1480,7 @@ function pickCurrentSprint(sprints, completed, chosenId) {
   // стоит в списке РАНЬШЕ всех залитых и стал бы «текущим» на доме, ведя женщину
   // в пустой спринт. Сейчас до фолбэка дело не доходит только потому, что active
   // существует; это везение, а не гарантия - активного может не оказаться.
-  sprints = sprints.filter((s) => s.status !== "draft" && !isEpisodes(s));
+  sprints = sprints.filter((s) => s.status !== "draft" && !isSideSprint(s));
   // ЯВНЫЙ ВЫБОР ЖЕНЩИНЫ ПЕРЕВЕШИВАЕТ ВСЁ (persons.current_sprint_id, 18.08). До этого
   // "текущий" вычислялся каждый раз заново, и отметка дня в чужом спринте могла увести
   // герой: при отсутствии активного спринта фолбэк ниже выбирает по ЧИСЛУ пройденных
@@ -1528,6 +1531,7 @@ function pickLiveDay(data) {
     // Черновики пропускаем: их спринт в библиотеке даже не нажимается, и вести
     // женщину в день незалитого спринта нельзя.
     if (s.status === "draft") continue;
+    if (s.kind === "handbook") continue;   // записи справочника - не «что нового у Ирены»
     for (const d of (s.days || [])) {
       const t = d && d.publish_at ? Date.parse(d.publish_at) : NaN;
       if (!Number.isFinite(t) || t > now) continue;   // get-home фильтрует будущее, но не полагаемся
@@ -3831,6 +3835,7 @@ function hideContentViews() {
   els.viewHome.hidden = true;
   scChrome(false);
   const vss = document.getElementById("view-sprints"); if (vss) vss.hidden = true;
+  const vhb = document.getElementById("view-handbook"); if (vhb) vhb.hidden = true;
   const vs = document.getElementById("view-sprint"); if (vs) vs.hidden = true;
   const vd = document.getElementById("view-day"); if (vd) vd.hidden = true;
   const vsub = document.getElementById("view-subscription"); if (vsub) vsub.hidden = true;
@@ -4003,8 +4008,13 @@ function renderDay(data, opts) {
   const dayShort = dayShortTitle(day.title || "");
   const daySprintTitle = day.sprint_title || "";
   const dayDup = sameTitle(dayShort, daySprintTitle);   // имя дня = имя спринта -> имя спринта в кикере лишнее
-  dayIsEpisode = isEpisodes(daySprint);
-  document.getElementById("day-kicker").textContent = dayIsEpisode ? "ОТДЕЛЬНЫЙ ВЫПУСК"
+  dayIsEpisode = isSideSprint(daySprint);
+  // Кикер: справочник - «СПРАВОЧНИК», общая полка - «ОТДЕЛЬНЫЙ ВЫПУСК», мини-серия
+  // («Новая ветка вероятности») - её название и номер выпуска.
+  document.getElementById("day-kicker").textContent =
+    daySprint && daySprint.kind === "handbook" ? "СПРАВОЧНИК"
+    : dayIsEpisode ? (daySprintTitle === "Отдельные выпуски"
+        ? "ОТДЕЛЬНЫЙ ВЫПУСК" : (daySprintTitle + " · ВЫПУСК " + (day.day_number || "")).toUpperCase())
     : ((dayDup || !daySprintTitle ? "" : daySprintTitle + " · ") + "ДЕНЬ " + (day.day_number || "")).toUpperCase();
   setHeadline(document.getElementById("day-title"), dayShort);
   const blocksEl = document.getElementById("day-blocks");
@@ -4214,7 +4224,7 @@ function openSprint(sprintId) {
   document.getElementById("sprint-kicker").textContent = ep ? "ВЫПУСКИ" : sprint.status === "active" ? "СПРИНТ" : "АРХИВ";
   setHeadline(document.getElementById("sprint-title"), sprint.title || "");
   document.getElementById("sprint-sub").textContent = ep
-    ? "Подкасты Ирены между спринтами"
+    ? (sprint.description || "Подкасты Ирены между спринтами")
     : "Авторская методика · проходите в своём темпе";
   const denom = sprint.estimated_days || days.length || 0;
   // Тильда - только при заявленном плане (estimated_days): «~25» значит «около 25». У идущего
@@ -4264,6 +4274,102 @@ function openSprint(sprintId) {
     chooseBtn.setAttribute("data-sprint-id", sprint.id);
   }
   if (curBadge) curBadge.hidden = !isCurrent;
+  window.scrollTo(0, 0);
+}
+
+// ===================== СПРАВОЧНИКИ (03.10.2026) =====================
+// Статичный каталог: своего контента у справочника нет. Запись ведёт либо в существующий
+// день (спринт по cover_slug + номер дня, как в канале), либо в файл из files/.
+// Выпуски про добавки лежат в скрытом контейнере kind=handbook (cover_slug "handbook"):
+// 1 витамин C, 2 B12, 3 как пить добавки, 4 ежовик, 5 B9.
+// Ненайденный день (ещё не залит или не опубликован) просто не показывается, поэтому
+// каталог можно выкатывать раньше дней. Порядок добавок как в меню канала (пост 33).
+const HANDBOOK = [
+  { title: "Добавки", items: [
+    { t: "Как пить добавки эффективно", day: ["handbook", 3] },
+    { t: "Шпаргалка по приёму добавок", file: "files/shpargalka-dobavki.png" },
+    { t: "Магний", day: ["sleep", 6] },
+    { t: "Таурин", day: ["sleep", 13] },
+    { t: "Мелатонин", day: ["antichaos", 7] },
+    { t: "Омега-3", day: ["gut-body", 3] },
+    { t: "Витамин D", day: ["gut-body", 10] },
+    { t: "Псиллиум", day: ["gut-body", 16] },
+    { t: "Пробиотики", day: ["gut-body", 24] },
+    { t: "Берберин", day: ["gut-body", 31] },
+    { t: "Электролиты", day: ["nutrition", 6] },
+    { t: "Коллаген", day: ["nutrition", 27] },
+    { t: "Витамин C", day: ["handbook", 1] },
+    { t: "Креатин", day: ["glutes", 14] },
+    { t: "Глицин", day: ["glutes", 21] },
+    { t: "SPF", day: ["glutes", 28] },
+    { t: "Сахарозаменители", day: ["glutes", 42] },
+    { t: "Ресвератрол", day: ["glutes", 49] },
+    { t: "Коэнзим Q10", day: ["rejuvenation", 11] },
+    { t: "Кальций", day: ["rejuvenation", 18] },
+    { t: "Витамин B12", day: ["handbook", 2] },
+    { t: "Витамин B9: фолат, фолиевая, метилфолат", day: ["handbook", 5] },
+    { t: "Железо", day: ["nutrition", 13] },
+    { t: "Цинк", day: ["nutrition", 20] },
+    { t: "Протеин", day: ["glutes", 7] },
+    { t: "Инозитол", day: ["glutes", 35] },
+    { t: "Ежовик", day: ["handbook", 4] },
+  ] },
+  { title: "Анализы", items: [
+    { t: "Какие анализы и когда сдавать", day: ["nutrition", 2] },
+    { t: "Как читать анализы: нормы", day: ["nutrition", 3] },
+    { t: "Что делать с результатами: 4 зоны", day: ["nutrition", 4] },
+    { t: "Анализы на дефициты", file: "files/analizy-na-defitsity.pdf" },
+    { t: "Шпаргалка по анализам крови", file: "files/shpargalka-po-analizam-krovi.pdf" },
+  ] },
+  { title: "Ферритин и железо", items: [
+    { t: "Ферритин: моя история", day: ["nutrition", 12] },
+    { t: "Всё о железе: какое выбрать и как принимать", day: ["nutrition", 13] },
+    { t: "Железная бомба: питание", day: ["nutrition", 14] },
+    { t: "Шпаргалка по железу", file: "files/shpargalka-zhelezo.pdf" },
+    { t: "Книга рецептов «Железная бомба»", file: "files/kniga-receptov-zheleznaya-bomba.pdf" },
+  ] },
+  { title: "Рецепты", items: [
+    { t: "15 завтраков по-женски", file: "files/15-zavtrakov-po-zhenski.pdf" },
+    { t: "Тост с авокадо и скрембл", day: ["nutrition", 8] },
+    { t: "15 обедов по-женски", file: "files/15-obedov-po-zhenski.pdf" },
+    { t: "15 ужинов по-женски", file: "files/15-uzhinov-po-zhenski.pdf" },
+    { t: "Книга рецептов «Железная бомба»", file: "files/kniga-receptov-zheleznaya-bomba.pdf" },
+  ] },
+];
+
+function handbookDay(ref) {
+  const s = homeSprints(homeData).find((x) => x.cover_slug === ref[0]);
+  return s ? (s.days || []).find((d) => d.day_number === ref[1]) || null : null;
+}
+
+function openHandbook() {
+  hideContentViews();
+  document.getElementById("view-handbook").hidden = false;
+  const completed = new Set((homeData && homeData.progress && homeData.progress.completed_day_ids) || []);
+  let html = "";
+  for (const sec of HANDBOOK) {
+    let rows = "";
+    for (const it of sec.items) {
+      if (it.day) {
+        const d = handbookDay(it.day);
+        if (!d) continue;
+        const done = completed.has(d.id);
+        rows += '<div class="sprint-day hb-row' + (done ? " done-day" : "") + '" data-day-id="' + escapeHtml(d.id) + '" role="button">' +
+          '<div class="sprint-day-ic"><i class="ti ' + (done ? "ti-check" : "ti-player-play") + '"></i></div>' +
+          '<div class="sprint-day-main"><div class="sprint-day-title">' + escapeHtml(it.t) + "</div>" +
+          (d.subtitle && d.subtitle.trim() ? '<div class="sprint-day-sub">' + escapeHtml(d.subtitle.trim()) + "</div>" : "") +
+          "</div></div>";
+      } else {
+        const isPdf = /\.pdf$/i.test(it.file);
+        rows += '<a class="sprint-day hb-row" href="' + escapeHtml(it.file) + '" target="_blank" rel="noopener">' +
+          '<div class="sprint-day-ic"><i class="ti ' + (isPdf ? "ti-file-type-pdf" : "ti-books") + '"></i></div>' +
+          '<div class="sprint-day-main"><div class="sprint-day-title">' + escapeHtml(it.t) + "</div>" +
+          '<div class="sprint-day-sub">' + (isPdf ? "PDF" : "Картинка") + "</div></div></a>";
+      }
+    }
+    if (rows) html += '<div class="hb-sec-h">' + escapeHtml(sec.title) + "</div>" + rows;
+  }
+  document.getElementById("handbook-list").innerHTML = html || '<p class="home-loading">Скоро здесь появятся записи.</p>';
   window.scrollTo(0, 0);
 }
 
@@ -4320,7 +4426,7 @@ function openSprints() {
   // ХРОНОЛОГИЯ КАНАЛА: order_index растёт от самого раннего спринта к позднему, поэтому
   // сортируем ПО ВОЗРАСТАНИЮ. На выбор героя это не влияет: он берётся из
   // pickCurrentSprint по status === "active", order_index там не участвует.
-  const shelf = all.filter((s) => !isEpisodes(s)).sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+  const shelf = all.filter((s) => !isSideSprint(s)).sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
   // Текущий спринт первым (03.10), остальные в прежнем порядке.
   const curIdx = current ? shelf.findIndex((s) => s.id === current.id) : -1;
   if (curIdx > 0) shelf.unshift(shelf.splice(curIdx, 1)[0]);
@@ -4330,7 +4436,8 @@ function openSprints() {
   for (const s of shelf) html += posterHtml(s, !!current && s.id === current.id);
   if (!html) html = '<p class="home-loading">Пока ни одного спринта.</p>';
   // Полка «Отдельные выпуски» внизу (03.10.2026). Нет выпусков - нет и полки.
-  const episodes = all.filter((s) => isEpisodes(s) && (s.days || []).length > 0);
+  const episodes = all.filter((s) => isEpisodes(s) && (s.days || []).length > 0)
+    .sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
   if (episodes.length) {
     html += '<div class="lib-shelf-h">Отдельные выпуски</div>';
     for (const s of episodes) html += posterHtml(s, false);
@@ -4345,6 +4452,7 @@ function openSprints() {
 // Дом - основание: пустой стек значит "мы дома", отдельным кадром он не лежит.
 // Новый экран стоит одной строки в NAV_VIEWS.
 const NAV_VIEWS = {
+  handbook: function () { openHandbook(); },
   sprints: function () { openSprints(); },
   sprint:  function (id) { openSprint(id); },
   day:     function (id) { openDay(id); },
@@ -4416,6 +4524,8 @@ function navBack() {
   if (dayBack) dayBack.addEventListener("click", navBack);
   if (sprintBack) sprintBack.addEventListener("click", navBack);
   if (sprintsBack) sprintsBack.addEventListener("click", navBack);
+  const handbookBack = document.getElementById("handbook-back");
+  if (handbookBack) handbookBack.addEventListener("click", navBack);
   if (dayDone) dayDone.addEventListener("click", markDone);
   document.addEventListener("click", (e) => {
     const cta = e.target.closest(".home-cta[data-day-id]");
@@ -4431,6 +4541,8 @@ function navBack() {
     if (live) { navTo("day", live.getAttribute("data-day-id")); return; }
     const arch = e.target.closest(".t5-archive");
     if (arch) { navTo("sprints"); return; }
+    const hb = e.target.closest(".t5-handbook");
+    if (hb) { navTo("handbook"); return; }
     const sc = e.target.closest(".poster[data-sprint-id]");
     if (sc) { navTo("sprint", sc.getAttribute("data-sprint-id")); return; }
     const sd = e.target.closest(".sprint-day[data-day-id]");

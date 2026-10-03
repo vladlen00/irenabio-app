@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=85">
+  <link rel="stylesheet" href="style.css?v=86">
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. Файлы Google Fonts у себя (с 01.10.2026),
        собирает biohack/tools/irenabio-app/build_fonts.py. Браузер качает только нужные
        подмножества по unicode-range, как и с Google. -->
@@ -347,7 +347,7 @@
             <div class="t5" data-group="trainings" role="button"><img class="t5ic" src="icons/trainings.png?v=1" alt="" width="32" height="32"><div class="t5n">Тренировки</div><div class="t5s">и упражнения</div></div>
             <div class="t5" data-app="relax" role="button"><img class="t5ic" src="icons/relax.png?v=1" alt="" width="32" height="32"><div class="t5n">Расслабление</div><div class="t5s">медитации, дыхание</div></div>
             <div class="t5" data-group="trackers" role="button"><img class="t5ic" src="icons/trackers.png?v=1" alt="" width="32" height="32"><div class="t5n">Трекеры</div><div class="t5s">здоровье и цикл</div></div>
-            <div class="t5 t5-handbook" aria-disabled="true"><span class="sc-chip sc-chip-soft">скоро</span><img class="t5ic" src="icons/handbook.png?v=2" alt="" width="32" height="32"><div class="t5n">Справочники</div><div class="t5s">добавки, анализы</div></div>
+            <div class="t5 t5-handbook" role="button"><img class="t5ic" src="icons/handbook.png?v=2" alt="" width="32" height="32"><div class="t5n">Справочники</div><div class="t5s">добавки, анализы</div></div>
             <div class="t5" data-app="dolgaya" role="button"><img class="t5ic" src="icons/dolgaya.png?v=1" alt="" width="32" height="32"><div class="t5n">Игра в долгую</div><div class="t5s">курс об отношениях</div></div>
             <div class="t5 t5-archive" role="button"><img class="t5ic" src="icons/sprints.png?v=1" alt="" width="32" height="32"><div class="t5n">Все спринты</div><div class="t5s">библиотека</div></div>
           </div>
@@ -398,6 +398,21 @@
 
     <!-- ЭКРАН ВСЕ СПРИНТЫ: полка постеров 2 колонки, один хронологический список.
          Градиентной шапки здесь нет (макет): заголовок стоит прямо на фоне страницы. -->
+    <!-- СПРАВОЧНИКИ (03.10): четыре раздела, запись ведёт в существующий день или в PDF.
+         Наполняет openHandbook() по каталогу HANDBOOK в app.js. -->
+    <section id="view-handbook" hidden>
+      <div class="sprint">
+        <div class="lib-body">
+          <div class="lib-head">
+            <div class="lib-back" id="handbook-back" role="button" aria-label="Назад"><i class="ti ti-arrow-left"></i></div>
+            <h1 class="lib-title">Справочники</h1>
+            <p class="lib-sub">Добавки, анализы, железо и рецепты: всё, что Ирена разбирала в канале</p>
+          </div>
+          <div id="handbook-list"></div>
+        </div>
+      </div>
+    </section>
+
     <section id="view-sprints" hidden>
       <div class="sprint">
         <div class="lib-body">
@@ -834,6 +849,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=144"></script>
+  <script src="app.js?v=145"></script>
 </body>
 </html>

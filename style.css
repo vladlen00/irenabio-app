@@ -528,7 +528,11 @@ a:hover { text-decoration: underline; }
 .home .t5[data-group="trackers"]  { --smoke-a: rgba(246,168,92,.52);  --smoke-b: rgba(196,62,96,.50); }
 .home .t5-archive                 { --smoke-a: rgba(92,142,244,.50);  --smoke-b: rgba(138,82,236,.54); }
 .home .t5[data-app="dolgaya"]     { --smoke-a: rgba(96,180,250,.46);  --smoke-b: rgba(240,90,190,.52); }
-.home .t5-handbook                { --smoke-a: rgba(110,140,250,.44); --smoke-b: rgba(236,96,170,.44); cursor: default; }
+.home .t5-handbook                { --smoke-a: rgba(110,140,250,.44); --smoke-b: rgba(236,96,170,.44); }
+/* Справочники (03.10): заголовки разделов над строками-днями. */
+.hb-sec-h { font-size: 19px; font-weight: 600; margin: 22px 2px 12px; }
+.hb-sec-h:first-child { margin-top: 6px; }
+a.hb-row { text-decoration: none; color: inherit; }
 /* Картиночные иконки плиток. Файлы 96px = @3x к отрисовке 32.
    Свечение берёт ЦВЕТА СВОЕЙ ПЛИТКИ, а не белый: белое даёт ватный ореол, цветное -
    неон. align-self обязателен - в колоночном флексе картинка иначе тянется по ширине. */
@@ -715,7 +719,7 @@ a:hover { text-decoration: underline; }
    Один хронологический список 2 в ряд, без деления на группы: текущий спринт
    отмечен плашкой "Ты здесь". Градиентной шапки нет - заголовок стоит на фоне
    страницы. Постеры пока на заглушечном градиенте, обложки поедут отдельно. */
-#view-sprints { max-width: 480px; margin-left: auto; margin-right: auto; }
+#view-sprints, #view-handbook { max-width: 480px; margin-left: auto; margin-right: auto; }
 .lib-body { padding: 18px 0 28px; }
 .lib-head { margin-bottom: 22px; }
 .lib-back {
@@ -727,7 +731,7 @@ a:hover { text-decoration: underline; }
 .lib-back i { font-size: 20px; color: #F2E6EA; }
 /* Селектор с #view-sprints обязателен: экран лежит внутри main.wrap.checkout,
    а `.checkout h1` (специфичность выше классовой) навязывал 26px и центр. */
-#view-sprints .lib-title { font-size: 32px; font-weight: 500; line-height: 1; color: var(--text); margin: 0; text-align: left; }
+#view-sprints .lib-title, #view-handbook .lib-title { font-size: 32px; font-weight: 500; line-height: 1; color: var(--text); margin: 0; text-align: left; }
 /* max-width убран: не хватало ровно одного слова, и «сейчас» висело второй строкой.
    Сужать тут незачем - текст лежит на ровном тёмном фоне, а не на обложке (в отличие
    от .home-subhead, где 210px стоят ради контраста на картинке). */
