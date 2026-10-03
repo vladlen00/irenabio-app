@@ -488,6 +488,8 @@ a:hover { text-decoration: underline; }
 .home-wide-sub { font-size: 12.5px; color: rgba(255,255,255,.82); }
 
 .home-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+/* Заголовок полки «Отдельные выпуски» внутри сетки «Всех спринтов» (03.10): на всю ширину. */
+.lib-shelf-h { grid-column: 1 / -1; font-size: 19px; font-weight: 600; margin: 14px 2px 0; }
 /* Кнопка героя и «все дни» одной строкой (03.10). */
 .home-cta-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
 .home-cta-row .home-cta { margin-top: 0; }

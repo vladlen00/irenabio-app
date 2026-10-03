@@ -1464,6 +1464,11 @@ function homeSprints(data) {
   if (data.sprint) return [Object.assign({}, data.sprint, { days: data.days || [] })];
   return [];
 }
+// «Отдельные выпуски» (kind=episodes от get-home, 03.10.2026): подкасты Ирены вне спринтов.
+// Живут спринтом особого вида: своя полка внизу «Всех спринтов», дни называются выпусками,
+// текущим спринтом (герой дома) не становятся никогда. На витрину их не отдаёт get-public.
+const isEpisodes = (s) => !!s && s.kind === "episodes";
+
 // Текущий = идущий спринт. Если идущего нет (библиотека из одних архивных) -
 // тот, в котором женщина остановилась на середине, иначе первый по порядку.
 function pickCurrentSprint(sprints, completed, chosenId) {
@@ -1472,7 +1477,7 @@ function pickCurrentSprint(sprints, completed, chosenId) {
   // стоит в списке РАНЬШЕ всех залитых и стал бы «текущим» на доме, ведя женщину
   // в пустой спринт. Сейчас до фолбэка дело не доходит только потому, что active
   // существует; это везение, а не гарантия - активного может не оказаться.
-  sprints = sprints.filter((s) => s.status !== "draft");
+  sprints = sprints.filter((s) => s.status !== "draft" && !isEpisodes(s));
   // ЯВНЫЙ ВЫБОР ЖЕНЩИНЫ ПЕРЕВЕШИВАЕТ ВСЁ (persons.current_sprint_id, 18.08). До этого
   // "текущий" вычислялся каждый раз заново, и отметка дня в чужом спринте могла увести
   // герой: при отсутствии активного спринта фолбэк ниже выбирает по ЧИСЛУ пройденных
@@ -3946,9 +3951,11 @@ function wireBlocks(root) {
   player.renderAll();   // отразить живое состояние глоб. аудио на перерисованных блоках
 }
 
+let dayIsEpisode = false;   // открыт выпуск из «Отдельных выпусков»: подписи про выпуск, не про день
 function setDoneState(btn, done) {
-  if (done) { btn.classList.add("done"); btn.disabled = true; btn.innerHTML = '<i class="ti ti-check"></i> День пройден'; }
-  else { btn.classList.remove("done"); btn.disabled = false; btn.innerHTML = '<i class="ti ti-circle-check"></i> Отметить день пройденным'; }
+  const what = dayIsEpisode ? ["Выпуск прослушан", "Отметить выпуск прослушанным"] : ["День пройден", "Отметить день пройденным"];
+  if (done) { btn.classList.add("done"); btn.disabled = true; btn.innerHTML = '<i class="ti ti-check"></i> ' + what[0]; }
+  else { btn.classList.remove("done"); btn.disabled = false; btn.innerHTML = '<i class="ti ti-circle-check"></i> ' + what[1]; }
 }
 
 function renderDay(data, opts) {
@@ -3961,8 +3968,9 @@ function renderDay(data, opts) {
   const dayShort = dayShortTitle(day.title || "");
   const daySprintTitle = day.sprint_title || "";
   const dayDup = sameTitle(dayShort, daySprintTitle);   // имя дня = имя спринта -> имя спринта в кикере лишнее
-  document.getElementById("day-kicker").textContent =
-    ((dayDup || !daySprintTitle ? "" : daySprintTitle + " · ") + "ДЕНЬ " + (day.day_number || "")).toUpperCase();
+  dayIsEpisode = isEpisodes(daySprint);
+  document.getElementById("day-kicker").textContent = dayIsEpisode ? "ОТДЕЛЬНЫЙ ВЫПУСК"
+    : ((dayDup || !daySprintTitle ? "" : daySprintTitle + " · ") + "ДЕНЬ " + (day.day_number || "")).toUpperCase();
   setHeadline(document.getElementById("day-title"), dayShort);
   const blocksEl = document.getElementById("day-blocks");
   const blocks = (data.blocks || []).slice().sort((a, b) => a.order_index - b.order_index);
@@ -4167,9 +4175,12 @@ function openSprint(sprintId) {
   const nextDay = days.find((d) => !completed.has(d.id)) || null;
   // Обложка спринта в шапке списка дней - широкая картинка ЭТОГО спринта.
   paintCover(document.getElementById("sprint-hero"), sprint.cover_slug, "wide", COVER_SHADE_SPRINT);
-  document.getElementById("sprint-kicker").textContent = sprint.status === "active" ? "СПРИНТ" : "АРХИВ";
+  const ep = isEpisodes(sprint);
+  document.getElementById("sprint-kicker").textContent = ep ? "ВЫПУСКИ" : sprint.status === "active" ? "СПРИНТ" : "АРХИВ";
   setHeadline(document.getElementById("sprint-title"), sprint.title || "");
-  document.getElementById("sprint-sub").textContent = "Авторская методика · проходите в своём темпе";
+  document.getElementById("sprint-sub").textContent = ep
+    ? "Подкасты Ирены между спринтами"
+    : "Авторская методика · проходите в своём темпе";
   const denom = sprint.estimated_days || days.length || 0;
   // Тильда - только при заявленном плане (estimated_days): «~25» значит «около 25». У идущего
   // спринта без плана знаменатель = вышедшие дни, и «из ~3» читалось как «всего около трёх».
@@ -4192,10 +4203,10 @@ function openSprint(sprintId) {
     const isNext = nextDay && d.id === nextDay.id;
     const cls = "sprint-day" + (done ? " done-day" : "") + (isNext ? " next" : "");
     const icon = done ? "ti-check" : (isNext ? "ti-player-play" : "ti-circle-dot");
-    const badge = done ? "Пройден" : (isNext ? "Продолжить" : "");
+    const badge = done ? (ep ? "Прослушан" : "Пройден") : (isNext ? "Продолжить" : "");
     html += '<div class="' + cls + '" data-day-id="' + escapeHtml(d.id) + '">' +
       '<div class="sprint-day-ic"><i class="ti ' + icon + '"></i></div>' +
-      '<div class="sprint-day-main"><div class="sprint-day-num">День ' + d.day_number + '</div>' +
+      '<div class="sprint-day-main"><div class="sprint-day-num">' + (ep ? "Выпуск " : "День ") + d.day_number + '</div>' +
       '<div class="sprint-day-title">' + escapeHtml(dayShortTitle(d.title)) + '</div>' +
       (d.subtitle && d.subtitle.trim() ? '<div class="sprint-day-sub">' + escapeHtml(d.subtitle.trim()) + '</div>' : '') +
       '</div>' +
@@ -4212,13 +4223,21 @@ function openSprint(sprintId) {
   const isCurrent = currentSprintId === sprint.id;
   if (chooseErr) chooseErr.hidden = true;
   if (chooseBtn) {
-    chooseBtn.hidden = isCurrent;
+    chooseBtn.hidden = isCurrent || ep;   // выпуски текущим спринтом не становятся
     chooseBtn.disabled = false;
     chooseBtn.textContent = "Проходить этот спринт";
     chooseBtn.setAttribute("data-sprint-id", sprint.id);
   }
   if (curBadge) curBadge.hidden = !isCurrent;
   window.scrollTo(0, 0);
+}
+
+function plurEpisodes(n) {
+  const t = n % 100, o = n % 10;
+  if (t >= 11 && t <= 14) return n + " выпусков";
+  if (o === 1) return n + " выпуск";
+  if (o >= 2 && o <= 4) return n + " выпуска";
+  return n + " выпусков";
 }
 
 function plurDays(n) {
@@ -4245,7 +4264,7 @@ function posterHtml(s, isCurrent) {
   const days = s.days || [];
   const isSoon = s.status === "draft";
   const total = s.estimated_days || days.length || 0;
-  const meta = isSoon || total <= 0 ? "скоро" : plurDays(total);
+  const meta = isSoon || total <= 0 ? "скоро" : isEpisodes(s) ? plurEpisodes(days.length) : plurDays(total);
   const cover = coverUrl(s.cover_slug, "poster");
   const cls = "poster" + (isSoon ? " poster-soon" : days.length ? "" : " poster-empty");
   return '<div class="' + cls + '"' +
@@ -4266,7 +4285,7 @@ function openSprints() {
   // ХРОНОЛОГИЯ КАНАЛА: order_index растёт от самого раннего спринта к позднему, поэтому
   // сортируем ПО ВОЗРАСТАНИЮ. На выбор героя это не влияет: он берётся из
   // pickCurrentSprint по status === "active", order_index там не участвует.
-  const shelf = all.slice().sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+  const shelf = all.filter((s) => !isEpisodes(s)).sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
   // Текущий спринт первым (03.10), остальные в прежнем порядке.
   const curIdx = current ? shelf.findIndex((s) => s.id === current.id) : -1;
   if (curIdx > 0) shelf.unshift(shelf.splice(curIdx, 1)[0]);
@@ -4275,6 +4294,12 @@ function openSprints() {
   let html = "";
   for (const s of shelf) html += posterHtml(s, !!current && s.id === current.id);
   if (!html) html = '<p class="home-loading">Пока ни одного спринта.</p>';
+  // Полка «Отдельные выпуски» внизу (03.10.2026). Нет выпусков - нет и полки.
+  const episodes = all.filter((s) => isEpisodes(s) && (s.days || []).length > 0);
+  if (episodes.length) {
+    html += '<div class="lib-shelf-h">Отдельные выпуски</div>';
+    for (const s of episodes) html += posterHtml(s, false);
+  }
   document.getElementById("sprints-list").innerHTML = html;
   lazyPosters(document.getElementById("sprints-list"));
   window.scrollTo(0, 0);
