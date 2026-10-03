@@ -2619,11 +2619,12 @@ function scPosterHtml(s) {
   const cover = coverUrl(s.cover_slug, "poster");
   const startsMs = s.starts_at ? Date.parse(s.starts_at) : NaN;
   const soon = !free && s.days_total === 0 && Number.isFinite(startsMs);
-  // Единственная метка на постере - бесплатные дни (решение 30.09). «В подписке»,
-  // «скоро», «новая» и дата старта сняты: закрытость несёт замок.
+  // Метка на постере - бесплатные дни (решение 30.09). «В подписке», «скоро» и дата
+  // старта сняты: закрытость несёт замок. Исключение 03.10: у идущего сейчас спринта
+  // (is_new от get-public) метка «сейчас», замок при этом остаётся.
   const badge = free
     ? '<span class="poster-badge poster-badge-free">' + escapeHtml(plurDays(free)) + " бесплатно</span>"
-    : "";
+    : s.is_new ? '<span class="poster-badge poster-badge-new">сейчас</span>' : "";
   const lock = free ? "" : '<span class="poster-lock"><i class="ti ti-lock"></i></span>';
   // У программы, которой ещё нет, строки под названием нет вовсе: «скоро» сказано в
   // шторке, а двухстрочное название с подписью залезало на картинку (30.09).
@@ -2665,6 +2666,19 @@ function openLockSheet(kind, payload) {
         "</div>" +
         '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>Открыть Подружку</button>' +
         '<div class="lock-note">' + escapeHtml(podNote) + "</div>" +
+        hurry +
+      "</div>";
+  } else if (kind === "course") {
+    // Закрытый урок или сезон курса «Игра в долгую» (экран #urok). Касса вернёт на курс.
+    const D = window.DOLGAYA;
+    const lessons = gkLessonsCount(D);
+    panel.innerHTML =
+      '<div class="lock-body" style="margin-top:0;padding-top:18px">' +
+        '<div class="lock-head"><img src="icons/dolgaya-card.png?v=1" alt="" width="52" height="52">' +
+          "<div><b>Игра в долгую</b><span>курс об отношениях" + (D ? " · " + D.seasons.length + " сезонов" : "") + "</span></div></div>" +
+        '<div class="lock-lead">Этот урок открыт по подписке' + (lessons ? ": весь курс, " + lessons + " уроков, методички и задания." : ".") + "</div>" +
+        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy-urok>' + escapeHtml(buyAll) + "</button>" +
+        '<div class="lock-note">отмена в любой момент</div>' +
         hurry +
       "</div>";
   } else if (kind === "tool") {
@@ -2819,6 +2833,7 @@ async function openFreeDay(dayId, forceHost, fromHistory) {
     sheet.addEventListener("click", (e) => {
       if (e.target.closest("[data-sheet-close]")) { sheet.hidden = true; return; }
       if (e.target.closest("[data-lock-buy]")) { sheet.hidden = true; scGoCheckout(); return; }
+      if (e.target.closest("[data-lock-buy-urok]")) { sheet.hidden = true; scGoCheckoutFromUrok(); return; }
       if (e.target.closest("[data-lock-free]")) {
         sheet.hidden = true;
         const s = scSprints().find((x) => (x.free_days || []).length > 0);
@@ -2896,72 +2911,114 @@ function scGoCheckout() {
   showCheckout();
 }
 
-// Подпись героя витрины по числу бесплатных дней: «Первые два дня открыты ...».
+// Подпись героя витрины по числу бесплатных дней: «Первые два дня бесплатно.» (03.10).
 function freeLeadText(n) {
   const words = { 2: "два", 3: "три", 4: "четыре", 5: "пять" };
-  if (n === 1) return "Первый день открыт бесплатно, без регистрации.";
-  return "Первые " + (words[n] || String(n)) + " " + (words[n] ? "дня" : "дней") + " открыты бесплатно, без регистрации.";
+  if (n === 1) return "Первый день бесплатно.";
+  return "Первые " + (words[n] || String(n)) + " " + (words[n] ? "дня" : "дней") + " бесплатно.";
 }
 
-// ===================== БЕСПЛАТНЫЙ УРОК (#urok) =====================
-// Вступление к курсу «Игра в долгую», открыто ВСЕМ без входа: это решение Владлена,
-// гейта у урока нет ни здесь, ни на сервере. В курсе для подписчиц (мини-апп dolgaya)
-// тот же ролик остаётся как есть. Разрешённый домен app.irenabio.com стоит у ролика
-// в Kinescope. Текст и таймкоды совпадают с курсом (dolgaya/content.js, пост 151).
-// Прямая ссылка для сторис: https://app.irenabio.com/#urok
-const FREE_LESSON = {
-  player: "raowFf45cesaV3j3tF2LuK",   // Kinescope, «7 сезонов отношений»
-  quality: "480p",                    // стартовое качество: бережёт трафик
-  title: "7 сезонов отношений",
-  duration: "31:15",
-  about: "Помнишь, как в начале всё было легко? А потом будто кто-то приглушил свет. " +
-    "У отношений есть сезоны, и через них проходит каждая пара.\n\n" +
-    "В этом уроке ты увидишь, как меняются отношения со временем, пройдёшь по сезонам " +
-    "от весны до новой весны и поймёшь, почему «остыли» бывает просто сменой сезона. " +
-    "С этого урока начинается весь курс.",
-  timecodes: [
-    [0, "Вступление: зачем мы здесь?"],
-    [216, "Отношения - это цикл (а не прямая линия)"],
-    [658, "Что тебя ждёт в этом обучении"],
-    [990, "Как меняются отношения со временем"],
-    [1107, "Весна: влюблённость и идеализация"],
-    [1206, "Лето: близость и растворение"],
-    [1269, "Осень: разочарование и первые кризисы"],
-    [1340, "Зима: холод, отдаление и усталость"],
-    [1650, "Новая весна: можно ли всё начать заново?"],
-  ],
-};
+// ===================== КУРС «ИГРА В ДОЛГУЮ» ДЛЯ ГОСТЬИ (#urok) =====================
+// Экран повторяет главную курса dolgaya. Вступление «7 сезонов отношений» открыто ВСЕМ
+// без входа (решение Владлена, гейта нет ни здесь, ни на сервере; домен app.irenabio.com
+// разрешён у ролика в Kinescope). Остальные уроки показаны названиями под замком, их
+// ролики гостье не отдаются. Прямая ссылка для сторис: https://app.irenabio.com/#urok
+//
+// Названия, описания, таймкоды и ролик вступления НЕ дублируются: берутся из content.js
+// самого курса. Файл грузится только при открытии экрана, путь как у openMiniApp (свой
+// origin при живом воркере, иначе github.io). ?v= держать равным content.js?v= в
+// dolgaya/index.html, иначе гостья до 10 минут видит прежний текст.
+const DOLGAYA_CONTENT_V = "2";
+const UROK_QUALITY = "480p";   // стартовое качество: бережёт трафик
+
+function dolgayaBase() {
+  const app = MINI_APPS.dolgaya;
+  const swOn = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
+  return (swOn && app.path) ? app.path : app.url;
+}
+
+let dolgayaLoading = null;
+function loadDolgaya() {
+  if (window.DOLGAYA) return Promise.resolve(window.DOLGAYA);
+  if (dolgayaLoading) return dolgayaLoading;
+  dolgayaLoading = new Promise((resolve) => {
+    const sc = document.createElement("script");
+    sc.src = dolgayaBase() + "content.js?v=" + DOLGAYA_CONTENT_V;
+    sc.onload = () => resolve(window.DOLGAYA || null);
+    sc.onerror = () => { sc.remove(); resolve(null); };
+    document.head.appendChild(sc);
+  }).then((d) => { if (!d) dolgayaLoading = null; return d; });   // сбой: следующий заход пробует снова
+  return dolgayaLoading;
+}
 
 function urokSrc(startSec) {
-  const q = new URLSearchParams({ quality: FREE_LESSON.quality });
+  const D = window.DOLGAYA;
+  if (!D || !D.intro || !D.intro.kinescope) return null;
+  const q = new URLSearchParams({ quality: UROK_QUALITY });
   if (startSec) { q.set("t", String(startSec)); q.set("autoplay", "1"); }
-  return "https://kinescope.io/embed/" + FREE_LESSON.player + "?" + q.toString();
+  return "https://kinescope.io/embed/" + D.intro.kinescope + "?" + q.toString();
 }
 
-// Карточка на витрине, над полкой программ.
+// Карточка на витрине, над полкой программ. Тексты в разметке (index.html).
 function renderUrokCard() {
   const card = document.getElementById("sc-urok");
-  if (!card) return;
-  card.innerHTML =
-    '<div class="sc-urok-kick">Бесплатный урок · ' + escapeHtml(FREE_LESSON.duration) + "</div>" +
-    '<div class="sc-urok-title">' + escapeHtml(FREE_LESSON.title) + "</div>" +
-    '<p class="sc-urok-desc">' + escapeHtml(FREE_LESSON.about) + "</p>" +
-    '<span class="sc-urok-play"><i class="ti ti-player-play-filled"></i> Смотреть урок</span>';
-  card.hidden = false;
+  if (card) card.hidden = false;
 }
 
-// Блок продажи на экране урока (под плеером и в конце). Цена только из get-public.
+function gkLessonsCount(D) {
+  return D ? D.seasons.reduce((n, s) => n + s.lessons.length, D.intro ? 1 : 0) : 0;   // с вступлением
+}
+
+// Блок продажи на экране курса (под вступлением и в конце). Цена только из get-public.
 function fillUrokBuy() {
   const price = scPrice(publicData && publicData.price);
+  const D = window.DOLGAYA;
+  const what = D ? "Все " + D.seasons.length + " сезонов, " + gkLessonsCount(D) + " уроков, методички и задания в клубе."
+                 : "Весь курс, методички и задания в клубе.";
   document.querySelectorAll("#view-urok .urok-buy-slot").forEach((slot) => {
     slot.innerHTML =
       '<div class="card urok-buy">' +
-        '<p class="urok-buy-lead">Это вступление к курсу «Игра в долгую». Все 7 сезонов, методички и задания в клубе.</p>' +
+        '<p class="urok-buy-lead">' + escapeHtml(what) + "</p>" +
         '<button type="button" class="btn btn-primary urok-buy-btn" data-urok-buy>' +
           (price ? "Вступить в клуб за " + escapeHtml(price) + " в месяц" : "Вступить в клуб") + "</button>" +
         '<div class="urok-buy-note">откроется сразу после оплаты, отмена в любой момент</div>' +
       "</div>";
   });
+}
+
+// Сезоны под замком: название, описание, уроки. Даты открытия гостье не показываем.
+function renderGkSeasons(D) {
+  document.getElementById("gk-seasons").innerHTML = D.seasons.map((s, i) =>
+    '<div class="gk-season" data-gk-lock role="button">' +
+      '<div class="gk-season-head">' +
+        '<div class="gk-season-num">' + String(i + 1).padStart(2, "0") + "</div>" +
+        '<div class="gk-season-titles"><div class="gk-season-name">' + escapeHtml(s.name) + "</div>" +
+          (s.desc ? '<div class="gk-season-desc">' + escapeHtml(s.desc) + "</div>" : "") + "</div>" +
+        '<div class="gk-season-lock"><i class="ti ti-lock"></i><span>по подписке</span></div>' +
+      "</div>" +
+      (s.intro ? '<div class="gk-season-intro">' + escapeHtml(s.intro) + "</div>" : "") +
+      s.lessons.map((l, j) =>
+        '<div class="gk-row"><div class="gk-row-info">' +
+          '<div class="gk-row-kind">Урок ' + (j + 1) + "</div>" +
+          '<div class="gk-row-name">' + escapeHtml(l.title || "Урок") + "</div>" +
+          '<div class="gk-row-dur">по подписке</div></div>' +
+          '<div class="gk-row-ic"><i class="ti ti-lock"></i></div></div>'
+      ).join("") +
+    "</div>"
+  ).join("");
+}
+
+function fillUrokContent(D) {
+  document.getElementById("urok-label").textContent = "Начни отсюда · " + D.intro.duration;
+  document.getElementById("urok-title").textContent = D.intro.title || "";
+  document.getElementById("urok-about").textContent = D.intro.about || "";
+  const f = document.getElementById("urok-frame");
+  if (!f.getAttribute("src")) setUrokFrame(urokSrc(0));
+  document.getElementById("urok-toc").innerHTML = (D.intro.timecodes || []).map(([sec, name]) =>
+    '<button type="button" class="urok-tc" data-urok-t="' + sec + '"><b>' +
+      Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0") + "</b><span>" + escapeHtml(name) + "</span></button>"
+  ).join("");
+  renderGkSeasons(D);
 }
 
 // Плеер НЕ перенаправляем сменой src: каждая навигация iframe пишет кадр в историю
@@ -2998,17 +3055,16 @@ async function openUrok(fromHistory) {
   if (siteHeader) siteHeader.hidden = true;
   if (siteFooter) siteFooter.hidden = true;
   const v = document.getElementById("view-urok");
-  document.getElementById("urok-title").textContent = FREE_LESSON.title;
-  const f = document.getElementById("urok-frame");
-  if (!f.getAttribute("src")) setUrokFrame(urokSrc(0));
-  const toc = document.getElementById("urok-toc");
-  toc.innerHTML = FREE_LESSON.timecodes.map(([sec, name]) =>
-    '<button type="button" class="urok-tc" data-urok-t="' + sec + '"><b>' +
-      Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0") + "</b><span>" + escapeHtml(name) + "</span></button>"
-  ).join("");
+  const photo = document.getElementById("gk-cover-photo");
+  if (!photo.getAttribute("src")) photo.src = dolgayaBase() + "cover.jpg?v=1";
   fillUrokBuy();
   v.hidden = false;
   window.scrollTo(0, 0);
+  const fail = document.getElementById("gk-fail");
+  fail.hidden = true;
+  const D = await loadDolgaya();
+  if (D) { fillUrokContent(D); fillUrokBuy(); }
+  else fail.hidden = false;
   // Пришла по прямой ссылке мимо витрины: цены ещё нет, догружаем тихо.
   if (!publicData && await loadPublicLibrary()) fillUrokBuy();
 }
@@ -3028,10 +3084,13 @@ function scGoCheckoutFromUrok() {
   const v = document.getElementById("view-urok");
   if (v) v.addEventListener("click", (e) => {
     if (e.target.closest("[data-urok-buy]")) { scGoCheckoutFromUrok(); return; }
+    if (e.target.closest("[data-gk-lock]")) { openLockSheet("course"); return; }
+    if (e.target.closest("#gk-retry")) { openUrok(true); return; }
     const tc = e.target.closest("[data-urok-t]");
     if (tc) {
-      setUrokFrame(urokSrc(parseInt(tc.getAttribute("data-urok-t"), 10) || 0));
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      const src = urokSrc(parseInt(tc.getAttribute("data-urok-t"), 10) || 0);
+      if (src) setUrokFrame(src);
+      document.getElementById("urok-frame").scrollIntoView({ behavior: "smooth", block: "center" });
     }
   });
   const back = document.getElementById("urok-back");

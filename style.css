@@ -1167,20 +1167,68 @@ body.sc-open.has-mini { padding-bottom: calc(var(--sc-bar-h, 76px) + 80px + env(
 }
 .home-wide.wide-flat::before, .home-wide.wide-flat::after { content: none; }
 
-/* ===== БЕСПЛАТНЫЙ УРОК: карточка на витрине ===== */
-.sc-urok {
-  background: var(--card); border: 0.5px solid var(--border); border-radius: 20px;
-  padding: 16px 18px 18px; margin: 4px 0 22px; cursor: pointer;
-  background-image: linear-gradient(135deg, rgba(198,60,116,.22), rgba(123,46,158,.10) 60%, transparent);
-}
-.sc-urok-kick { font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--accent-deep); }
-.sc-urok-title { font-family: 'Playfair Display', Georgia, serif; font-size: 22px; font-weight: 500; line-height: 1.2; margin-top: 6px; }
-.sc-urok-desc { font-size: 13.5px; line-height: 1.55; color: var(--muted-home); margin: 10px 0 14px; white-space: pre-line; }
-.sc-urok-play { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px;
-  background: var(--brand-grad); color: #fff; font-size: 14px; font-weight: 600; }
+/* ===== КУРС «ИГРА В ДОЛГУЮ»: карточка на витрине (03.10) =====
+   Та же .home-wide.wide-flat, что у Подружки, плюс надзаголовок. */
+.sc-dolgaya { margin: 0 0 22px; }
+.sc-wide-kick { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: .8px;
+  text-transform: uppercase; color: rgba(255,255,255,.78); margin-bottom: 2px; }
 
-/* ===== БЕСПЛАТНЫЙ УРОК: экран ===== */
-.urok-hero { padding-bottom: 18px; }
+/* ===== КУРС «ИГРА В ДОЛГУЮ» ДЛЯ ГОСТЬИ: экран #urok (03.10) =====
+   Повторяет главную курса dolgaya: палитра снята с его обложки (бордо, пыльная роза). */
+#view-urok { --gk-bg: #140d0e; --gk-card: #1b1214; --gk-accent: #c98f89;
+  --gk-text: #f3ece8; --gk-muted: #9a8b88; --gk-hair: rgba(243,236,232,.08);
+  background: var(--gk-bg); color: var(--gk-text); min-height: 100vh; }
+.gk { max-width: 480px; margin: 0 auto; padding-bottom: 40px; }
+.gk-cover { position: relative; height: 370px; overflow: hidden; background: var(--gk-bg);
+  display: flex; flex-direction: column; justify-content: flex-end; padding: 0 22px 22px; }
+.gk-cover-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 18% 20%; }
+.gk-cover::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(180deg, rgba(20,13,14,.55) 0%, rgba(20,13,14,0) 22%, rgba(20,13,14,0) 58%,
+    rgba(20,13,14,.82) 80%, var(--gk-bg) 100%); }
+.gk-back { position: absolute; top: calc(14px + env(safe-area-inset-top)); left: 16px; z-index: 2; }
+.gk-cover-inner { position: relative; z-index: 2; }
+.gk-cover-kicker { font-size: 10.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--gk-accent); }
+.gk-cover-title { font-family: 'Playfair Display', Georgia, serif; font-weight: 400; font-size: clamp(30px, 10vw, 40px);
+  line-height: 1; white-space: nowrap; text-transform: uppercase; letter-spacing: .02em; margin-top: 8px;
+  text-shadow: 0 2px 16px rgba(0,0,0,.5); }
+.gk-cover-sub { font-size: 11px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+  color: rgba(243,236,232,.75); margin-top: 10px; }
+.gk-body { padding: 8px 20px 0; }
+.gk-intro { padding: 16px; margin-top: 6px; border-radius: 18px;
+  background: linear-gradient(135deg, rgba(110,43,53,.55), rgba(201,143,137,.18)); border: 1px solid rgba(201,143,137,.25); }
+.gk-intro-label { font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--gk-accent); }
+.gk-intro-name { font-family: 'Playfair Display', Georgia, serif; font-size: 23px; line-height: 1.15; margin-top: 4px; }
+.gk-intro-desc { font-size: 13.5px; line-height: 1.55; color: rgba(243,236,232,.78); white-space: pre-line; margin: 10px 0 14px; }
+.gk-intro .urok-frame { width: min(100%, calc(62vh * 9 / 16)); }
+.gk-toc { margin-top: 12px; }
+.gk-toc summary { list-style: none; cursor: pointer; padding: 10px 2px; font-size: 13.5px; font-weight: 600; color: var(--gk-accent); }
+.gk-toc summary::-webkit-details-marker { display: none; }
+.gk-toc summary::after { content: " ›"; }
+.gk-toc[open] summary::after { content: " ˅"; }
+#view-urok .urok-tc { border-bottom-color: var(--gk-hair); }
+#view-urok .urok-tc b { color: var(--gk-accent); }
+#view-urok .urok-buy { background: var(--gk-card); border: 1px solid var(--gk-hair); }
+#view-urok .urok-buy-note { color: var(--gk-muted); }
+.gk-season { margin-top: 14px; border-radius: 18px; background: var(--gk-card); border: 1px solid var(--gk-hair);
+  padding: 0 18px 6px; cursor: pointer; }
+.gk-season-head { display: flex; align-items: center; gap: 12px; padding: 18px 0 12px; }
+.gk-season-num { flex: 0 0 26px; font-size: 12px; font-weight: 700; color: var(--gk-muted); }
+.gk-season-titles { flex: 1; min-width: 0; }
+.gk-season-name { font-family: 'Playfair Display', Georgia, serif; font-size: 24px; line-height: 1.05; color: rgba(243,236,232,.7); }
+.gk-season-desc { font-size: 12.5px; color: var(--gk-muted); margin-top: 5px; }
+.gk-season-lock { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+  font-size: 11.5px; font-weight: 600; color: var(--gk-accent); }
+.gk-season-lock i { font-size: 15px; }
+.gk-season-intro { font-size: 13.5px; line-height: 1.6; color: rgba(243,236,232,.7); white-space: pre-line; padding-bottom: 8px; }
+.gk-row { display: flex; align-items: center; gap: 14px; padding: 13px 0; border-top: 1px solid var(--gk-hair); opacity: .7; }
+.gk-row-info { flex: 1; min-width: 0; }
+.gk-row-kind { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--gk-accent); }
+.gk-row-name { font-weight: 600; font-size: 15px; line-height: 1.35; margin-top: 3px; }
+.gk-row-dur { font-size: 11.5px; color: var(--gk-muted); margin-top: 4px; }
+.gk-row-ic { flex: 0 0 34px; height: 34px; border-radius: 50%; border: 1px solid var(--gk-accent); color: var(--gk-accent);
+  display: flex; align-items: center; justify-content: center; font-size: 15px; }
+.gk-fail { margin-top: 16px; font-size: 13.5px; line-height: 1.5; color: var(--gk-muted); text-align: center; }
+.gk-retry { color: var(--gk-accent); text-decoration: underline; cursor: pointer; }
 /* Ширина от высоты окна: кадр 9:16 не выше 62% экрана, чтобы блок покупки под ним
    выглядывал снизу без прокрутки. */
 .urok-frame { position: relative; width: min(100%, calc(62vh * 9 / 16)); margin: 0 auto; aspect-ratio: 9 / 16;

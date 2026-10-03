@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=81">
+  <link rel="stylesheet" href="style.css?v=82">
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. Файлы Google Fonts у себя (с 01.10.2026),
        собирает biohack/tools/irenabio-app/build_fonts.py. Браузер качает только нужные
        подмножества по unicode-range, как и с Google. -->
@@ -93,10 +93,10 @@
                Своего у витрины здесь ничего нет, кроме текста кнопки. -->
           <div class="home-kicker" id="sc-kick"></div>
           <div class="home-headline" id="sc-headline"></div>
-          <p class="home-subhead" id="sc-lead">Первые дни открыты бесплатно, без регистрации.</p>
+          <p class="home-subhead" id="sc-lead">Первые дни бесплатно.</p>
           <div class="home-cta" id="sc-play" role="button" hidden>
             <span class="home-cta-ic"><i class="ti ti-player-play-filled"></i></span>
-            <span>Слушать бесплатно</span>
+            <span>Слушать</span>
           </div>
           <div class="hero-progress"><div class="hero-progress-bar" id="sc-bar"></div></div>
           <div class="hero-progress-row">
@@ -113,7 +113,7 @@
           <div class="home-wide wide-flat sc-pod" id="sc-pod" role="button">
             <img class="home-wide-ic" src="icons/podruzhka-card.png?v=1" alt="" width="66" height="66">
             <div class="home-wide-txt">
-              <b>Подружка</b>
+              <b>ИИ-подружка</b>
               <span class="home-wide-sub">знает твои анализы и фазу цикла</span>
             </div>
             <span class="sc-chip sc-chip-soft">пример ›</span>
@@ -121,9 +121,17 @@
 
           <div class="home-tools" id="sc-tools"></div>
 
-          <!-- Бесплатный урок «Игры в долгую». Открыт всем, без входа. Содержимое из
-               FREE_LESSON в app.js, прямая ссылка app.irenabio.com/#urok. -->
-          <div class="card sc-urok" id="sc-urok" role="button" hidden></div>
+          <!-- Курс «Игра в долгую» для гостьи: та же широкая карточка и тот же медальон, что у
+               карточки курса на доме подписчицы. Ведёт на экран курса (#urok), где первый урок
+               открыт, остальное под замком. Прямая ссылка app.irenabio.com/#urok. -->
+          <div class="home-wide wide-flat sc-dolgaya" id="sc-urok" role="button" hidden>
+            <img class="home-wide-ic" src="icons/dolgaya-card.png?v=1" alt="" width="66" height="66">
+            <div class="home-wide-txt">
+              <span class="sc-wide-kick">Биохакинг отношений</span>
+              <b>Игра в долгую</b>
+              <span class="home-wide-sub">первый урок бесплатно</span>
+            </div>
+          </div>
 
           <div class="home-tools-h">Программы</div>
           <div class="shelf" id="sc-shelf"></div>
@@ -409,22 +417,35 @@
       </div>
     </section>
 
-    <!-- ЭКРАН БЕСПЛАТНОГО УРОКА (гостья, #urok). Плеер, блок покупки, содержание
-         по таймкодам, блок покупки ещё раз. Наполняет openUrok() в app.js. -->
+    <!-- ЭКРАН КУРСА «ИГРА В ДОЛГУЮ» ДЛЯ ГОСТЬИ (#urok). Повторяет главную курса dolgaya:
+         шапка с фото, «Начни отсюда» с плеером (открыт всем), семь сезонов под замком,
+         блок покупки. Названия, описания и ролик берутся из dolgaya/content.js (openUrok). -->
     <section id="view-urok" hidden>
-      <div class="day">
-        <div class="day-hero urok-hero">
-          <div class="day-topbar">
-            <div class="day-back" id="urok-back" role="button" aria-label="Назад"><i class="ti ti-arrow-left"></i></div>
-            <span class="day-kicker">Бесплатный урок</span>
+      <div class="gk">
+        <header class="gk-cover">
+          <img class="gk-cover-photo" id="gk-cover-photo" alt="" width="1080" height="720">
+          <div class="day-back gk-back" id="urok-back" role="button" aria-label="Назад"><i class="ti ti-arrow-left"></i></div>
+          <div class="gk-cover-inner">
+            <div class="gk-cover-kicker">Биохакинг отношений</div>
+            <div class="gk-cover-title">Игра в долгую</div>
+            <div class="gk-cover-sub">искусство быть вместе</div>
           </div>
-          <div class="day-title" id="urok-title"></div>
-        </div>
-        <div class="day-body">
-          <div class="urok-frame"><iframe id="urok-frame" title="Видеоурок" allow="autoplay; fullscreen; encrypted-media; picture-in-picture; screen-wake-lock" allowfullscreen></iframe></div>
+        </header>
+        <div class="gk-body">
+          <div class="gk-intro">
+            <div class="gk-intro-label" id="urok-label">Начни отсюда</div>
+            <div class="gk-intro-name" id="urok-title"></div>
+            <div class="gk-intro-desc" id="urok-about"></div>
+            <div class="urok-frame"><iframe id="urok-frame" title="Видеоурок" allow="autoplay; fullscreen; encrypted-media; picture-in-picture; screen-wake-lock" allowfullscreen></iframe></div>
+            <details class="gk-toc">
+              <summary>Содержание урока</summary>
+              <div id="urok-toc"></div>
+            </details>
+          </div>
           <div class="urok-buy-slot"></div>
-          <div class="home-tools-h urok-toc-h">Содержание урока</div>
-          <div class="card urok-toc" id="urok-toc"></div>
+          <div id="gk-seasons"></div>
+          <div class="gk-fail" id="gk-fail" hidden>Не получилось загрузить курс. Проверьте интернет и
+            <span class="gk-retry" id="gk-retry" role="button">попробуйте ещё раз</span>.</div>
           <div class="urok-buy-slot"></div>
         </div>
       </div>
@@ -819,6 +840,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=140"></script>
+  <script src="app.js?v=141"></script>
 </body>
 </html>
