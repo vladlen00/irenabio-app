@@ -2848,8 +2848,11 @@ async function openFreeDay(dayId, forceHost, fromHistory) {
   const body = { day_id: dayId };
   const host = forceHost || rememberedAudioHost();
   if (host) body.force_host = host;
-  const r = await loadPublic("day", body);
+  const seq = ++dayLoadSeq;
+  const r = await withTimeout(loadPublic("day", body), DAY_DEADLINE_MS).catch(() => ({ state: "timeout" }));
+  if (seq !== dayLoadSeq) return;   // уже нажали «Повторить» или открыли другой день
   loading.hidden = true;
+  if (r.state === "timeout") { showDayTimeout(() => openFreeDay(dayId, forceHost, true)); return; }
   if (r.state === "unreachable") { showConnection(() => openFreeDay(dayId, forceHost)); return; }
   const data = r.data || {};
   if (r.state !== "ok" || !data.ok) {
@@ -3288,6 +3291,9 @@ function showLoginError(msg, html) {
   if (html) el.innerHTML = html; else el.textContent = msg || "";
   el.hidden = !(msg || html);
 }
+// Срок на вход целиком. Нормальный худший путь ~20 с (проба 4+8 с и запрос 8 с), но
+// signInWithPassword ждёт инициализацию supabase-js, а та умеет не завершаться вовсе.
+const LOGIN_DEADLINE_MS = 25000;
 async function doLogin() {
   const btn = document.getElementById("btn-login");
   const email = normalizeEmail(document.getElementById("login-email").value);
@@ -3298,11 +3304,11 @@ async function doLogin() {
   if (!sb) { showLoginError("Не удалось загрузить вход. Обновите страницу."); return; }
   btn.disabled = true; btn.textContent = "Входим...";
   try {
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    const { data, error } = await withTimeout(sb.auth.signInWithPassword({ email, password }), LOGIN_DEADLINE_MS);
     // Обрыв связи -> честно про связь. Иначе показали бы "неверный пароль" на верном пароле.
     if (isAuthNetworkError(error)) {
       showLoginError(NET_MSG);
-      btn.disabled = false; btn.textContent = "Войти";
+      btn.disabled = false; btn.textContent = "Повторить";
       return;
     }
     if (error || !data || !data.session) {
@@ -3320,7 +3326,7 @@ async function doLogin() {
     await routeHomeOrCheckout();
   } catch {
     showLoginError(NET_MSG);
-    btn.disabled = false; btn.textContent = "Войти";
+    btn.disabled = false; btn.textContent = "Повторить";
   }
 }
 
@@ -3616,6 +3622,21 @@ async function routeHomeOrCheckout(opts) {
 // Экраны дня по mockups.html: шапка (назад + кикер СПРИНТ·ДЕНЬ N + заголовок) + блоки по order_index + кнопка "пройдено".
 let homeData = null;
 let currentDayId = null;
+// Срок на загрузку дня целиком: проба маршрута, сессия и get-day с ретраями. Сетевой
+// слой конечен, но цепочка длинная (проба 4+8 с, три попытки по 8 с, пересмотр маршрута
+// и ещё заход), до ~80 с. 04.10.2026 гостья смотрела в «Загрузка…» больше минуты.
+// Ответ, приехавший после срока или после «Повторить», отбрасываем по номеру загрузки.
+const DAY_DEADLINE_MS = 20000;
+let dayLoadSeq = 0;
+function showDayTimeout(retryFn) {
+  const errEl = document.getElementById("day-error");
+  errEl.textContent = "Не получилось загрузить. Проверьте интернет и попробуйте ещё раз.";
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.className = "btn btn-primary"; btn.textContent = "Повторить";
+  btn.addEventListener("click", retryFn);
+  errEl.appendChild(btn);
+  errEl.hidden = false;
+}
 
 // ===================== АВТОФОЛБЭК ХРАНИЛИЩА ЗВУКА =====================
 // Гео-выбор хранилища в get-day идёт по cf-connecting-ip. При работе через прокси
@@ -4123,6 +4144,24 @@ async function onAudioFailure(info) {
   }
 }
 
+// Сессия + get-day одной цепочкой: срок DAY_DEADLINE_MS должен покрывать обе.
+async function fetchDay(dayId, forceHost) {
+  const s = await getSessionState({ retry: true });
+  if (s.state === "unreachable") return { state: "unreachable" };
+  if (s.state !== "ok") return { state: "expired" };
+  const body = { day_id: dayId };
+  // Запомненное за сессию живое хранилище подставляем сами: иначе на каждом подкасте
+  // придётся заново ждать сторож. Явный ручной выбор всегда сильнее памяти.
+  const host = forceHost || rememberedAudioHost();
+  if (host) body.force_host = host;
+  // get-day - чтение, идемпотентно -> автоповтор разрешён
+  return sbFetch(GET_DAY_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + s.token },
+    body: JSON.stringify(body),
+  }, { retry: true });
+}
+
 // Открыть день: get-day -> рендер блоков. forceHost (timeweb|minio) - ручное переключение хранилища.
 async function openDay(dayId, forceHost) {
   currentDayId = dayId;
@@ -4134,23 +4173,14 @@ async function openDay(dayId, forceHost) {
   const errEl = document.getElementById("day-error");
   loading.hidden = false; blocksEl.innerHTML = ""; doneBtn.hidden = true; errEl.hidden = true;
   if (!forceHost) window.scrollTo(0, 0);
-  const s = await getSessionState({ retry: true });
-  if (s.state === "unreachable") { loading.hidden = true; showConnection(() => openDay(dayId, forceHost)); return; }
-  if (s.state !== "ok") { loading.hidden = true; errEl.textContent = "Сессия истекла. Обновите страницу."; errEl.hidden = false; return; }
-  const body = { day_id: dayId };
-  // Запомненное за сессию живое хранилище подставляем сами: иначе на каждом подкасте
-  // придётся заново ждать сторож. Явный ручной выбор всегда сильнее памяти.
-  const host = forceHost || rememberedAudioHost();
-  if (host) body.force_host = host;
-  // get-day - чтение, идемпотентно -> автоповтор разрешён
-  const r = await sbFetch(GET_DAY_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + s.token },
-    body: JSON.stringify(body),
-  }, { retry: true });
+  const seq = ++dayLoadSeq;
+  const r = await withTimeout(fetchDay(dayId, forceHost), DAY_DEADLINE_MS).catch(() => ({ state: "timeout" }));
+  if (seq !== dayLoadSeq) return;   // уже нажали «Повторить» или открыли другой день
   loading.hidden = true;
+  if (r.state === "timeout") { showDayTimeout(() => openDay(dayId, forceHost)); return; }
   // развели два случая: связи нет -> экран связи; сервер ответил "нет доступа" -> прежний текст
   if (r.state === "unreachable") { showConnection(() => openDay(dayId, forceHost)); return; }
+  if (r.state === "expired") { errEl.textContent = "Сессия истекла. Обновите страницу."; errEl.hidden = false; return; }
   const data = r.data || {};
   if (r.state !== "ok" || !data.access) {
     errEl.innerHTML = "Не удалось открыть день. Обновите страницу или напишите нам " + supportEmailHtml() + ".";
