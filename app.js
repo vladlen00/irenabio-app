@@ -186,6 +186,49 @@ function readLavaReturn() {
 }
 function clearLavaReturn() { try { localStorage.removeItem(LAVA_RETURN_KEY); } catch {} }
 
+// ===== СЧЁТЧИК ВОРОНКИ (05.10.2026) =====
+// Маяк в Cloudflare Worker ir-funnel (biohack/tools/funnel-worker), НЕ в нашу базу: он не
+// нагружает NANO и считает, даже когда база лежит. Без IP и без почты: sid случайный и
+// меняется раз в сутки. Источник: ?src= из ссылки (первый в сессии), иначе по браузеру.
+// Пустой FUNNEL_URL = счётчик выключен. Сбой маяка ни на что не влияет.
+const FUNNEL_URL = "https://ir-funnel.diastazzz.workers.dev/e";
+const trackOnce = new Set();
+function funnelSid() {
+  const day = new Date().toISOString().slice(0, 10);
+  try {
+    const j = JSON.parse(localStorage.getItem("irenabio_sid") || "null");
+    if (j && j.day === day && j.id) return j.id;
+    const id = Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, "0")).join("");
+    localStorage.setItem("irenabio_sid", JSON.stringify({ id, day }));
+    return id;
+  } catch (e) { return "nostore00"; }
+}
+function funnelSrc() {
+  try {
+    const q = new URLSearchParams(location.search).get("src");
+    if (q) { sessionStorage.setItem("irenabio_src", q.slice(0, 40)); return q.slice(0, 40); }
+    const saved = sessionStorage.getItem("irenabio_src");
+    if (saved) return saved;
+  } catch (e) {}
+  const ua = navigator.userAgent || "";
+  if (/Instagram/.test(ua)) return "ig";
+  if (/Telegram/.test(ua)) return "tg";
+  try { if (document.referrer) { const h = new URL(document.referrer).hostname; if (h && h !== location.hostname) return "ref:" + h; } } catch (e) {}
+  return "direct";
+}
+// once=true: событие уходит один раз за загрузку страницы (витрина, касса перерисовываются часто).
+function track(ev, d, once) {
+  if (!FUNNEL_URL) return;
+  const key = ev + "|" + (d || "");
+  if (once) { if (trackOnce.has(key)) return; trackOnce.add(key); }
+  try {
+    const body = JSON.stringify({ sid: funnelSid(), ev, src: funnelSrc(), d: d || "" });
+    if (!(navigator.sendBeacon && navigator.sendBeacon(FUNNEL_URL, body))) {
+      fetch(FUNNEL_URL, { method: "POST", body, keepalive: true, mode: "no-cors" }).catch(() => {});
+    }
+  } catch (e) {}
+}
+
 // Контакты поддержки - ЕДИНЫЙ источник. Переиспользовать на будущих экранах
 // (оплата не прошла, продление, вопросы по подписке). Меняешь тут - меняется везде.
 const SUPPORT = {
@@ -552,6 +595,7 @@ let connRetryFn = null;
 // перезагрузкой страницы (по факту - удачным входом, дальше экран не показывается).
 let connRetryUsed = false;
 function showConnection(retryFn) {
+  track("conn_screen");
   connRetryFn = typeof retryFn === "function" ? retryFn : null;
   hidePayFlowExtra();
   hideEntryViews();
@@ -630,6 +674,7 @@ async function goCheckoutSubmit() {
   if (!email) return;
   state.method = "wayforpay";
   state.email = email;
+  track("pay_click", "wfp");
   clearLavaReturn();   // WFP не использует stash; чистим, чтобы бут на возврате не ушёл в заглушку
   const btn = els.btnPay;
   if (btn) { btn.disabled = true; btn.textContent = "Открываем оплату..."; }
@@ -639,7 +684,8 @@ async function goCheckoutSubmit() {
     body: JSON.stringify({ email, plan: state.plan, method: "wayforpay" }),
   });
   const data = r.data || {};
-  if (r.state === "ok" && data.ok && data.invoiceUrl) { window.location.href = data.invoiceUrl; return; }
+  if (r.state === "ok" && data.ok && data.invoiceUrl) { track("pay_redirect", "wfp"); window.location.href = data.invoiceUrl; return; }
+  track("pay_error", r.state === "unreachable" ? "net" : String(data.error || r.status || "x"));
   if (r.state === "unreachable") showFormError(netMsg(r));
   else if (r.status === 429) showFormError(RATE_MSG);
   // Домен не принимает почту (проверка MX на сервере) - это почти всегда опечатка в домене.
@@ -680,6 +726,7 @@ function goLavaCurrency() {
   if (!email) return;
   state.method = "lava";
   state.email = email;
+  track("pay_click", "lava");
   showLavaCurrency();
 }
 // .selected как JS-фолбэк к :has() для старых iOS WebView.
@@ -723,6 +770,7 @@ async function onPayGo() {
   const data = r.data || {};
   if (r.state === "ok" && data.ok && data.paymentUrl && data.order_reference) {
     stashLavaReturn(data.order_reference, state.email, "lava");
+    track("pay_redirect", "lava");
     window.location.href = data.paymentUrl;   // та же вкладка -> Lava; возврат руками на адрес
     return;
   }
@@ -866,6 +914,7 @@ function fillPwOrder(order) {
 }
 
 async function enterPaymentReturn(order) {
+  track("paid_return", "", true);
   state.order = order;
   hideEntryViews();
   hidePayFlowExtra();
@@ -1435,6 +1484,7 @@ function showCheckout() {
   writePlanToUrl();
   paintSelected();
   applyCountryPay();
+  track("checkout", "", true);
 }
 // Сторож каркаса дома. Условие проверяется В МОМЕНТ срабатывания, а не по флагам:
 // так его нельзя забыть снять из нового экрана. Ушли с каркаса - сторож промолчит.
@@ -2497,6 +2547,7 @@ function scChrome(on) {
 }
 
 async function showShowcase() {
+  track("sc_view", "", true);
   hidePayFlowExtra();
   if (siteHeader) siteHeader.hidden = true;   // у витрины своя шапка в герое
   if (siteFooter) siteFooter.hidden = true;
@@ -2717,6 +2768,7 @@ function scPosterHtml(s) {
 // ===================== ШТОРКА ЗАМКА =====================
 // Одна шторка на три случая. Кнопка ведёт СРАЗУ в чекаут: женщина уже нажала дважды.
 function openLockSheet(kind, payload) {
+  track("sheet", kind === "tool" ? payload.key : kind === "podruzhka" || kind === "course" || kind === "handbook" ? kind : "sprint");
   const panel = document.getElementById("lock-panel");
   const price = scPrice(publicData && publicData.price);
   // Цены может ещё не быть: витрина рисуется из снимка без цены, и шторку можно открыть
@@ -2869,6 +2921,7 @@ function scFreeSprintTitle() {
 // Тот же экран дня, что у подписчицы, но содержимое приезжает из get-public и
 // кнопки "пройдено" нет: отмечать прогресс некуда, пока нет аккаунта.
 async function openFreeDay(dayId, forceHost, fromHistory) {
+  if (!forceHost) track("free_day");
   currentDayId = dayId;
   // Кадр в историю: "назад" из дня вернёт на витрину, а не на посторонний адрес.
   // При возврате ПО истории кадр не плодим, иначе "назад" зациклится на дне.
@@ -3147,6 +3200,7 @@ function hideUrok() {
 
 async function openUrok(fromHistory) {
   if (!fromHistory) scPushView("urok");
+  track("urok", "", true);
   const sheet = document.getElementById("lock-sheet"); if (sheet) sheet.hidden = true;
   // Гасим ВСЁ, откуда сюда можно прийти (правило экранов, см. openFreeDay).
   hideContentViews();
@@ -3367,6 +3421,7 @@ async function doLogin() {
       return;
     }
     // сессия есть -> общий роутинг: активная подписка -> ДОМ; нет -> чекаут (продление)
+    track("login_ok");
     await routeHomeOrCheckout();
   } catch {
     showLoginError(NET_MSG);
@@ -3673,6 +3728,7 @@ let currentDayId = null;
 const DAY_DEADLINE_MS = 20000;
 let dayLoadSeq = 0;
 function showDayTimeout(retryFn) {
+  track("day_timeout");
   const errEl = document.getElementById("day-error");
   errEl.textContent = "Не получилось загрузить. Проверьте интернет и попробуйте ещё раз.";
   const btn = document.createElement("button");
