@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=87">
+  <link rel="stylesheet" href="style.css?v=88">
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. Файлы Google Fonts у себя (с 01.10.2026),
        собирает biohack/tools/irenabio-app/build_fonts.py. Браузер качает только нужные
        подмножества по unicode-range, как и с Google. -->
@@ -590,6 +590,15 @@
           <span class="email-echo-value" id="email-echo-value"></span>
         </p>
 
+        <!-- БЕЛАРУСЬ (05.10.2026): у WayForPay карты Беларуси заблокированы (отказ 1135
+             «Blocked country 112»), а через Lava белоруска уже платила успешно. Если часовой пояс
+             устройства Europe/Minsk, первой стоит оплата в рублях, евро уходит второй кнопкой.
+             Логика - applyCountryPay в app.js. -->
+        <div class="pay-by" id="pay-by" hidden>
+          <p class="pay-by-note">Карты Беларуси принимаются через оплату в рублях.</p>
+          <button type="button" class="btn btn-primary" id="btn-pay-rub">Оплатить в рублях</button>
+        </div>
+
         <button id="btn-pay" class="btn btn-primary" type="submit" data-method="wayforpay">
           Оплатить
         </button>
@@ -839,6 +848,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=148"></script>
+  <script src="app.js?v=149"></script>
 </body>
 </html>

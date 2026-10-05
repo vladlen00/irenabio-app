@@ -649,7 +649,29 @@ async function goCheckoutSubmit() {
   else if (data.error === "payment_init_failed") showFormError("Не удалось открыть оплату. Попробуйте ещё раз.");
   else if (r.status === 400 || data.error === "invalid_email") showEmailError(EMAIL_HINT);
   else showFormError("Не удалось открыть оплату. Попробуйте ещё раз.");
-  if (btn) { btn.disabled = false; btn.textContent = "Оплатить"; }
+  if (btn) { btn.disabled = false; btn.textContent = btn.dataset.label || "Оплатить"; }
+}
+// Беларусь (05.10.2026): у WayForPay карты Беларуси заблокированы (отказ 1135).
+// Страну берём по часовому поясу устройства: до edge-функций заголовок страны не доходит
+// (проверено 05.10, приходит только IP), а пояс не меняется ни от VPN, ни от нашего прокси.
+// Europe/Minsk -> первой кнопка «Оплатить в рублях» и строка про карты, евро вторым,
+// ссылка снизу не дублируется. Любой другой пояс -> касса как была.
+function isBelarusDevice() {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone === "Europe/Minsk"; } catch (e) { return false; }
+}
+function applyCountryPay() {
+  const by = isBelarusDevice();
+  const box = document.getElementById("pay-by");
+  if (box) box.hidden = !by;
+  const rub = document.querySelector(".pay-rub-link");
+  if (rub) rub.hidden = by;
+  const btn = els.btnPay;
+  if (btn && !btn.disabled) {
+    btn.dataset.label = by ? "Оплатить в евро" : "Оплатить";
+    btn.textContent = btn.dataset.label;
+    btn.classList.toggle("btn-primary", !by);
+    btn.classList.toggle("btn-ghost", by);
+  }
 }
 // --- экран 1 -> ссылка "Оплатить в рублях": та же валидация, дальше экран 2 (выбор валюты) ---
 function goLavaCurrency() {
@@ -1085,6 +1107,7 @@ els.form.addEventListener("submit", (e) => {
 {
   const bind = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("click", (e) => { e.preventDefault(); fn(e); }); };
   bind("to-lava-currency", goLavaCurrency);            // экран 1 -> экран 2 (валюта Lava)
+  bind("btn-pay-rub", goLavaCurrency);                 // то же для BY: первая кнопка кассы
   bind("checkout-back", () => checkoutBack());         // чекаут -> туда, откуда пришли
   bind("lavacur-back", () => showCheckout());          // экран 2 -> назад к тарифам
   bind("pay-go-back", () => showCheckout());           // экран 3 -> назад к тарифам (оплаты ещё не было)
@@ -1411,6 +1434,7 @@ function showCheckout() {
   readPlanFromUrl();
   writePlanToUrl();
   paintSelected();
+  applyCountryPay();
 }
 // Сторож каркаса дома. Условие проверяется В МОМЕНТ срабатывания, а не по флагам:
 // так его нельзя забыть снять из нового экрана. Ушли с каркаса - сторож промолчит.

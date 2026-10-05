@@ -240,6 +240,8 @@ a:hover { text-decoration: underline; }
 .pay-legal a { color: var(--muted); border-bottom: 1px dashed var(--border); }
 .pay-legal a:hover { color: var(--accent-deep); text-decoration: none; }
 
+/* Беларусь (05.10.2026): строка над кнопкой оплаты в рублях. */
+.pay-by-note { text-align: center; font-size: 14.5px; line-height: 1.45; margin: 20px 0 0; color: var(--text); }
 .alt-pay { text-align: center; margin: 14px 0 0; }
 .alt-pay a { font-size: 14px; color: var(--muted); border-bottom: 1px dashed var(--border); }
 .alt-pay a:hover { color: var(--accent-deep); text-decoration: none; }
