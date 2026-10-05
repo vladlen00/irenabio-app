@@ -1112,7 +1112,11 @@ body.sc-open { padding-bottom: calc(var(--sc-bar-h, 76px) + 20px); }
 body.sc-open.has-mini { padding-bottom: calc(var(--sc-bar-h, 76px) + 80px + env(safe-area-inset-bottom, 0px)); }
 
 /* ШТОРКА ЗАМКА. Панель та же, что у шторок дома; внутри три разных содержимого. */
-.lock-panel { padding: 0 0 calc(24px + env(safe-area-inset-bottom, 0px)); overflow: hidden; }
+/* Потолок высоты и прокрутка внутри (05.10): без них длинная шторка уезжала верхом за край
+   экрана и не листалась. У «Расслабления» на 390x844 пропадали заголовок и пробная «Один день».
+   По горизонтали обрезка остаётся: она держит обложку в скруглённых углах. */
+.lock-panel { padding: 0 0 calc(24px + env(safe-area-inset-bottom, 0px)); overflow-x: hidden; overflow-y: auto;
+  max-height: 88vh; max-height: 88dvh; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .lock-cover { position: relative; height: 210px; background: var(--hero-grad); background-size: cover; background-position: center; }
 /* Обложка «Биохакинга отношений»: головы у самого верха кадра, полоса 210 px по центру
    их срезала. Только у неё кадр прижат к верху, остальные программы не тронуты. */
@@ -1179,12 +1183,6 @@ body.sc-open.has-mini { padding-bottom: calc(var(--sc-bar-h, 76px) + 80px + env(
     var(--brand-grad);
 }
 .home-wide.wide-flat::before, .home-wide.wide-flat::after { content: none; }
-
-/* ===== КУРС «ИГРА В ДОЛГУЮ»: карточка на витрине (03.10) =====
-   Та же .home-wide.wide-flat, что у Подружки, плюс надзаголовок. */
-.sc-dolgaya { margin: 0 0 22px; }
-.sc-wide-kick { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: .8px;
-  text-transform: uppercase; color: rgba(255,255,255,.78); margin-bottom: 2px; }
 
 /* ===== КУРС «ИГРА В ДОЛГУЮ» ДЛЯ ГОСТЬИ: экран #urok (03.10) =====
    Повторяет главную курса dolgaya: палитра снята с его обложки (бордо, пыльная роза). */

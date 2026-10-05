@@ -2349,6 +2349,11 @@ const SC_TOOLS = [
       { name: "Здоровье", locked: true,
         desc: "каждый день отмечаешь сон, энергию, стресс и настроение и видишь, как они меняются" },
     ] },
+  // Справочники и курс (05.10): сетка теперь как у подписчицы на доме, тот же порядок и иконки.
+  // Справочники ведут в свою шторку (kind "handbook"), состав берётся из HANDBOOK.
+  { key: "handbook", icon: "handbook", iconV: 2, name: "Справочники", sub: "добавки, анализы" },
+  // Курс ведёт на экран #urok, где первый урок открыт. Была широкая карточка под Подружкой.
+  { key: "dolgaya", icon: "dolgaya", name: "Игра в долгую", sub: "курс об отношениях", chip: "1 пробный" },
   // Метка считается из базы, поэтому chip тут нет.
   { key: "library", icon: "sprints", name: "Все спринты", sub: "библиотека" },
 ];
@@ -2580,14 +2585,11 @@ function renderShowcase(d) {
       ? '<span class="sc-chip sc-chip-lock">' + escapeHtml(plurPrograms(d.sprints.length)) + "</span>"
       : t.chip ? '<span class="sc-chip sc-chip-try">' + escapeHtml(t.chip) + "</span>" : "";
     return '<div class="t5" data-tool="' + t.key + '" role="button">' +
-      '<img class="t5ic" src="icons/' + t.icon + '.png?v=1" alt="" width="32" height="32">' +
+      '<img class="t5ic" src="icons/' + t.icon + ".png?v=" + (t.iconV || 1) + '" alt="" width="32" height="32">' +
       chip +
       '<div class="t5n">' + escapeHtml(t.name) + "</div>" +
       '<div class="t5s">' + escapeHtml(t.sub) + "</div></div>";
   }).join("");
-
-  // ===== БЕСПЛАТНЫЙ УРОК =====
-  renderUrokCard();
 
   // ===== ПОЛКА ПРОГРАММ =====
   // Та же разметка, что уже на экране (снимок совпал с живым ответом), - не трогаем:
@@ -2629,6 +2631,12 @@ function renderShowcase(d) {
     notice.hidden = true;
     document.getElementById("sc-bottom-sub").textContent = "всё открыто, отмена в любой момент";
   }
+}
+
+function plurEntries(n) {
+  const a = Math.abs(n) % 100, b = a % 10;
+  const w = (a > 10 && a < 20) || b === 0 || b > 4 ? "записей" : b === 1 ? "запись" : "записи";
+  return n + " " + w;
 }
 
 function plurPrograms(n) {
@@ -2726,6 +2734,23 @@ function openLockSheet(kind, payload) {
         '<div class="lock-lead">Этот урок открыт по подписке' + (lessons ? ": весь курс, " + lessons + " уроков, методички и задания." : ".") + "</div>" +
         '<button type="button" class="btn btn-primary lock-cta" data-lock-buy-urok>' + escapeHtml(buyAll) + "</button>" +
         '<div class="lock-note">отмена в любой момент</div>' +
+        hurry +
+      "</div>";
+  } else if (kind === "handbook") {
+    // Справочники для гостьи (05.10): четыре раздела, у каждого число записей и первые три
+    // под замком. Состав из HANDBOOK, того же каталога, что открывается подписчице.
+    panel.innerHTML =
+      '<div class="lock-body" style="margin-top:0;padding-top:18px">' +
+        '<div class="lock-head"><img src="icons/handbook.png?v=2" alt="" width="52" height="52">' +
+          "<div><b>Справочники</b><span>добавки, анализы, железо, рецепты</span></div></div>" +
+        '<div class="lock-lead">Всё, что Ирена рассказывала про добавки, анализы и питание, собрано по темам: ' +
+          "каждая запись ведёт в нужный выпуск, шпаргалку или книгу рецептов.</div>" +
+        HANDBOOK.map((sec) =>
+          '<div class="lock-kick">' + escapeHtml(sec.title) + " · " + escapeHtml(plurEntries(sec.items.length)) + "</div>" +
+          sec.items.slice(0, 3).map((it) =>
+            '<div class="lock-day rest"><i class="ti ti-lock"></i><span>' + escapeHtml(it.t) + "</span></div>").join("")
+        ).join("") +
+        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>' + escapeHtml(buyAll) + "</button>" +
         hurry +
       "</div>";
   } else if (kind === "tool") {
@@ -2876,6 +2901,8 @@ async function openFreeDay(dayId, forceHost, fromHistory) {
         if (!t) return;
         // "Все спринты" ведёт не в шторку, а к полке: она прямо ниже и показывает всё.
         if (t.key === "library") { document.getElementById("sc-shelf").scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+        if (t.key === "dolgaya") { openUrok(); return; }
+        if (t.key === "handbook") { openLockSheet("handbook"); return; }
         openLockSheet("tool", t);
         return;
       }
@@ -3018,11 +3045,6 @@ function urokSrc(startSec) {
 }
 
 // Карточка на витрине, над полкой программ. Тексты в разметке (index.html).
-function renderUrokCard() {
-  const card = document.getElementById("sc-urok");
-  if (card) card.hidden = false;
-}
-
 function gkLessonsCount(D) {
   return D ? D.seasons.reduce((n, s) => n + s.lessons.length, D.intro ? 1 : 0) : 0;   // с вступлением
 }
@@ -3137,8 +3159,6 @@ function scGoCheckoutFromUrok() {
 }
 
 (function wireUrok() {
-  const card = document.getElementById("sc-urok");
-  if (card) card.addEventListener("click", () => openUrok());
   const v = document.getElementById("view-urok");
   if (v) v.addEventListener("click", (e) => {
     if (e.target.closest("[data-urok-buy]")) { scGoCheckoutFromUrok(); return; }

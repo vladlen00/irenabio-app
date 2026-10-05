@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=86">
+  <link rel="stylesheet" href="style.css?v=87">
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. Файлы Google Fonts у себя (с 01.10.2026),
        собирает biohack/tools/irenabio-app/build_fonts.py. Браузер качает только нужные
        подмножества по unicode-range, как и с Google. -->
@@ -119,19 +119,9 @@
             <span class="sc-chip sc-chip-soft">пример ›</span>
           </div>
 
+          <!-- Сетка 2x3 как на доме подписчицы (05.10): «Игра в долгую» стала плиткой с меткой
+               «1 пробный» и ведёт на экран курса (#urok). Прямая ссылка app.irenabio.com/#urok. -->
           <div class="home-tools" id="sc-tools"></div>
-
-          <!-- Курс «Игра в долгую» для гостьи: та же широкая карточка и тот же медальон, что у
-               карточки курса на доме подписчицы. Ведёт на экран курса (#urok), где первый урок
-               открыт, остальное под замком. Прямая ссылка app.irenabio.com/#urok. -->
-          <div class="home-wide wide-flat sc-dolgaya" id="sc-urok" role="button" hidden>
-            <img class="home-wide-ic" src="icons/dolgaya-card.png?v=1" alt="" width="66" height="66">
-            <div class="home-wide-txt">
-              <span class="sc-wide-kick">Биохакинг отношений</span>
-              <b>Игра в долгую</b>
-              <span class="home-wide-sub">первый урок бесплатно</span>
-            </div>
-          </div>
 
           <div class="home-tools-h">Программы</div>
           <div class="shelf" id="sc-shelf"></div>
@@ -849,6 +839,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=147"></script>
+  <script src="app.js?v=148"></script>
 </body>
 </html>
