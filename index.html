@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=89">
+  <link rel="stylesheet" href="style.css?v=90">
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. Файлы Google Fonts у себя (с 01.10.2026),
        собирает biohack/tools/irenabio-app/build_fonts.py. Браузер качает только нужные
        подмножества по unicode-range, как и с Google. -->
@@ -645,6 +645,11 @@
           <input type="radio" name="lavacur" value="EUR">
           <span class="cur-body"><span class="cur-name">В евро</span><span class="cur-sub">Карты других стран, PayPal, Apple Pay</span></span>
         </label>
+        <!-- СБП (06.10.2026): разовый месяц, другой продукт Lava. Рублёвая подписка СБП не умеет. -->
+        <label class="cur-opt">
+          <input type="radio" name="lavacur" value="SBP">
+          <span class="cur-body"><span class="cur-name">Через СБП, 1 месяц</span><span class="cur-sub">Оплата в приложении банка. Без автосписания: продлите сами, мы напомним за 3 дня.</span></span>
+        </label>
       </fieldset>
       <button class="btn btn-primary" type="button" id="btn-lava-pay">Оплатить</button>
       <p class="form-error" id="lavacur-error" hidden></p>
@@ -657,7 +662,7 @@
         <p>Оплата пройдёт на сайте Lava. После оплаты вернитесь сюда, снова открыв в браузере адрес:</p>
         <div class="pay-addr">app.irenabio.com</div>
         <p class="muted">Доступ откроется сам. Запомните адрес: он понадобится, чтобы вернуться после оплаты.</p>
-        <p class="pay-confirm">Банк попросит подтвердить оплату кодом из СМС или в приложении банка. Не закрывайте страницу, пока оплата не пройдёт.</p>
+        <p class="pay-confirm" id="pay-confirm">Банк попросит подтвердить оплату кодом из СМС или в приложении банка. Не закрывайте страницу, пока оплата не пройдёт.</p>
         <button class="btn btn-primary" type="button" id="btn-pay-go">Перейти к оплате</button>
         <!-- Выход был нужен: оплаты ещё НЕ было, а уйти с экрана было некуда. -->
         <button class="btn btn-ghost" type="button" id="pay-go-back">Вернуться к тарифам</button>
@@ -849,6 +854,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=152"></script>
+  <script src="app.js?v=153"></script>
 </body>
 </html>

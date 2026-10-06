@@ -562,6 +562,8 @@ a.hb-row { text-decoration: none; color: inherit; }
 
 /* Статус подписки */
 .home-sub { padding: 14px 16px; margin-top: 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+/* Разовый месяц (СБП) за 3 дня до конца: карточка зовёт продлить (06.10.2026). */
+.home-sub.home-sub-warn { border: 1.5px solid var(--accent); background: var(--accent-wash); }
 .home-sub-left { display: flex; align-items: center; gap: 10px; }
 .home-sub-left > i { font-size: 18px; color: var(--accent-deep); }
 .home-sub-title { font-size: 13px; font-weight: 600; }

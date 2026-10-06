@@ -755,8 +755,12 @@ function showLavaCurrency() {
   window.scrollTo(0, 0);
 }
 // --- экран 3 (ТОЛЬКО Lava): предупреждение об уходе + адрес возврата ---
+const PAY_CONFIRM_CARD = "Банк попросит подтвердить оплату кодом из СМС или в приложении банка. Не закрывайте страницу, пока оплата не пройдёт.";
+const PAY_CONFIRM_SBP = "Откроется выбор банка или QR-код. Подтвердите оплату в приложении банка сразу и вернитесь на эту страницу.";
 function showPayGo() {
   hideCoreViews(); hidePayFlowExtra();
+  const pc = document.getElementById("pay-confirm");
+  if (pc) pc.textContent = state.lavaCurrency === "SBP" ? PAY_CONFIRM_SBP : PAY_CONFIRM_CARD;
   const e = document.getElementById("pay-go-error"); if (e) e.hidden = true;
   const b = document.getElementById("btn-pay-go"); if (b) { b.disabled = false; b.textContent = "Перейти к оплате"; }
   els.viewPayGo.hidden = false;
@@ -773,14 +777,16 @@ async function onPayGo() {
   if (btn) { btn.disabled = true; btn.textContent = "Открываем оплату..."; }
   // БЕЗ автоповтора: повтор создаст второй инвойс. Повторяет человек кнопкой.
   const currency = state.lavaCurrency === "EUR" ? "EUR" : "RUB";
+  // СБП = разовый месяц (1m_once), только рубли; карта = подписка выбранного тарифа.
+  const plan = state.lavaCurrency === "SBP" ? "1m_once" : state.plan;
   const r = await sbFetch(CREATE_LAVA_INVOICE_URL, {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: state.email, plan: state.plan, currency }),
+    body: JSON.stringify({ email: state.email, plan, currency }),
   });
   const data = r.data || {};
   if (r.state === "ok" && data.ok && data.paymentUrl && data.order_reference) {
     stashLavaReturn(data.order_reference, state.email, "lava");
-    track("pay_redirect", "lava");
+    track("pay_redirect", state.lavaCurrency === "SBP" ? "lava_sbp" : "lava");
     window.location.href = data.paymentUrl;   // та же вкладка -> Lava; возврат руками на адрес
     return;
   }
@@ -1181,7 +1187,7 @@ els.form.addEventListener("submit", (e) => {
   bind("start-paid-help", () => showClaim());          // старт: "оплатили, но ещё не заходили?" -> первый пароль по номеру заказа
   const curOpts = document.getElementById("cur-opts");
   if (curOpts) curOpts.addEventListener("change", (e) => {
-    if (e.target.name === "lavacur") { state.lavaCurrency = e.target.value === "EUR" ? "EUR" : "RUB"; paintCur(); }
+    if (e.target.name === "lavacur") { state.lavaCurrency = e.target.value === "EUR" ? "EUR" : (e.target.value === "SBP" ? "SBP" : "RUB"); paintCur(); }
   });
 }
 els.email.addEventListener("input", () => { showEmailError(""); updateEmailEcho(); });
@@ -1797,14 +1803,25 @@ function renderHome(data) {
   const graceEndRu = subGrace && data.valid_until ? fmtDateRu(graceEndIso(data.valid_until)) : "";
   homeEls.subUntil.textContent = untilRu ? ("до " + (graceEndRu || untilRu)) : "";
   const subTitleEl = document.getElementById("home-sub-title");
-  if (subTitleEl) subTitleEl.textContent = subGrace ? "Оплата не прошла" : (subCancelled ? "Автопродление отключено" : "Подписка активна");
+  // Разовый месяц (СБП, 06.10.2026): автопродления нет, за 3 дня до конца карточка зовёт продлить.
+  const subOnce = data.pay_mode === "once" && !subGrace;
+  const onceLeft = subOnce ? daysLeft(data.valid_until) : null;
+  const onceWarn = subOnce && onceLeft != null && onceLeft <= 3;
+  const subCardEl = document.getElementById("home-sub-card");
+  if (subCardEl) subCardEl.classList.toggle("home-sub-warn", onceWarn);
+  if (subTitleEl) subTitleEl.textContent = subGrace ? "Оплата не прошла"
+    : onceWarn ? "Продлите доступ"
+    : subOnce ? "Оплачено без автопродления"
+    : (subCancelled ? "Автопродление отключено" : "Подписка активна");
   const hmenuUntil = document.getElementById("hmenu-sub-until");
   if (hmenuUntil) {
     hmenuUntil.textContent = subGrace
       ? ("оплата не прошла" + (graceEndRu ? ", продлите до " + graceEndRu : ""))
-      : subCancelled
-        ? ("автопродление отключено" + (untilRu ? ", до " + untilRu : ""))
-        : ("активна" + (untilRu ? " до " + untilRu : ""));
+      : subOnce
+        ? ("без автопродления" + (untilRu ? ", до " + untilRu : ""))
+        : subCancelled
+          ? ("автопродление отключено" + (untilRu ? ", до " + untilRu : ""))
+          : ("активна" + (untilRu ? " до " + untilRu : ""));
   }
 
   homeEls.loading.hidden = true;
@@ -2032,7 +2049,7 @@ function renderSubscription(sub) {
   const price = priceText(sub.plan);
 
   let html = "";
-  let wireCancel = false, wireRenew = false;
+  let wireCancel = false, wireRenew = false, wireRenewOnce = false;
 
   if (!hasAccess) {
     // Доступа уже нет. В макете этого состояния нет, но экран обязан не ломаться.
@@ -2064,6 +2081,20 @@ function renderSubscription(sub) {
     ]);
     html += inclHtml("Что входит");
     wireRenew = true;
+  } else if (sub.pay_mode === "once") {
+    // РАЗОВЫЙ МЕСЯЦ (СБП, 06.10.2026). Отключать нечего: автопродления нет вовсе.
+    // Главная кнопка - оплатить следующий месяц тем же способом.
+    const warn = left != null && left <= 3;
+    html += memcardHtml(warn ? "off" : "ok", "БЕЗ АВТОПРОДЛЕНИЯ", sub, "Доступ до", until || "");
+    html += '<p class="mnote">Оплачен месяц без автосписания. Чтобы доступ не прервался, продлите' +
+            (untilWords ? " до " + untilWords : "") + ': мы напомним за 3 дня.</p>';
+    html += '<button type="button" class="sub-primary" id="sub-renew-once">Продлить на месяц через СБП</button>';
+    html += rowsHtml([
+      ["Тариф", "1 месяц, разовая оплата"],
+      left != null ? ["Осталось", plurDaysLeft(left)] : null
+    ]);
+    html += inclHtml("Что входит");
+    wireRenewOnce = true;
   } else if (sub.cancelled) {
     // БЕЗ ПРОДЛЕНИЯ. Карта гаснет, главная кнопка - вернуть продление.
     html += memcardHtml("off", "БЕЗ ПРОДЛЕНИЯ", sub, "Доступ до", until || "");
@@ -2121,7 +2152,21 @@ function renderSubscription(sub) {
     const rb = document.getElementById("sub-renew");
     if (rb) rb.addEventListener("click", function () { hideContentViews(); checkoutBackTo = "subscription"; showCheckout(); });
   }
+  if (wireRenewOnce) {
+    const ob = document.getElementById("sub-renew-once");
+    if (ob) ob.addEventListener("click", renewOnceFromSubscription);
+  }
   if (wireCancel) wireCancelFlow(sub);
+}
+
+// "Продлить на месяц через СБП": касса с её почтой, сразу экран выбора способа с отмеченным СБП.
+async function renewOnceFromSubscription() {
+  hideContentViews(); checkoutBackTo = "subscription"; showCheckout();
+  await fillCheckoutSession();   // почта залогиненной в поле кассы (readCheckoutEmail читает его)
+  state.lavaCurrency = "SBP";
+  goLavaCurrency();
+  const r = document.querySelector('input[name="lavacur"][value="SBP"]');
+  if (r) { r.checked = true; paintCur(); }
 }
 
 function wireCancelFlow(sub) {
