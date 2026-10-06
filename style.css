@@ -270,11 +270,11 @@ a:hover { text-decoration: underline; }
 .pending-card p { color: var(--pending-p); margin: 0 0 12px; font-size: 15px; }
 .pending-plan { font-weight: 700; color: var(--text) !important; }
 .pending-card .muted { color: var(--muted); font-size: 13px; }
-/* Ошибка на экране "Сейчас откроется оплата": .pending-card p перебивал цвет .form-error. */
+/* Ошибка внутри карточек ожидания: .pending-card p перебивал цвет .form-error. */
 .pending-card .form-error { color: var(--accent-deep); margin: 0 2px 12px; }
-/* Подсказка про подтверждение банком перед уходом в Lava (06.10.2026): у российских карт
+/* Подсказка про подтверждение банком, пока создаётся счёт Lava (06.10.2026): у рублёвых карт
    оплата обрывается на подтверждении, "confirmation timeout" через ~22 мин после счёта. */
-.pending-card .pay-confirm { margin: 4px 0 16px; padding: 10px 12px; border-radius: 12px;
+.pay-hint { margin: 14px 0 0; padding: 10px 12px; border-radius: 12px; text-align: center;
   background: var(--accent-wash); color: var(--pending-p); font-size: 14px; }
 
 /* Экран пароля после оплаты */
@@ -993,9 +993,7 @@ body.has-mini { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
 
 /* ===================== НОВЫЙ ПОТОК ОПЛАТЫ (экраны 2/3/4) ===================== */
 /* экран 1: ссылка "Оплатить в рублях" */
-.pay-rub-link { text-align: center; margin-top: 16px; }
-.pay-rub-link a { color: var(--accent-deep); font-weight: 600; border-bottom: 0; }
-.pay-rub-link a .ti { font-size: .85em; vertical-align: middle; }
+.btn.pay-rub-link { margin-top: 12px; }
 /* экран 2: назад + выбор валюты */
 .linkback { background: none; border: 0; color: var(--accent-deep); font: inherit; font-weight: 600; padding: 6px 0; margin-bottom: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
 .cur-opts { border: 0; padding: 0; margin: 0 0 20px; display: grid; gap: 12px; }

@@ -295,7 +295,6 @@ const els = {
   viewHome: document.getElementById("view-home"),
   viewLavaReturn: document.getElementById("view-lava-return"), // удалён из DOM -> null, использования под if()
   viewLavaCurrency: document.getElementById("view-lava-currency"),
-  viewPayGo: document.getElementById("view-pay-go"),
   viewPayWait: document.getElementById("view-pay-wait"),
   viewPayTabReturn: document.getElementById("view-pay-tab-return"),
   // экран пароля после оплаты
@@ -654,7 +653,6 @@ const PAY_POLL_MAX_MS = 15 * 60 * 1000;
 // Спрятать экраны 2/3/4 + заглушку вкладки оплаты + остановить опрос.
 function hidePayFlowExtra() {
   if (els.viewLavaCurrency) els.viewLavaCurrency.hidden = true;
-  if (els.viewPayGo) els.viewPayGo.hidden = true;
   if (els.viewPayWait) els.viewPayWait.hidden = true;
   if (els.viewPayTabReturn) els.viewPayTabReturn.hidden = true;
   // Экран подписки гасился ТОЛЬКО через hideContentViews, а его не зовут ни showStart,
@@ -752,32 +750,30 @@ function showLavaCurrency() {
   const lp = document.getElementById("lavacur-plan");
   if (lp) lp.textContent = (PLANS[state.plan] || {}).label || "";
   const err = document.getElementById("lavacur-error"); if (err) err.hidden = true;
+  const hint = document.getElementById("lavacur-hint"); if (hint) hint.hidden = true;
+  const b = document.getElementById("btn-lava-pay"); if (b) { b.disabled = false; b.textContent = "Оплатить"; }
   paintCur();
   els.viewLavaCurrency.hidden = false;
   window.scrollTo(0, 0);
 }
-// --- экран 3 (ТОЛЬКО Lava): предупреждение об уходе + адрес возврата ---
+// Счёт Lava создаётся прямо с экрана выбора способа (06.10.2026). Экрана «Сейчас откроется
+// оплата» больше нет: Lava возвращает сама по адресам возврата, stash остаётся страховкой.
 const LAVA_INVOICE_TIMEOUT_MS = 30000;
-const PAY_CONFIRM_CARD = "Банк попросит подтвердить оплату кодом из СМС или в приложении банка. Не закрывайте страницу, пока оплата не пройдёт.";
-const PAY_CONFIRM_SBP = "Откроется выбор банка или QR-код. Подтвердите оплату в приложении банка сразу и вернитесь на эту страницу.";
-function showPayGo() {
-  hideCoreViews(); hidePayFlowExtra();
-  const pc = document.getElementById("pay-confirm");
-  if (pc) pc.textContent = state.lavaCurrency === "SBP" ? PAY_CONFIRM_SBP : PAY_CONFIRM_CARD;
-  const e = document.getElementById("pay-go-error"); if (e) e.hidden = true;
-  const b = document.getElementById("btn-pay-go"); if (b) { b.disabled = false; b.textContent = "Перейти к оплате"; }
-  els.viewPayGo.hidden = false;
-  window.scrollTo(0, 0);
-}
+const PAY_HINT_CARD = "Банк попросит подтвердить оплату кодом из СМС или в приложении банка, не закрывайте страницу.";
+const PAY_HINT_SBP = "Откроется выбор банка или QR-код, подтвердите оплату в приложении банка.";
 
-// Клик "Перейти к оплате": создаём инвойс и уходим на Lava в ЭТОЙ ЖЕ вкладке (назад - по ?lava=).
-// Навигация своей вкладки после await надёжна на iOS (в отличие от window.open) - белой вкладки нет,
-// пре-фетч не нужен, инвойс создаётся только по реальному клику -> нет сирот. stash -> возврат руками.
-async function onPayGo() {
-  const btn = document.getElementById("btn-pay-go");
-  const errEl = document.getElementById("pay-go-error");
+// Клик "Оплатить" на экране выбора способа: создаём инвойс и уходим на Lava в ЭТОЙ ЖЕ вкладке
+// (назад - по ?lava=). Навигация своей вкладки после await надёжна на iOS (в отличие от
+// window.open) - белой вкладки нет, инвойс создаётся только по реальному клику -> нет сирот.
+async function onLavaPay() {
+  const btn = document.getElementById("btn-lava-pay");
+  const errEl = document.getElementById("lavacur-error");
+  const hint = document.getElementById("lavacur-hint");
+  const sbp = state.lavaCurrency === "SBP";
+  if (btn && btn.disabled) return;   // уже ждём счёт: второй клик дал бы второй инвойс
   if (errEl) errEl.hidden = true;
-  if (btn) { btn.disabled = true; btn.textContent = state.lavaCurrency === "SBP" ? "Готовим оплату через СБП..." : "Открываем оплату..."; }
+  if (btn) { btn.disabled = true; btn.textContent = sbp ? "Готовим оплату через СБП..." : "Готовим оплату..."; }
+  if (hint) { hint.textContent = sbp ? PAY_HINT_SBP : PAY_HINT_CARD; hint.hidden = false; }
   // БЕЗ автоповтора: повтор создаст второй инвойс. Повторяет человек кнопкой.
   const currency = state.lavaCurrency === "EUR" ? "EUR" : "RUB";
   // СБП = разовый месяц (1m_once), только рубли; карта = подписка выбранного тарифа.
@@ -794,7 +790,7 @@ async function onPayGo() {
   if (r.state === "ok" && data.ok && data.paymentUrl && data.order_reference) {
     stashLavaReturn(data.order_reference, state.email, "lava");
     track("pay_redirect", state.lavaCurrency === "SBP" ? "lava_sbp" : "lava");
-    window.location.href = data.paymentUrl;   // та же вкладка -> Lava; возврат руками на адрес
+    window.location.href = data.paymentUrl;   // та же вкладка -> Lava; назад по адресу возврата
     return;
   }
   // Lava строже нас по email (напр. отбивает несуществующий домен) -> возвращаем на экран 1 к полю почты.
@@ -808,7 +804,8 @@ async function onPayGo() {
       : (r.status === 429 ? RATE_MSG : "Не удалось открыть оплату. Попробуйте ещё раз.");
     errEl.hidden = false;
   }
-  if (btn) { btn.disabled = false; btn.textContent = "Перейти к оплате"; }
+  if (hint) hint.hidden = true;
+  if (btn) { btn.disabled = false; btn.textContent = "Оплатить"; }
 }
 
 // --- экран 4: ожидание (автоопрос resolve-paid-order + ручная кнопка). Мины #2/#3 ---
@@ -866,11 +863,11 @@ async function onPaidCheck() {
 }
 // Мина #2: iOS усыпляет фон -> при возврате на вкладку перезапускаем опрос.
 document.addEventListener("visibilitychange", () => { if (!document.hidden && payWaitVisible()) startPayPoll(); });
-// pageshow: (а) уже на ожидании -> перезапуск опроса; (б) вернулись Назад из Lava (bfcache) на экран 3,
-// а оплата уже начата (stash есть) -> сразу показываем ожидание+опрос (бонус к ручному возврату на адрес).
+// pageshow: (а) уже на ожидании -> перезапуск опроса; (б) вернулись Назад из Lava (bfcache) на экран
+// выбора способа, а оплата уже начата (stash есть) -> сразу показываем ожидание+опрос.
 window.addEventListener("pageshow", () => {
   if (payWaitVisible()) { startPayPoll(); return; }
-  if (readLavaReturn() && els.viewPayGo && !els.viewPayGo.hidden) showPayWait();
+  if (readLavaReturn() && els.viewLavaCurrency && !els.viewLavaCurrency.hidden) showPayWait();
 });
 
 // ===================== ВОЗВРАТ ПОСЛЕ ОПЛАТЫ: ЭКРАН ПАРОЛЯ =====================
@@ -1182,13 +1179,11 @@ els.form.addEventListener("submit", (e) => {
   bind("btn-pay-rub", goLavaCurrency);                 // то же для BY: первая кнопка кассы
   bind("checkout-back", () => checkoutBack());         // чекаут -> туда, откуда пришли
   bind("lavacur-back", () => showCheckout());          // экран 2 -> назад к тарифам
-  bind("pay-go-back", () => showCheckout());           // экран 3 -> назад к тарифам (оплаты ещё не было)
   // Единственный выход с экрана пароля: чистит адрес (иначе перезагрузка вернёт сюда же) и ведёт
   // на старт. Покрывает оба случая - битую ссылку и чужой/старый заказ в адресе.
   bind("pw-dead-end-out", () => { leavePaymentReturn(); showStart(); });
   bind("pw-forgot-link", () => showResetPrefilled(state.email, state.order)); // "не помню пароль" -> восстановление с готовыми полями
-  bind("btn-lava-pay", () => showPayGo());             // экран 2 -> экран 3
-  bind("btn-pay-go", () => onPayGo());                 // экран 3 -> оплата в той же вкладке (Lava)
+  bind("btn-lava-pay", () => onLavaPay());            // экран 2 -> счёт и оплата в той же вкладке (Lava)
   bind("btn-paid-check", () => onPaidCheck());         // экран 4 -> ручная проверка
   bind("btn-pay-back", () => { clearLavaReturn(); showCheckout(); }); // экран 4 -> выход к тарифам (чистит stash)
   bind("start-paid-help", () => showClaim());          // старт: "оплатили, но ещё не заходили?" -> первый пароль по номеру заказа
