@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=88">
+  <link rel="stylesheet" href="style.css?v=89">
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. Файлы Google Fonts у себя (с 01.10.2026),
        собирает biohack/tools/irenabio-app/build_fonts.py. Браузер качает только нужные
        подмножества по unicode-range, как и с Google. -->
@@ -639,11 +639,11 @@
         <legend class="sr-only">Валюта оплаты</legend>
         <label class="cur-opt">
           <input type="radio" name="lavacur" value="RUB" checked>
-          <span class="cur-body"><span class="cur-name">В рублях</span><span class="cur-sub">Visa, Mastercard, Мир</span></span>
+          <span class="cur-body"><span class="cur-name">В рублях</span><span class="cur-sub">Карты российских банков: Мир, Visa, Mastercard</span></span>
         </label>
         <label class="cur-opt">
           <input type="radio" name="lavacur" value="EUR">
-          <span class="cur-body"><span class="cur-name">В евро</span><span class="cur-sub">для белорусских карт</span></span>
+          <span class="cur-body"><span class="cur-name">В евро</span><span class="cur-sub">Карты других стран, PayPal, Apple Pay</span></span>
         </label>
       </fieldset>
       <button class="btn btn-primary" type="button" id="btn-lava-pay">Оплатить</button>
@@ -654,9 +654,10 @@
     <section id="view-pay-go" hidden>
       <div class="pending-card">
         <h1>Сейчас откроется оплата</h1>
-        <p>Оплата пройдёт на сайте Lava. После оплаты вернитесь сюда — снова откройте в браузере адрес:</p>
+        <p>Оплата пройдёт на сайте Lava. После оплаты вернитесь сюда, снова открыв в браузере адрес:</p>
         <div class="pay-addr">app.irenabio.com</div>
-        <p class="muted">Доступ откроется сам. Запомните адрес — понадобится, чтобы вернуться после оплаты.</p>
+        <p class="muted">Доступ откроется сам. Запомните адрес: он понадобится, чтобы вернуться после оплаты.</p>
+        <p class="pay-confirm">Банк попросит подтвердить оплату кодом из СМС или в приложении банка. Не закрывайте страницу, пока оплата не пройдёт.</p>
         <button class="btn btn-primary" type="button" id="btn-pay-go">Перейти к оплате</button>
         <!-- Выход был нужен: оплаты ещё НЕ было, а уйти с экрана было некуда. -->
         <button class="btn btn-ghost" type="button" id="pay-go-back">Вернуться к тарифам</button>

@@ -270,6 +270,10 @@ a:hover { text-decoration: underline; }
 .pending-card p { color: var(--pending-p); margin: 0 0 12px; font-size: 15px; }
 .pending-plan { font-weight: 700; color: var(--text) !important; }
 .pending-card .muted { color: var(--muted); font-size: 13px; }
+/* Подсказка про подтверждение банком перед уходом в Lava (06.10.2026): у российских карт
+   оплата обрывается на подтверждении, "confirmation timeout" через ~22 мин после счёта. */
+.pending-card .pay-confirm { margin: 4px 0 16px; padding: 10px 12px; border-radius: 12px;
+  background: var(--accent-wash); color: var(--pending-p); font-size: 14px; }
 
 /* Экран пароля после оплаты */
 #view-password .login-line { margin: 4px 0 16px; }
