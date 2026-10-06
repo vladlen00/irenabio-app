@@ -467,9 +467,10 @@ function isConnectionReason(reason) {
 }
 
 // Одна попытка с таймаутом. Отдаёт {res, data} либо бросает строку-причину.
-async function sbFetchOnce(url, options) {
+// timeoutMs - свой срок для заведомо долгих вызовов (счёт СБП у Lava ~7 с), иначе SB_TIMEOUT_MS.
+async function sbFetchOnce(url, options, timeoutMs) {
   const ctrl = new AbortController();
-  const tm = setTimeout(() => ctrl.abort(), SB_TIMEOUT_MS);
+  const tm = setTimeout(() => ctrl.abort(), timeoutMs || SB_TIMEOUT_MS);
   try {
     const res = await fetch(url, Object.assign({}, options || {}, { signal: ctrl.signal }));
     if (res.status >= 500) throw "error_" + res.status;   // вердикта нет -> ретраибельно
@@ -490,11 +491,12 @@ async function sbFetch(url, options, opts) {
   await ensureRoute();
   const attempts = (opts && opts.retry) ? SB_MAX_ATTEMPTS : 1;
   const onAttempt = opts && opts.onAttempt;
+  const timeoutMs = opts && opts.timeoutMs;
   let lastReason = "network_error";
   for (let attempt = 1; attempt <= attempts; attempt++) {
     if (onAttempt) { try { onAttempt(attempt, attempts); } catch (e) {} }
     try {
-      const r = await sbFetchOnce(routeUrl(url), options);
+      const r = await sbFetchOnce(routeUrl(url), options, timeoutMs);
       if (r.res.ok) return { state: "ok", res: r.res, data: r.data, status: r.res.status };
       if (r.res.status === 401 || r.res.status === 403) {
         return { state: "denied", res: r.res, data: r.data, status: r.res.status };
@@ -516,7 +518,7 @@ async function sbFetch(url, options, opts) {
   routeFailed(usedRoute);                     // память значит "работал", а не "навсегда"
   const routeAfter = await ensureRoute(true);
   if (routeAfter !== usedRoute && opts && opts.retry) {
-    return sbFetch(url, options, { retry: false, onAttempt: onAttempt });
+    return sbFetch(url, options, { retry: false, onAttempt: onAttempt, timeoutMs: timeoutMs });
   }
   return { state: "unreachable", data: {}, status: 0, reason: lastReason };
 }
@@ -755,6 +757,7 @@ function showLavaCurrency() {
   window.scrollTo(0, 0);
 }
 // --- экран 3 (ТОЛЬКО Lava): предупреждение об уходе + адрес возврата ---
+const LAVA_INVOICE_TIMEOUT_MS = 30000;
 const PAY_CONFIRM_CARD = "Банк попросит подтвердить оплату кодом из СМС или в приложении банка. Не закрывайте страницу, пока оплата не пройдёт.";
 const PAY_CONFIRM_SBP = "Откроется выбор банка или QR-код. Подтвердите оплату в приложении банка сразу и вернитесь на эту страницу.";
 function showPayGo() {
@@ -774,15 +777,19 @@ async function onPayGo() {
   const btn = document.getElementById("btn-pay-go");
   const errEl = document.getElementById("pay-go-error");
   if (errEl) errEl.hidden = true;
-  if (btn) { btn.disabled = true; btn.textContent = "Открываем оплату..."; }
+  if (btn) { btn.disabled = true; btn.textContent = state.lavaCurrency === "SBP" ? "Готовим оплату через СБП..." : "Открываем оплату..."; }
   // БЕЗ автоповтора: повтор создаст второй инвойс. Повторяет человек кнопкой.
   const currency = state.lavaCurrency === "EUR" ? "EUR" : "RUB";
   // СБП = разовый месяц (1m_once), только рубли; карта = подписка выбранного тарифа.
   const plan = state.lavaCurrency === "SBP" ? "1m_once" : state.plan;
+  // Свой срок ожидания: счёт СБП Lava создаёт 6.8-7.7 с (замер 06.10.2026, карта 2.2-2.8 с),
+  // а общий SB_TIMEOUT_MS = 8 с. Из России через запасной маршрут выходило больше 8 с, и
+  // женщина читала "Проверьте интернет", хотя счёт уже был создан. Плюс таймаут объявлял
+  // живой прямой маршрут мёртвым (routeFailed). 30 с покрывают Lava (сервер ждёт её 20 с) и базу (5 с).
   const r = await sbFetch(CREATE_LAVA_INVOICE_URL, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email: state.email, plan, currency }),
-  });
+  }, { timeoutMs: LAVA_INVOICE_TIMEOUT_MS });
   const data = r.data || {};
   if (r.state === "ok" && data.ok && data.paymentUrl && data.order_reference) {
     stashLavaReturn(data.order_reference, state.email, "lava");

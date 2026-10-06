@@ -35,7 +35,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=90">
+  <link rel="stylesheet" href="style.css?v=91">
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. Файлы Google Fonts у себя (с 01.10.2026),
        собирает biohack/tools/irenabio-app/build_fonts.py. Браузер качает только нужные
        подмножества по unicode-range, как и с Google. -->
@@ -663,10 +663,11 @@
         <div class="pay-addr">app.irenabio.com</div>
         <p class="muted">Доступ откроется сам. Запомните адрес: он понадобится, чтобы вернуться после оплаты.</p>
         <p class="pay-confirm" id="pay-confirm">Банк попросит подтвердить оплату кодом из СМС или в приложении банка. Не закрывайте страницу, пока оплата не пройдёт.</p>
+        <!-- Ошибка НАД кнопкой оплаты (06.10.2026): под "Вернуться к тарифам" её не было видно. -->
+        <p class="form-error" id="pay-go-error" hidden></p>
         <button class="btn btn-primary" type="button" id="btn-pay-go">Перейти к оплате</button>
         <!-- Выход был нужен: оплаты ещё НЕ было, а уйти с экрана было некуда. -->
         <button class="btn btn-ghost" type="button" id="pay-go-back">Вернуться к тарифам</button>
-        <p class="form-error" id="pay-go-error" hidden></p>
       </div>
     </section>
 
@@ -854,6 +855,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=153"></script>
+  <script src="app.js?v=154"></script>
 </body>
 </html>
