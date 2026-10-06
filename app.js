@@ -168,12 +168,14 @@ function routeInput(input) {
   } catch (e) {}
 })();
 
-// Lava назад не редиректит -> сохраняем order_reference (=invoice.id) в localStorage при уходе на оплату,
-// по возвращении мост "Я оплатил" скармливает его в существующий поток resolve-paid-order -> пароль.
+// Сохраняем order_reference (=invoice.id) в localStorage при уходе на Lava: адрес возврата Lava
+// номера заказа не несёт, и мост "Я оплатила" скармливает его в поток resolve-paid-order -> пароль.
 const LAVA_RETURN_KEY = "irenabio_lava_return";
 const LAVA_RETURN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // мост живёт 7 дней
-// Обе платёжки уходят на оплату в ЭТОЙ вкладке. Stash пишет ТОЛЬКО Lava (у неё нет returnUrl -> возврат
-// руками -> readLavaReturn -> showPayWait -> опрос). WFP чистит stash и возвращается сам по returnUrl.
+// Обе платёжки уходят на оплату в ЭТОЙ вкладке. Stash пишет ТОЛЬКО Lava: её адреса возврата
+// (?lava=ok|fail|cancel, create-lava-invoice, 06.10.2026) не несут номера заказа, он берётся из stash.
+// Если адрес возврата не сработал, остаётся ручной возврат: бут видит свежий stash -> ожидание.
+// WFP чистит stash и возвращается сам по своему returnUrl.
 function stashLavaReturn(order, email, method) {
   try { localStorage.setItem(LAVA_RETURN_KEY, JSON.stringify({ order, email, method: method || "lava", ts: Date.now() })); } catch {}
 }
@@ -185,6 +187,14 @@ function readLavaReturn() {
   } catch { return null; }
 }
 function clearLavaReturn() { try { localStorage.removeItem(LAVA_RETURN_KEY); } catch {} }
+// Ручной возврат без входа ведём на ожидание, только пока счёт Lava ещё жив (~24 ч),
+// иначе брошенная неделю назад попытка подменяла бы витрину экраном ожидания.
+function freshLavaReturn() {
+  const r = readLavaReturn();
+  return r && (Date.now() - (r.ts || 0)) < 24 * 60 * 60 * 1000 ? r : null;
+}
+const LAVA_FAIL_MSG = "Оплата не прошла: банк её не подтвердил. Попробуйте ещё раз или другой картой.";
+const LAVA_CANCEL_MSG = "Оплата отменена. Можно попробовать ещё раз.";
 
 // ===== СЧЁТЧИК ВОРОНКИ (05.10.2026) =====
 // Маяк в Cloudflare Worker ir-funnel (biohack/tools/funnel-worker), НЕ в нашу базу: он не
@@ -753,7 +763,7 @@ function showPayGo() {
   window.scrollTo(0, 0);
 }
 
-// Клик "Перейти к оплате": создаём инвойс и уходим на Lava в ЭТОЙ ЖЕ вкладке (у Lava нет returnUrl).
+// Клик "Перейти к оплате": создаём инвойс и уходим на Lava в ЭТОЙ ЖЕ вкладке (назад - по ?lava=).
 // Навигация своей вкладки после await надёжна на iOS (в отличие от window.open) - белой вкладки нет,
 // пре-фетч не нужен, инвойс создаётся только по реальному клику -> нет сирот. stash -> возврат руками.
 async function onPayGo() {
@@ -4707,6 +4717,12 @@ if ("serviceWorker" in navigator) {
 
 // --- старт: ветвление возврат-после-оплаты / дом / чекаут ---
 const startParams = new URLSearchParams(location.search);
+// Возврат с Lava по адресу возврата (?lava=ok|fail|cancel). Метку снимаем сразу: адрес
+// остаётся в истории и открывался бы снова.
+const lavaBack = startParams.get("lava");
+if (lavaBack) {
+  try { const u = new URL(location.href); u.searchParams.delete("lava"); history.replaceState(history.state, "", u); } catch (e) {}
+}
 // Метка ?from=demo-<апп> в адресе ОСТАЁТСЯ (демо-копии её ставят), но на маршрут
 // больше не влияет: незалогиненная в любом случае попадает на витрину. Читать её
 // снова придётся, когда заведём source_tag в pending_checkouts.
@@ -4718,6 +4734,22 @@ if (startParams.get("paid") === "1" && startParams.get("order")) {
   const order = startParams.get("order");
   if (sb && hasStoredSession()) routeHomeOrCheckout({ paidFallback: () => enterPaymentReturn(order) });
   else enterPaymentReturn(order);
+} else if (lavaBack === "ok" && readLavaReturn()) {
+  // Lava говорит "оплачено", но вебхук мог ещё не дойти: экран ожидания опрашивает сам.
+  if (sb && hasStoredSession()) routeHomeOrCheckout({ paidFallback: () => showPayWait() });
+  else showPayWait();
+} else if ((lavaBack === "fail" || lavaBack === "cancel") && !(sb && hasStoredSession())) {
+  // Отказ или отмена: туда, откуда уходила (выбор валюты), с её почтой и причиной.
+  const r = readLavaReturn();
+  const why = lavaBack === "fail" ? LAVA_FAIL_MSG : LAVA_CANCEL_MSG;
+  scGoCheckout();                       // showCheckout чистит stash: попытка закончилась
+  if (r && r.email) {
+    els.email.value = r.email; updateEmailEcho();
+    state.email = r.email; state.method = "lava";
+    showLavaCurrency();
+    const err = document.getElementById("lavacur-error");
+    if (err) { err.textContent = why; err.hidden = false; }
+  } else showFormError(why);
 } else if (!(sb && hasStoredSession())) {
   // НЕ ЗАЛОГИНЕНА -> ВИТРИНА. Это её домашний экран, а не лендинг: те же компоненты,
   // что у подписчицы, с замками. Метка ?from=demo-<апп> больше ничего не решает -
@@ -4735,6 +4767,9 @@ if (startParams.get("paid") === "1" && startParams.get("order")) {
   // «Назад» с кассы и стрелкой, и браузером ведёт на витрину: scGoCheckout ставит
   // checkoutBackTo = "showcase" и кадр истории.
   if (startParams.get("buy") === "1") scGoCheckout();
+  // Ручной возврат после Lava без входа. С витриной (22.09) бут сюда не смотрел, и женщина
+  // после оплаты попадала на витрину вместо ожидания. Найдено 06.10.2026, живых оплат не было.
+  else if (freshLavaReturn()) showPayWait();
   else if (location.hash === "#urok") {
     // Прямая ссылка на бесплатный урок (сторис, шапка инстаграма). Под урок кладём
     // витрину основанием истории: «назад» из урока ведёт на неё, а не прочь с сайта.
