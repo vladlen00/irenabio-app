@@ -25,6 +25,10 @@
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=3">
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=3">
   <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=3">
+  <!-- Манифест (07.10.2026): без него Android Chrome не даёт кнопку «Установить»
+       (beforeinstallprompt). Название, иконки и цвет - в manifest.webmanifest. -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0B080C">
 
   <!-- Режим «с экрана Домой»: отдельное окно без адресной строки.
        black-translucent = статус-бар прозрачный и контент уезжает ПОД него; отступ
@@ -35,7 +39,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=92">
+  <link rel="stylesheet" href="style.css?v=93">
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. Файлы Google Fonts у себя (с 01.10.2026),
        собирает biohack/tools/irenabio-app/build_fonts.py. Браузер качает только нужные
        подмножества по unicode-range, как и с Google. -->
@@ -106,6 +110,8 @@
         </div>
 
         <div class="home-body">
+          <!-- Плашка «На экран Домой» (07.10.2026), заполняет a2hsShow в app.js. -->
+          <div class="a2hs-slot" data-a2hs="sc" hidden></div>
           <div class="home-tools-h">Твои инструменты</div>
 
           <!-- Подружка: та же широкая карточка, что на доме. Метка "пример ›" вместо
@@ -298,6 +304,8 @@
           </div>
         </div>
         <div class="home-body">
+          <!-- Плашка «На экран Домой» (07.10.2026), заполняет a2hsShow в app.js. -->
+          <div class="a2hs-slot" data-a2hs="home" hidden></div>
           <!-- ПОДКАСТ: самый свежий по publish_at день из ВСЕХ залитых спринтов,
                включая тот, что женщина проходит. Отвечает на вопрос «что нового у Ирены»,
                а не «что тебе делать», поэтому по её спринту НЕ фильтруется и НЕ прячется
@@ -725,6 +733,8 @@
                (поддержка WFP 16.08.2026). Женщине нужно понять ровно одно: открывать не надо.
                Только для заказов WayForPay (wfp_...), у Lava своя почта. -->
           <p class="pw-mail-note" id="pw-mail-note" hidden>Письмо от WayForPay со ссылкой на оплату можно не открывать.</p>
+          <!-- Плашка «На экран Домой» после оплаты (07.10.2026): здесь и после крестика. -->
+          <div class="a2hs-slot" data-a2hs="paid" hidden></div>
         </div>
 
         <!-- ОШИБКА: битая/устаревшая ссылка или сбой проверки. Без зелёного успеха. -->
@@ -846,6 +856,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=156"></script>
+  <script src="app.js?v=157"></script>
 </body>
 </html>

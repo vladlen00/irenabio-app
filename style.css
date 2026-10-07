@@ -1263,3 +1263,45 @@ body.sc-open.has-mini { padding-bottom: calc(var(--sc-bar-h, 76px) + 80px + env(
   border-bottom: 0.5px solid var(--border); color: inherit; font: inherit; font-size: 14px; line-height: 1.4; text-align: left; cursor: pointer; }
 .urok-tc:last-child { border-bottom: 0; }
 .urok-tc b { flex: 0 0 44px; color: var(--accent-deep); font-weight: 600; }
+
+/* ===== ПЛАШКА «НА ЭКРАН ДОМОЙ» (07.10.2026) =====
+   Одна разметка на витрине, доме и экране «Оплата прошла», рисует a2hsShow в app.js.
+   Заметная (розовая обводка и дымок), но ниже героя: главное на экране остаётся главным. */
+.a2hs {
+  position: relative; text-align: left;
+  background: var(--card); border: 1px solid rgba(228,134,155,.35); border-radius: 20px;
+  padding: 14px 16px 16px; margin-bottom: 22px; overflow: hidden; isolation: isolate;
+}
+.a2hs::before {
+  content: ""; position: absolute; inset: -60%; z-index: -1; pointer-events: none;
+  background: radial-gradient(40% 55% at 15% 25%, rgba(228,134,155,.18) 0%, transparent 70%);
+  filter: blur(22px);
+}
+.a2hs-head { display: flex; align-items: center; gap: 12px; padding-right: 30px; }
+.a2hs-ic { width: 44px; height: 44px; border-radius: 11px; flex: 0 0 auto; }
+.a2hs-txt b { display: block; font-size: 15px; font-weight: 600; color: var(--text); }
+.a2hs-txt span { display: block; font-size: 13px; line-height: 1.35; color: var(--muted); margin-top: 2px; }
+.a2hs-x {
+  position: absolute; top: 4px; right: 4px; width: 44px; height: 44px;
+  background: none; border: 0; color: var(--muted); font-size: 18px; cursor: pointer;
+}
+.a2hs .btn { margin-top: 14px; }
+.a2hs-steps { margin: 14px 0 0; padding: 0; list-style: none; counter-reset: a2hs; }
+.a2hs-steps li {
+  counter-increment: a2hs; position: relative; padding: 0 0 0 30px; margin: 0 0 10px;
+  font-size: 14px; line-height: 1.45; color: var(--ink-body);
+}
+.a2hs-steps li:last-child { margin-bottom: 0; }
+.a2hs-steps li::before {
+  content: counter(a2hs); position: absolute; left: 0; top: 0;
+  width: 21px; height: 21px; border-radius: 50%; background: var(--accent-wash-active);
+  color: var(--accent-deep); font-size: 12px; font-weight: 700; line-height: 21px; text-align: center;
+}
+.a2hs-glyph {
+  display: inline-flex; align-items: center; justify-content: center; vertical-align: -5px;
+  width: 22px; height: 22px; margin: 0 2px; border-radius: 6px; background: rgba(255,255,255,.08); color: var(--text);
+}
+.a2hs-glyph svg { width: 15px; height: 15px; }
+.a2hs-note { margin: 12px 0 0; font-size: 13.5px; line-height: 1.45; color: var(--kicker); }
+.pending-card .a2hs { margin: 18px 0 0; }
+.pending-card .a2hs-note { color: var(--kicker); font-size: 13.5px; margin: 12px 0 0; }

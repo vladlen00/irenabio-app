@@ -239,6 +239,131 @@ function track(ev, d, once) {
   } catch (e) {}
 }
 
+// ===== ПЛАШКА «НА ЭКРАН ДОМОЙ» (07.10.2026) =====
+// Места: витрина (sc), дом подписчицы (home), «Оплата прошла» (paid) - слоты .a2hs-slot.
+// Не показываем: сайт уже открыт с экрана Домой (standalone), компьютер, приложение уже
+// установлено (appinstalled или getInstalledRelatedApps). Варианты:
+//   android - есть beforeinstallprompt: настоящая кнопка «Установить»;
+//   android_menu - Android без него (Firefox, старые браузеры): шаги через меню браузера;
+//   ios - «Поделиться» -> «На экран Домой»;
+//   ig / tg - встроенный браузер Инстаграма или Телеграма: сначала открыть сайт в браузере.
+// Крестик прячет плашку на 3 дня. На «Оплата прошла» она есть и после крестика: там
+// женщина один раз, и это лучший момент. Воронка: a2hs_show, a2hs_click, a2hs_close,
+// a2hs_installed, d = "<вариант>:<место>".
+const A2HS_KEY = "irenabio_a2hs";
+const A2HS_PAUSE_MS = 3 * 24 * 3600 * 1000;
+let a2hsPrompt = null;
+let a2hsInstalled = false;
+function a2hsRead() { try { return JSON.parse(localStorage.getItem(A2HS_KEY) || "{}") || {}; } catch (e) { return {}; } }
+function a2hsWrite(o) { try { localStorage.setItem(A2HS_KEY, JSON.stringify(Object.assign(a2hsRead(), o))); } catch (e) {} }
+function a2hsStandalone() {
+  try { if (window.matchMedia("(display-mode: standalone)").matches) return true; } catch (e) {}
+  return window.navigator.standalone === true;
+}
+function a2hsVariant() {
+  const ua = navigator.userAgent || "";
+  const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const android = /Android/.test(ua);
+  if (!ios && !android) return "";
+  if (/Instagram|FBAN|FBAV|FB_IAB/.test(ua)) return "ig";
+  if (/Telegram/.test(ua)) return "tg";
+  if (ios) return "ios";
+  if (a2hsPrompt) return "android";
+  // Chromium без beforeinstallprompt почти всегда значит «уже установлено» или «не дорос»:
+  // шаги через меню там только раздражали бы. Меню - для браузеров, где события нет вовсе.
+  return /Firefox\//.test(ua) ? "android_menu" : "";
+}
+const A2HS_SVG = {
+  share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8v8M8 12h8"/></svg>',
+  dotsH: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
+  dotsV: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>',
+};
+const a2hsGlyph = (k) => '<span class="a2hs-glyph">' + A2HS_SVG[k] + "</span>";
+function a2hsSteps(v) {
+  const iosLike = /iPhone|iPad|iPod/.test(navigator.userAgent || "") ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const iosSteps = ["Нажми " + a2hsGlyph("share") + " «Поделиться»",
+                    "Выбери " + a2hsGlyph("plus") + " «На экран Домой»"];
+  const menuSteps = ["Нажми " + a2hsGlyph("dotsV") + " в углу браузера",
+                     "Выбери «Добавить на главный экран» или «Установить»"];
+  if (v === "ios") return iosSteps;
+  if (v === "android_menu") return menuSteps;
+  // ig / tg: встроенный браузер сам на экран Домой не добавляет.
+  const open = "Нажми " + a2hsGlyph(iosLike ? "dotsH" : "dotsV") + " вверху справа, затем «Открыть в браузере»";
+  return [open].concat(iosLike ? iosSteps : menuSteps);
+}
+function a2hsCard(v, slot) {
+  const android = v === "android";
+  const steps = android ? "" :
+    '<ol class="a2hs-steps" hidden>' + a2hsSteps(v).map((t) => "<li>" + t + "</li>").join("") + "</ol>";
+  const note = slot === "paid" && (v === "ig" || v === "tg")
+    ? '<p class="a2hs-note">В браузере войди той же почтой и паролем.</p>' : "";
+  return '<div class="a2hs">' +
+    '<button type="button" class="a2hs-x" aria-label="Закрыть"><i class="ti ti-x"></i></button>' +
+    '<div class="a2hs-head"><img class="a2hs-ic" src="icon-192.png?v=3" alt="" width="44" height="44">' +
+    '<div class="a2hs-txt"><b>Добавь на экран Домой</b><span>Ирена Био будет открываться одним касанием, как приложение</span></div></div>' +
+    note +
+    '<button type="button" class="btn ' + (android ? "btn-primary" : "btn-ghost") + ' a2hs-go">' +
+    (android ? "Установить" : "Как добавить") + "</button>" + steps + "</div>";
+}
+// Рисует плашку в слоте или прячет его. Зовут: showShowcase, renderHome, экран пароля.
+function a2hsShow(slot) {
+  const box = document.querySelector('.a2hs-slot[data-a2hs="' + slot + '"]');
+  if (!box) return;
+  const st = a2hsRead();
+  const v = (a2hsStandalone() || a2hsInstalled || st.installed) ? "" : a2hsVariant();
+  const paused = slot !== "paid" && st.closed && Date.now() - st.closed < A2HS_PAUSE_MS;
+  if (!v || paused) { box.hidden = true; box.innerHTML = ""; return; }
+  if (box.dataset.v === v && !box.hidden) return;   // уже нарисована та же
+  box.dataset.v = v;
+  box.innerHTML = a2hsCard(v, slot);
+  box.hidden = false;
+  track("a2hs_show", v + ":" + slot, true);
+  box.querySelector(".a2hs-x").addEventListener("click", () => {
+    track("a2hs_close", v + ":" + slot);
+    a2hsWrite({ closed: Date.now() });
+    document.querySelectorAll(".a2hs-slot").forEach((b) => {
+      if (b.dataset.a2hs !== "paid") { b.hidden = true; b.innerHTML = ""; delete b.dataset.v; }
+    });
+    if (slot === "paid") { box.hidden = true; box.innerHTML = ""; }
+  });
+  box.querySelector(".a2hs-go").addEventListener("click", async () => {
+    track("a2hs_click", v + ":" + slot);
+    if (v !== "android") {
+      const ol = box.querySelector(".a2hs-steps");
+      if (ol) ol.hidden = !ol.hidden;
+      return;
+    }
+    const p = a2hsPrompt;
+    if (!p) return;
+    a2hsPrompt = null;   // событие одноразовое: второй prompt() бросит исключение
+    try { p.prompt(); await p.userChoice; } catch (e) {}
+    a2hsRefresh();
+  });
+}
+// Перерисовать видимые слоты: вариант поменялся (пришёл beforeinstallprompt) или поставили.
+function a2hsRefresh() {
+  document.querySelectorAll(".a2hs-slot").forEach((b) => {
+    const view = b.closest("section");
+    if (view && !view.hidden) { delete b.dataset.v; a2hsShow(b.dataset.a2hs); }
+  });
+}
+window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); a2hsPrompt = e; a2hsRefresh(); });
+window.addEventListener("appinstalled", () => {
+  a2hsPrompt = null; a2hsInstalled = true; a2hsWrite({ installed: Date.now() });
+  track("a2hs_installed", a2hsVariant() || "android", true);
+  a2hsRefresh();
+});
+// Android Chrome: установлено ли уже (нужен related_applications в манифесте).
+try {
+  if (navigator.getInstalledRelatedApps) {
+    navigator.getInstalledRelatedApps().then((list) => {
+      if (list && list.length) { a2hsInstalled = true; a2hsRefresh(); }
+    }).catch(() => {});
+  }
+} catch (e) {}
+
 // Контакты поддержки - ЕДИНЫЙ источник. Переиспользовать на будущих экранах
 // (оплата не прошла, продление, вопросы по подписке). Меняешь тут - меняется везде.
 const SUPPORT = {
@@ -1010,6 +1135,7 @@ async function enterPaymentReturn(order) {
       els.pwSuccess.hidden = false;
       els.pwForm.hidden = false;
       els.pwResolveError.hidden = true;
+      a2hsShow("paid");
     } else {
       // Битая/мусорная/устаревшая ссылка -> без галки и без "Оплата прошла", честная ошибка.
       els.pwSuccess.hidden = true;
@@ -1060,6 +1186,7 @@ function showPasswordForm(order, email, isLava) {
   els.pwResolveError.hidden = true;
   els.pwSuccess.hidden = false;
   els.pwForm.hidden = false;
+  a2hsShow("paid");
   // Заказ живой, форма показана -> выхода на экране нет: женщина пришла задать пароль.
   const pwOut2 = document.getElementById("pw-dead-end-out");
   if (pwOut2) pwOut2.hidden = true;
@@ -1849,6 +1976,7 @@ function renderHome(data) {
 
   homeEls.loading.hidden = true;
   homeEls.content.hidden = false;
+  a2hsShow("home");
   window.scrollTo(0, 0);
 }
 
@@ -2644,6 +2772,7 @@ async function showShowcase() {
   const v = document.getElementById("view-showcase");
   if (v) v.hidden = false;
   scMarkShowcase();
+  a2hsShow("sc");
   window.scrollTo(0, 0);
 
   if (publicData) { renderShowcase(publicData); return; }
