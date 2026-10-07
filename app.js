@@ -712,21 +712,42 @@ async function goCheckoutSubmit() {
 // (проверено 05.10, приходит только IP), а пояс не меняется ни от VPN, ни от нашего прокси.
 // Europe/Minsk -> первой кнопка «Оплатить в рублях» и строка про карты, евро вторым,
 // ссылка снизу не дублируется. Любой другой пояс -> касса как была.
-function isBelarusDevice() {
-  try { return Intl.DateTimeFormat().resolvedOptions().timeZone === "Europe/Minsk"; } catch (e) { return false; }
+// Пояса, где обычно платят рублёвыми картами (07.10.2026): так же рубли первыми, но «в рублях
+// или по СБП» и без строки про карты. Повод: 06.10 две женщины нажали главную «Оплатить»
+// (WayForPay) и ушли с формы, не введя карту (1124), одна потом пошла в СБП.
+// Название страны в текстах не пишем.
+const RUB_FIRST_TIMEZONES = new Set([
+  "Europe/Kaliningrad", "Europe/Moscow", "Europe/Simferopol", "Europe/Kirov", "Europe/Volgograd",
+  "Europe/Astrakhan", "Europe/Saratov", "Europe/Ulyanovsk", "Europe/Samara",
+  "Asia/Yekaterinburg", "Asia/Omsk", "Asia/Novosibirsk", "Asia/Barnaul", "Asia/Tomsk",
+  "Asia/Novokuznetsk", "Asia/Krasnoyarsk", "Asia/Irkutsk", "Asia/Chita", "Asia/Yakutsk",
+  "Asia/Khandyga", "Asia/Vladivostok", "Asia/Ust-Nera", "Asia/Magadan", "Asia/Sakhalin",
+  "Asia/Srednekolymsk", "Asia/Kamchatka", "Asia/Anadyr", "W-SU",
+]);
+// "by" | "rub" | "" - только для порядка кнопок кассы.
+function payRegion() {
+  let tz = "";
+  try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) { return ""; }
+  if (tz === "Europe/Minsk") return "by";
+  return RUB_FIRST_TIMEZONES.has(tz) ? "rub" : "";
 }
 function applyCountryPay() {
-  const by = isBelarusDevice();
+  const region = payRegion();
+  const rubFirst = region !== "";
   const box = document.getElementById("pay-by");
-  if (box) box.hidden = !by;
+  if (box) box.hidden = !rubFirst;
+  const note = document.querySelector(".pay-by-note");
+  if (note) note.hidden = region !== "by";
+  const rubBtn = document.getElementById("btn-pay-rub");
+  if (rubBtn) rubBtn.textContent = region === "rub" ? "Оплатить в рублях или по СБП" : "Оплатить в рублях";
   const rub = document.querySelector(".pay-rub-link");
-  if (rub) rub.hidden = by;
+  if (rub) rub.hidden = rubFirst;
   const btn = els.btnPay;
   if (btn && !btn.disabled) {
-    btn.dataset.label = by ? "Оплатить в евро" : "Оплатить";
+    btn.dataset.label = region === "rub" ? "Оплатить картой в евро" : region === "by" ? "Оплатить в евро" : "Оплатить";
     btn.textContent = btn.dataset.label;
-    btn.classList.toggle("btn-primary", !by);
-    btn.classList.toggle("btn-ghost", by);
+    btn.classList.toggle("btn-primary", !rubFirst);
+    btn.classList.toggle("btn-ghost", rubFirst);
   }
 }
 // --- экран 1 -> ссылка "Оплатить в рублях": та же валидация, дальше экран 2 (выбор валюты) ---

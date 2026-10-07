@@ -593,7 +593,9 @@
         <!-- БЕЛАРУСЬ (05.10.2026): у WayForPay карты Беларуси заблокированы (отказ 1135
              «Blocked country 112»), а через Lava белоруска уже платила успешно. Если часовой пояс
              устройства Europe/Minsk, первой стоит оплата в рублях, евро уходит второй кнопкой.
-             Логика - applyCountryPay в app.js. -->
+             С 07.10.2026 то же для поясов, где обычно платят рублёвыми картами: «Оплатить
+             в рублях или по СБП» первой, без строки про карты, евро второй «Оплатить картой
+             в евро». Логика - applyCountryPay в app.js. -->
         <div class="pay-by" id="pay-by" hidden>
           <p class="pay-by-note">Карты Беларуси принимаются через оплату в рублях.</p>
           <button type="button" class="btn btn-primary" id="btn-pay-rub">Оплатить в рублях</button>
@@ -604,7 +606,7 @@
         </button>
 
         <!-- Вторая кнопка с обводкой (06.10.2026), была ссылкой и терялась. Класс pay-rub-link
-             нужен applyCountryPay: на устройствах Europe/Minsk её прячут, там свой блок pay-by. -->
+             нужен applyCountryPay: на устройствах Europe/Minsk и поясов с рублёвыми картами её прячут, там свой блок pay-by. -->
         <button type="button" class="btn btn-ghost pay-rub-link" id="to-lava-currency">Оплатить в рублях или по СБП</button>
 
         <!-- УСЛОВИЯ НА САМОМ ЭКРАНЕ ОПЛАТЫ (12.09.2026). Подвал с этими ссылками на чекауте
@@ -844,6 +846,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=155"></script>
+  <script src="app.js?v=156"></script>
 </body>
 </html>
