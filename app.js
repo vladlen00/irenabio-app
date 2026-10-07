@@ -4650,7 +4650,7 @@ const HANDBOOK = [
     { t: "Мелатонин", day: ["antichaos", 7] },
     { t: "Омега-3", day: ["gut-body", 3] },
     { t: "Витамин D", day: ["gut-body", 10] },
-    { t: "Псиллиум", day: ["gut-body", 16] },
+    { t: "Псиллиум", day: ["gut-body", 17] },
     { t: "Пробиотики", day: ["gut-body", 24] },
     { t: "Берберин", day: ["gut-body", 31] },
     { t: "Электролиты", day: ["nutrition", 6] },
