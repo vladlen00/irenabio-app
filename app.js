@@ -3020,8 +3020,8 @@ function openLockSheet(kind, payload) {
         hurry +
       "</div>";
   } else if (kind === "handbook") {
-    // Справочники для гостьи (05.10): четыре раздела, у каждого число записей и первые три
-    // под замком. Состав из HANDBOOK, того же каталога, что открывается подписчице.
+    // Справочники для гостьи (05.10): четыре раздела, у каждого число записей и три строки
+    // под замком. Строки - guest раздела HANDBOOK (07.10), без него первые три записи.
     panel.innerHTML =
       '<div class="lock-body" style="margin-top:0;padding-top:18px">' +
         '<div class="lock-head"><img src="icons/handbook.png?v=2" alt="" width="52" height="52">' +
@@ -3030,8 +3030,8 @@ function openLockSheet(kind, payload) {
           "каждая запись ведёт в нужный выпуск, шпаргалку или книгу рецептов.</div>" +
         HANDBOOK.map((sec) =>
           '<div class="lock-kick">' + escapeHtml(sec.title) + " · " + escapeHtml(plurEntries(sec.items.length)) + "</div>" +
-          sec.items.slice(0, 3).map((it) =>
-            '<div class="lock-day rest"><i class="ti ti-lock"></i><span>' + escapeHtml(it.t) + "</span></div>").join("")
+          handbookGuestRows(sec).map((t) =>
+            '<div class="lock-day rest"><i class="ti ti-lock"></i><span>' + escapeHtml(t) + "</span></div>").join("")
         ).join("") +
         '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>' + escapeHtml(buyAll) + "</button>" +
         hurry +
@@ -4624,9 +4624,12 @@ function openSprint(sprintId) {
 // Ненайденный день (ещё не залит или не опубликован) просто не показывается, поэтому
 // каталог можно выкатывать раньше дней. Порядок добавок как в меню канала (пост 33).
 const HANDBOOK = [
-  { title: "Добавки", items: [
-    { t: "Как пить добавки эффективно", day: ["handbook", 3] },
-    { t: "Шпаргалка по приёму добавок", file: "files/shpargalka-dobavki.png" },
+  // guest (07.10.2026) - три строки превью для гостьи на витрине (handbookGuestRows), подписчице
+  // не видны. {n} = число записей раздела без общих (general: true), то есть самих добавок.
+  // Без guest берутся первые три записи.
+  { title: "Добавки", guest: ["Как пить добавки эффективно", "Шпаргалка по приёму добавок", "Все БАДы: {n}"], items: [
+    { t: "Как пить добавки эффективно", day: ["handbook", 3], general: true },
+    { t: "Шпаргалка по приёму добавок", file: "files/shpargalka-dobavki.png", general: true },
     { t: "Магний", day: ["sleep", 6] },
     { t: "Таурин", day: ["sleep", 13] },
     { t: "Мелатонин", day: ["antichaos", 7] },
@@ -4656,19 +4659,19 @@ const HANDBOOK = [
   ] },
   { title: "Анализы", items: [
     { t: "Какие анализы и когда сдавать", day: ["nutrition", 2] },
-    { t: "Как читать анализы: нормы", day: ["nutrition", 3] },
+    { t: "Расшифровщик анализов: нормы", day: ["nutrition", 3] },
     { t: "Что делать с результатами: 4 зоны", day: ["nutrition", 4] },
     { t: "Анализы на дефициты", file: "files/analizy-na-defitsity.pdf" },
     { t: "Шпаргалка по анализам крови", file: "files/shpargalka-po-analizam-krovi.pdf" },
   ] },
   { title: "Ферритин и железо", items: [
     { t: "Ферритин: моя история", day: ["nutrition", 12] },
-    { t: "Всё о железе: какое выбрать и как принимать", day: ["nutrition", 13] },
-    { t: "Железная бомба: питание", day: ["nutrition", 14] },
+    { t: "Всё о железе: как поднять и как принимать", day: ["nutrition", 13] },
+    { t: "Железная бомба: питание для поднятия ферритина", day: ["nutrition", 14] },
     { t: "Шпаргалка по железу", file: "files/shpargalka-zhelezo.pdf" },
     { t: "Книга рецептов «Железная бомба»", file: "files/kniga-receptov-zheleznaya-bomba.pdf" },
   ] },
-  { title: "Рецепты", items: [
+  { title: "Рецепты", guest: ["15 завтраков по-женски", "15 обедов по-женски", "15 ужинов по-женски"], items: [
     { t: "15 завтраков по-женски", file: "files/15-zavtrakov-po-zhenski.pdf" },
     { t: "Тост с авокадо и скрембл", day: ["nutrition", 8] },
     { t: "15 обедов по-женски", file: "files/15-obedov-po-zhenski.pdf" },
@@ -4676,6 +4679,17 @@ const HANDBOOK = [
     { t: "Книга рецептов «Железная бомба»", file: "files/kniga-receptov-zheleznaya-bomba.pdf" },
   ] },
 ];
+
+function plurReviews(n) {
+  const a = Math.abs(n) % 100, b = a % 10;
+  const w = (a > 10 && a < 20) || b === 0 || b > 4 ? "разборов" : b === 1 ? "разбор" : "разбора";
+  return n + " " + w;
+}
+function handbookGuestRows(sec) {
+  if (!sec.guest) return sec.items.slice(0, 3).map((it) => it.t);
+  const n = sec.items.filter((it) => !it.general).length;
+  return sec.guest.map((t) => t.replace("{n}", plurReviews(n)));
+}
 
 function handbookDay(ref) {
   const s = homeSprints(homeData).find((x) => x.cover_slug === ref[0]);
