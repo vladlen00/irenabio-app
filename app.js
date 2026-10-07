@@ -2541,7 +2541,22 @@ const DAY_LINK_ROUTES = {
   breathing446: (el) => openFromDay("breathing446", el), // «Дыхание 4·4·6», день 5 «Анти-хаоса»
   anxiety:    (el) => openFromDay("anxiety", el),    // «Внутреннее спокойствие», день 8 «Анти-хаоса»
   oneday:     (el) => openFromDay("oneday", el),     // «Один день», день 3 «Биохакинга отношений»
+  // Ссылки на другие дни и спринты (07.10.2026), вместо ссылок на посты канала t.me/c/...:
+  // #/day/<cover_slug>/<номер дня>, #/sprint/<cover_slug>. День ещё не залит или не виден -
+  // открываем его спринт, спринта нет - ничего не делаем (женщина остаётся в своём дне).
+  podruzhka: (el) => openFromDay("podruzhka", el), // ИИ-подружка, день 5 «Основ питания» (фото тарелки)
+  day:    (el) => openDayLink(el),
+  sprint: (el) => openDayLink(el),
 };
+function openDayLink(el) {
+  const m = (el.getAttribute("href") || "").slice(DAY_LINK_PREFIX.length).match(/^(day|sprint)\/([\w-]+)(?:\/(\d+))?/);
+  if (!m) return;
+  const sprint = homeSprints(homeData).find((s) => s.cover_slug === m[2]);
+  if (!sprint) return;
+  const day = m[1] === "day" && m[3] ? handbookDay([m[2], Number(m[3])]) : null;
+  if (day) navTo("day", day.id);
+  else navTo("sprint", sprint.id);
+}
 document.addEventListener("click", (e) => {
   const a = e.target.closest('a[href^="' + DAY_LINK_PREFIX + '"]');
   if (!a) return;
