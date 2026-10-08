@@ -2545,6 +2545,12 @@ const DAY_LINK_ROUTES = {
   // #/day/<cover_slug>/<номер дня>, #/sprint/<cover_slug>. День ещё не залит или не виден -
   // открываем его спринт, спринта нет - ничего не делаем (женщина остаётся в своём дне).
   podruzhka: (el) => openFromDay("podruzhka", el), // ИИ-подружка, день 5 «Основ питания» (фото тарелки)
+  // Курс «Игра в долгую», день 7 «Биохакинга отношений» (08.10). В Телеграме курс живёт в студии
+  // (START_ROUTES), на сайте подписчица идёт в сам курс с возвратом в день, гостья - на экран #urok.
+  dolgaya: (el) => {
+    if (/Telegram/.test(navigator.userAgent || "")) { location.href = "https://t.me/relax2000_bot/studio?startapp=dolgaya"; return; }
+    if (homeData) openFromDay("dolgaya", el); else openUrok();
+  },
   day:    (el) => openDayLink(el),
   sprint: (el) => openDayLink(el),
 };
