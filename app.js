@@ -1080,7 +1080,7 @@ function fillPwOrder(order) {
 }
 
 async function enterPaymentReturn(order) {
-  track("paid_return", "", true);
+  track("paid_return", order, true);
   state.order = order;
   hideEntryViews();
   hidePayFlowExtra();
@@ -3012,7 +3012,7 @@ function openLockSheet(kind, payload) {
     panel.innerHTML =
       '<div class="lock-body" style="margin-top:0;padding-top:18px">' +
         '<div class="lock-head"><img src="icons/podruzhka-card.png?v=1" alt="" width="52" height="52">' +
-          "<div><b>ИИ-подружка</b><span>знает твои анализы и фазу цикла</span></div></div>" +
+          "<div><b>ИИ-подружка</b><span>ответит про добавки, анализы и цикл</span></div></div>" +
         '<div class="lock-chat">' +
           '<div class="lock-bub me">Пью железо второй месяц, а ферритин всё равно 18. Что не так?</div>' +
           '<div class="lock-bub her">Чаще всего дело в форме и в режиме. Сульфат усваивается хуже, бисглицинат заметно лучше.</div>' +
