@@ -835,8 +835,11 @@ async function goCheckoutSubmit() {
 // Беларусь (05.10.2026): у WayForPay карты Беларуси заблокированы (отказ 1135).
 // Страну берём по часовому поясу устройства: до edge-функций заголовок страны не доходит
 // (проверено 05.10, приходит только IP), а пояс не меняется ни от VPN, ни от нашего прокси.
-// Europe/Minsk -> первой кнопка «Оплатить в рублях» и строка про карты, евро вторым,
-// ссылка снизу не дублируется. Любой другой пояс -> касса как была.
+// Europe/Minsk (08.10.2026, ответ поддержки Lava): в рублях Lava принимает ТОЛЬКО карты «Мир» и
+// СБП, Visa и Mastercard других стран в рублях не проходят (отказы 11.09 - белорусские Visa,
+// 28.09 - казахстанские). Поэтому Беларуси одна кнопка «Оплатить в евро»: сразу счёт Lava в EUR,
+// без экрана выбора, со строкой «Карты Беларуси: оплата в евро». WayForPay не показываем (1135),
+// рубли тоже. Любой другой пояс -> касса как была.
 // Пояса, где обычно платят рублёвыми картами (07.10.2026): так же рубли первыми, но «в рублях
 // или по СБП» и без строки про карты. Повод: 06.10 две женщины нажали главную «Оплатить»
 // (WayForPay) и ушли с формы, не введя карту (1124), одна потом пошла в СБП.
@@ -849,7 +852,7 @@ const RUB_FIRST_TIMEZONES = new Set([
   "Asia/Khandyga", "Asia/Vladivostok", "Asia/Ust-Nera", "Asia/Magadan", "Asia/Sakhalin",
   "Asia/Srednekolymsk", "Asia/Kamchatka", "Asia/Anadyr", "W-SU",
 ]);
-// "by" | "rub" | "" - только для порядка кнопок кассы.
+// "by" | "rub" | "" - только для порядка и состава кнопок кассы.
 function payRegion() {
   let tz = "";
   try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) { return ""; }
@@ -864,12 +867,16 @@ function applyCountryPay() {
   const note = document.querySelector(".pay-by-note");
   if (note) note.hidden = region !== "by";
   const rubBtn = document.getElementById("btn-pay-rub");
-  if (rubBtn) rubBtn.textContent = region === "rub" ? "Оплатить в рублях или по СБП" : "Оплатить в рублях";
+  if (rubBtn && !rubBtn.disabled) {
+    rubBtn.dataset.label = region === "by" ? "Оплатить в евро" : "Оплатить в рублях или по СБП";
+    rubBtn.textContent = rubBtn.dataset.label;
+  }
   const rub = document.querySelector(".pay-rub-link");
   if (rub) rub.hidden = rubFirst;
   const btn = els.btnPay;
+  if (btn) btn.hidden = region === "by";   // WayForPay карты Беларуси блокирует (1135)
   if (btn && !btn.disabled) {
-    btn.dataset.label = region === "rub" ? "Оплатить картой в евро" : region === "by" ? "Оплатить в евро" : "Оплатить";
+    btn.dataset.label = region === "rub" ? "Оплатить картой в евро" : "Оплатить";
     btn.textContent = btn.dataset.label;
     btn.classList.toggle("btn-primary", !rubFirst);
     btn.classList.toggle("btn-ghost", rubFirst);
@@ -884,6 +891,21 @@ function goLavaCurrency() {
   state.email = email;
   track("pay_click", "lava");
   showLavaCurrency();
+}
+// --- Беларусь: первая кнопка кассы -> сразу счёт Lava в евро, без экрана выбора способа ---
+function goLavaEuro() {
+  clearErrors();
+  const email = readCheckoutEmail();
+  if (!email) return;
+  state.method = "lava";
+  state.email = email;
+  state.lavaCurrency = "EUR";
+  track("pay_click", "lava");
+  onLavaPay({
+    btn: document.getElementById("btn-pay-rub"),
+    errEl: document.getElementById("form-error"),
+    hint: document.getElementById("pay-by-hint"),
+  });
 }
 // .selected как JS-фолбэк к :has() для старых iOS WebView.
 function paintCur() {
@@ -911,10 +933,13 @@ const PAY_HINT_SBP = "Откроется выбор банка или QR-код,
 // Клик "Оплатить" на экране выбора способа: создаём инвойс и уходим на Lava в ЭТОЙ ЖЕ вкладке
 // (назад - по ?lava=). Навигация своей вкладки после await надёжна на iOS (в отличие от
 // window.open) - белой вкладки нет, инвойс создаётся только по реальному клику -> нет сирот.
-async function onLavaPay() {
-  const btn = document.getElementById("btn-lava-pay");
-  const errEl = document.getElementById("lavacur-error");
-  const hint = document.getElementById("lavacur-hint");
+// ui - кнопка, строка ошибки и подсказка: по умолчанию экрана выбора способа, у Беларуси
+// свои с экрана оплаты (goLavaEuro).
+async function onLavaPay(ui) {
+  const btn = ui ? ui.btn : document.getElementById("btn-lava-pay");
+  const errEl = ui ? ui.errEl : document.getElementById("lavacur-error");
+  const hint = ui ? ui.hint : document.getElementById("lavacur-hint");
+  const label = (btn && btn.dataset.label) || "Оплатить";
   const sbp = state.lavaCurrency === "SBP";
   if (btn && btn.disabled) return;   // уже ждём счёт: второй клик дал бы второй инвойс
   if (errEl) errEl.hidden = true;
@@ -951,7 +976,7 @@ async function onLavaPay() {
     errEl.hidden = false;
   }
   if (hint) hint.hidden = true;
-  if (btn) { btn.disabled = false; btn.textContent = "Оплатить"; }
+  if (btn) { btn.disabled = false; btn.textContent = label; }
 }
 
 // --- экран 4: ожидание (автоопрос resolve-paid-order + ручная кнопка). Мины #2/#3 ---
@@ -1319,12 +1344,14 @@ els.plans.addEventListener("change", (e) => {
 });
 els.form.addEventListener("submit", (e) => {
   e.preventDefault();
+  // Enter в поле почты у Беларуси не должен увести в WayForPay: кнопка спрятана, а submit живой.
+  if (payRegion() === "by") { goLavaEuro(); return; }
   goCheckoutSubmit(); // экран 1 -> WFP -> экран 3
 });
 {
   const bind = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("click", (e) => { e.preventDefault(); fn(e); }); };
   bind("to-lava-currency", goLavaCurrency);            // экран 1 -> экран 2 (валюта Lava)
-  bind("btn-pay-rub", goLavaCurrency);                 // то же для BY: первая кнопка кассы
+  bind("btn-pay-rub", () => (payRegion() === "by" ? goLavaEuro() : goLavaCurrency())); // первая кнопка кассы: BY - евро сразу
   bind("checkout-back", () => checkoutBack());         // чекаут -> туда, откуда пришли
   bind("lavacur-back", () => showCheckout());          // экран 2 -> назад к тарифам
   // Единственный выход с экрана пароля: чистит адрес (иначе перезагрузка вернёт сюда же) и ведёт

@@ -603,10 +603,14 @@
              устройства Europe/Minsk, первой стоит оплата в рублях, евро уходит второй кнопкой.
              С 07.10.2026 то же для поясов, где обычно платят рублёвыми картами: «Оплатить
              в рублях или по СБП» первой, без строки про карты, евро второй «Оплатить картой
-             в евро». Логика - applyCountryPay в app.js. -->
+             в евро». Логика - applyCountryPay в app.js.
+             С 08.10.2026 Беларусь иначе (ответ Lava: в рублях только «Мир» и СБП): одна кнопка
+             «Оплатить в евро» сразу в счёт Lava EUR, WayForPay и рубли спрятаны. -->
         <div class="pay-by" id="pay-by" hidden>
-          <p class="pay-by-note">Карты Беларуси принимаются через оплату в рублях.</p>
+          <p class="pay-by-note">Карты Беларуси: оплата в евро</p>
           <button type="button" class="btn btn-primary" id="btn-pay-rub">Оплатить в рублях</button>
+          <!-- Подсказка на время создания счёта Lava (только Беларусь, onLavaPay из goLavaEuro). -->
+          <p class="pay-hint" id="pay-by-hint" hidden></p>
         </div>
 
         <button id="btn-pay" class="btn btn-primary" type="submit" data-method="wayforpay">
@@ -649,11 +653,11 @@
         <legend class="sr-only">Валюта оплаты</legend>
         <label class="cur-opt">
           <input type="radio" name="lavacur" value="RUB" checked>
-          <span class="cur-body"><span class="cur-name">В рублях</span><span class="cur-sub">Карты в рублях: Мир, Visa, Mastercard</span></span>
+          <span class="cur-body"><span class="cur-name">В рублях</span><span class="cur-sub">Только карты Мир</span></span>
         </label>
         <label class="cur-opt">
           <input type="radio" name="lavacur" value="EUR">
-          <span class="cur-body"><span class="cur-name">В евро</span><span class="cur-sub">Карты других стран, PayPal, Apple Pay</span></span>
+          <span class="cur-body"><span class="cur-name">В евро</span><span class="cur-sub">Visa и Mastercard любых стран, PayPal, Apple Pay</span></span>
         </label>
         <!-- СБП (06.10.2026): разовый месяц, другой продукт Lava. Рублёвая подписка СБП не умеет. -->
         <label class="cur-opt">
@@ -856,6 +860,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=162"></script>
+  <script src="app.js?v=163"></script>
 </body>
 </html>
