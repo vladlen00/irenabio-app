@@ -18,6 +18,7 @@ const SUPABASE_URL = "https://kjzxrpwqyyjcykwbqskn.supabase.co";
 const PUBLISHABLE_KEY = "sb_publishable_pOloEHMZ5QjMhnbfhygqmA_CQPSP1hU";
 const CREATE_CHECKOUT_URL = SUPABASE_URL + "/functions/v1/create-checkout";
 const CREATE_LAVA_INVOICE_URL = SUPABASE_URL + "/functions/v1/create-lava-invoice";
+const CREATE_TRIBUTE_ORDER_URL = SUPABASE_URL + "/functions/v1/create-tribute-order";   // Tribute (11.10.2026)
 const RESOLVE_ORDER_URL = SUPABASE_URL + "/functions/v1/resolve-paid-order";
 const RESET_PASSWORD_URL = SUPABASE_URL + "/functions/v1/reset-password";   // сброс пароля по номеру заказа
 const CLAIM_ACCOUNT_URL = SUPABASE_URL + "/functions/v1/claim-account";     // ПЕРВЫЙ пароль по номеру заказа (нет auth-аккаунта)
@@ -195,6 +196,7 @@ function freshLavaReturn() {
 }
 const LAVA_FAIL_MSG = "Оплата не прошла: банк её не подтвердил. Попробуйте ещё раз или другой картой.";
 const LAVA_CANCEL_MSG = "Оплата отменена. Можно попробовать ещё раз.";
+const TRIBUTE_FAIL_MSG = "Оплата не прошла. Попробуйте ещё раз, другой картой или по СБП.";
 
 // ===== СЧЁТЧИК ВОРОНКИ (05.10.2026) =====
 // Маяк в Cloudflare Worker ir-funnel (biohack/tools/funnel-worker), НЕ в нашу базу: он не
@@ -859,28 +861,68 @@ function payRegion() {
   if (tz === "Europe/Minsk") return "by";
   return RUB_FIRST_TIMEZONES.has(tz) ? "rub" : "";
 }
+// TRIBUTE (11.10.2026, решение Владлена): рубли и СБП с автопродлением теперь через Tribute.
+//   "rub": первой «Оплатить картой или по СБП» (Tribute), WayForPay не показываем, Lava ниже
+//          тихой ссылкой «Другой способ оплаты».
+//   "":    первой WayForPay, второй «Оплатить в рублях или по СБП» (Tribute), Lava тихой ссылкой.
+//   "by":  как было: одна кнопка «Оплатить в евро» сразу в Lava EUR (перевод на Tribute после
+//          живой оплаты белорусской картой).
 function applyCountryPay() {
   const region = payRegion();
   const rubFirst = region !== "";
   const box = document.getElementById("pay-by");
   if (box) box.hidden = !rubFirst;
   const note = document.querySelector(".pay-by-note");
-  if (note) note.hidden = region !== "by";
+  if (note) {
+    note.textContent = region === "by" ? "Карты Беларуси: оплата в евро" : "Любые российские карты и СБП, с автопродлением";
+    note.hidden = !rubFirst;
+  }
   const rubBtn = document.getElementById("btn-pay-rub");
   if (rubBtn && !rubBtn.disabled) {
-    rubBtn.dataset.label = region === "by" ? "Оплатить в евро" : "Оплатить в рублях или по СБП";
+    rubBtn.dataset.label = region === "by" ? "Оплатить в евро" : "Оплатить картой или по СБП";
     rubBtn.textContent = rubBtn.dataset.label;
   }
-  const rub = document.querySelector(".pay-rub-link");
+  const rub = document.querySelector(".pay-rub-link");   // вторая кнопка "" -> Tribute
   if (rub) rub.hidden = rubFirst;
+  const other = document.getElementById("pay-other");   // Lava, тихая ссылка
+  if (other) other.hidden = region === "by";
   const btn = els.btnPay;
-  if (btn) btn.hidden = region === "by";   // WayForPay карты Беларуси блокирует (1135)
+  if (btn) btn.hidden = rubFirst;   // "rub": WayForPay не показываем; "by": блокирует (1135)
   if (btn && !btn.disabled) {
-    btn.dataset.label = region === "rub" ? "Оплатить картой в евро" : "Оплатить";
+    btn.dataset.label = "Оплатить";
     btn.textContent = btn.dataset.label;
-    btn.classList.toggle("btn-primary", !rubFirst);
-    btn.classList.toggle("btn-ghost", rubFirst);
   }
+}
+// --- Tribute: карта (любая, включая российские) или СБП, обе с автопродлением ---
+// Заказ создаётся по клику и уходит на оплату в ЭТОЙ вкладке (как Lava). Номер заказа приходит
+// обратно в адресе возврата (?tribute=ok&order=trb_...), stash - страховка ручного возврата.
+const TRIBUTE_ORDER_TIMEOUT_MS = 25000;   // сервер ждёт Tribute до 15 с плюс база до 5 с
+async function goTribute(btn) {
+  clearErrors();
+  const email = readCheckoutEmail();
+  if (!email) return;
+  if (btn && btn.disabled) return;   // уже ждём заказ: второй клик дал бы второй заказ
+  state.method = "tribute";
+  state.email = email;
+  track("pay_click", "tribute");
+  const label = (btn && btn.dataset.label) || (btn && btn.textContent) || "Оплатить";
+  if (btn) { btn.disabled = true; btn.textContent = "Готовим оплату..."; }
+  // БЕЗ автоповтора: повтор создаст второй заказ. Повторяет человек кнопкой.
+  const r = await sbFetch(CREATE_TRIBUTE_ORDER_URL, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, plan: state.plan }),
+  }, { timeoutMs: TRIBUTE_ORDER_TIMEOUT_MS });
+  const data = r.data || {};
+  if (r.state === "ok" && data.ok && data.paymentUrl && data.order_reference) {
+    stashLavaReturn(data.order_reference, email, "tribute");
+    track("pay_redirect", "tribute");
+    window.location.href = data.paymentUrl;
+    return;
+  }
+  if (btn) { btn.disabled = false; btn.textContent = label; }
+  if (data.error === "invalid_email") { showEmailError("Проверьте адрес почты - платёжная система его не приняла. Пример: ваша@почта.com"); return; }
+  showFormError(r.state === "unreachable" ? netMsg(r)
+    : (r.status === 429 ? RATE_MSG : "Не удалось открыть оплату. Попробуйте ещё раз."));
 }
 // --- экран 1 -> ссылка "Оплатить в рублях": та же валидация, дальше экран 2 (выбор валюты) ---
 function goLavaCurrency() {
@@ -967,7 +1009,7 @@ async function onLavaPay(ui) {
   // Lava строже нас по email (напр. отбивает несуществующий домен) -> возвращаем на экран 1 к полю почты.
   if (data.error === "invalid_email") {
     showCheckout();
-    showEmailError("Проверьте адрес почты — платёжная система его не приняла. Пример: ваша@почта.com");
+    showEmailError("Проверьте адрес почты - платёжная система его не приняла. Пример: ваша@почта.com");
     return;
   }
   if (errEl) {
@@ -1346,12 +1388,15 @@ els.form.addEventListener("submit", (e) => {
   e.preventDefault();
   // Enter в поле почты у Беларуси не должен увести в WayForPay: кнопка спрятана, а submit живой.
   if (payRegion() === "by") { goLavaEuro(); return; }
+  // "rub": WayForPay спрятан, Enter ведёт в первую кнопку (Tribute).
+  if (payRegion() === "rub") { goTribute(document.getElementById("btn-pay-rub")); return; }
   goCheckoutSubmit(); // экран 1 -> WFP -> экран 3
 });
 {
   const bind = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("click", (e) => { e.preventDefault(); fn(e); }); };
-  bind("to-lava-currency", goLavaCurrency);            // экран 1 -> экран 2 (валюта Lava)
-  bind("btn-pay-rub", () => (payRegion() === "by" ? goLavaEuro() : goLavaCurrency())); // первая кнопка кассы: BY - евро сразу
+  bind("to-lava-currency", () => goTribute(document.getElementById("to-lava-currency"))); // "": вторая кнопка -> Tribute
+  bind("pay-other", goLavaCurrency);                   // тихая ссылка -> экран 2 (Lava)
+  bind("btn-pay-rub", () => (payRegion() === "by" ? goLavaEuro() : goTribute(document.getElementById("btn-pay-rub")))); // BY - Lava EUR, "rub" - Tribute
   bind("checkout-back", () => checkoutBack());         // чекаут -> туда, откуда пришли
   bind("lavacur-back", () => showCheckout());          // экран 2 -> назад к тарифам
   // Единственный выход с экрана пароля: чистит адрес (иначе перезагрузка вернёт сюда же) и ведёт
@@ -2053,6 +2098,7 @@ if (homeEls.supportBtn) {
 const WEB_SUB_URL = SUPABASE_URL + "/functions/v1/web-subscription";
 const CANCEL_SUB_URL = SUPABASE_URL + "/functions/v1/cancel-subscription";        // WFP
 const CANCEL_LAVA_URL = SUPABASE_URL + "/functions/v1/cancel-lava-subscription";  // Lava (тот же UX, эндпоинт по source)
+const CANCEL_TRIBUTE_URL = SUPABASE_URL + "/functions/v1/cancel-tribute-subscription";  // Tribute (11.10.2026)
 
 (function wireSubscriptionScreen() {
   const menuItem = document.getElementById("hmenu-subscription");
@@ -2213,14 +2259,16 @@ function renderSubscription(sub) {
   const SUB_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
   const subTs = sub.valid_until ? new Date(sub.valid_until).getTime() : 0;
   const hasAccess = (sub.status === "active" || sub.status === "grace") && subTs && (subTs + SUB_GRACE_MS > Date.now());
-  const recurrent = (sub.source === "wayforpay" || sub.source === "lava");
+  const recurrent = (sub.source === "wayforpay" || sub.source === "lava" || sub.source === "tribute");
   // ПРАВДА О ПРАВИЛЕ (только WayForPay): web-subscription отдаёт sub.regular - живой STATUS
   // либо последний известный кэш (stale). Правило может исчезнуть само: протухла карта, банк
   // отклонил, кто-то снял в кабинете. Тогда "Автопродление: Включено" было бы враньём.
   // Нет ни свежего ответа, ни кэша -> sub.regular = null -> ведём себя как раньше.
   const ruleState = sub.regular && sub.regular.status ? sub.regular.status : null;
   const ruleDead = ruleState !== null && ruleState !== "Active";
-  const recurrentLive = recurrent && !(sub.source === "wayforpay" && ruleDead);
+  // Tribute (11.10.2026): web-subscription отдаёт живое состояние заказа в той же форме regular.
+  const recurrentLive = recurrent && !((sub.source === "wayforpay" || sub.source === "tribute") && ruleDead);
+  const payMethod = sub.source === "tribute" ? "Карта или СБП" : "Банковская карта";
   const nextChargeWords = (recurrentLive && sub.regular && sub.regular.next_payment_at)
     ? fmtDayMonth(sub.regular.next_payment_at) : null;
   const left = daysLeft(sub.valid_until);
@@ -2255,7 +2303,7 @@ function renderSubscription(sub) {
             (price ? "Оплатить " + escapeHtml(price) : "Оплатить") + '</button>';
     html += rowsHtml([
       sub.plan ? ["Тариф", planText(sub.plan)] : null,
-      ["Способ оплаты", "Банковская карта"]
+      ["Способ оплаты", payMethod]
     ]);
     html += inclHtml("Что входит");
     wireRenew = true;
@@ -2280,7 +2328,7 @@ function renderSubscription(sub) {
     html += '<button type="button" class="sub-primary" id="sub-renew">Включить продление</button>';
     html += rowsHtml([
       sub.plan ? ["Тариф", planText(sub.plan)] : null,
-      ["Способ оплаты", "Банковская карта"],
+      ["Способ оплаты", payMethod],
       left != null ? ["Осталось", plurDaysLeft(left)] : null
     ]);
     html += inclHtml(untilWords ? "Что потеряешь после " + untilWords : "Что потеряешь");
@@ -2301,7 +2349,7 @@ function renderSubscription(sub) {
           : (until ? "Доступ открыт до " + until + "." : "Доступ открыт.")) + '</p>';
     html += rowsHtml([
       sub.plan ? ["Тариф", planText(sub.plan)] : null,
-      ["Способ оплаты", "Банковская карта"],
+      ["Способ оплаты", payMethod],
       recurrent ? ["Автопродление", recurrentLive ? "Включено" : "Не действует", recurrentLive ? "green" : null] : null
     ]);
     html += inclHtml("Что входит");
@@ -2360,7 +2408,8 @@ function wireCancelFlow(sub) {
     {
       const token = await getToken();
       if (!token) { routeHomeOrCheckout(); return; }
-      const cancelUrl = sub.source === "lava" ? CANCEL_LAVA_URL : CANCEL_SUB_URL;
+      const cancelUrl = sub.source === "lava" ? CANCEL_LAVA_URL
+        : sub.source === "tribute" ? CANCEL_TRIBUTE_URL : CANCEL_SUB_URL;
       // БЕЗ автоповтора: отключение автопродления - действие, повторять молча нельзя.
       const r = await sbFetch(cancelUrl, {
         method: "POST",
@@ -4983,6 +5032,13 @@ const lavaBack = startParams.get("lava");
 if (lavaBack) {
   try { const u = new URL(location.href); u.searchParams.delete("lava"); history.replaceState(history.state, "", u); } catch (e) {}
 }
+// Возврат с Tribute (?tribute=ok|fail&order=trb_..., create-tribute-order, 11.10.2026). Метки
+// снимаем сразу по той же причине. Номер заказа принимаем только нашего вида.
+const tributeBack = startParams.get("tribute");
+const tributeOrder = /^trb_[0-9a-f]{24}$/.test(startParams.get("order") || "") ? startParams.get("order") : "";
+if (tributeBack) {
+  try { const u = new URL(location.href); u.searchParams.delete("tribute"); u.searchParams.delete("order"); history.replaceState(history.state, "", u); } catch (e) {}
+}
 // Метка ?from=demo-<апп> в адресе ОСТАЁТСЯ (демо-копии её ставят), но на маршрут
 // больше не влияет: незалогиненная в любом случае попадает на витрину. Читать её
 // снова придётся, когда заведём source_tag в pending_checkouts.
@@ -4998,6 +5054,16 @@ if (startParams.get("paid") === "1" && startParams.get("order")) {
   // Lava говорит "оплачено", но вебхук мог ещё не дойти: экран ожидания опрашивает сам.
   if (sb && hasStoredSession()) routeHomeOrCheckout({ paidFallback: () => showPayWait() });
   else showPayWait();
+} else if (tributeBack === "ok" && tributeOrder) {
+  // Tribute возвращает с номером заказа. Вебхук приходит за секунды, но экран ожидания
+  // опрашивает сам (как у Lava), поэтому опоздание вебхука не превращается в ошибку.
+  track("paid_return", tributeOrder, true);
+  stashLavaReturn(tributeOrder, (readLavaReturn() || {}).email || "", "tribute");
+  if (sb && hasStoredSession()) routeHomeOrCheckout({ paidFallback: () => showPayWait() });
+  else showPayWait();
+} else if (tributeBack === "fail") {
+  scGoCheckout();
+  showFormError(TRIBUTE_FAIL_MSG);
 } else if ((lavaBack === "fail" || lavaBack === "cancel") && !(sb && hasStoredSession())) {
   // Отказ или отмена: туда, откуда уходила (выбор валюты), с её почтой и причиной.
   const r = readLavaReturn();

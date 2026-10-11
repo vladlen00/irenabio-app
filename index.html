@@ -39,7 +39,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=93">
+  <link rel="stylesheet" href="style.css?v=94">
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. Файлы Google Fonts у себя (с 01.10.2026),
        собирает biohack/tools/irenabio-app/build_fonts.py. Браузер качает только нужные
        подмножества по unicode-range, как и с Google. -->
@@ -620,6 +620,9 @@
         <!-- Вторая кнопка с обводкой (06.10.2026), была ссылкой и терялась. Класс pay-rub-link
              нужен applyCountryPay: на устройствах Europe/Minsk и поясов с рублёвыми картами её прячут, там свой блок pay-by. -->
         <button type="button" class="btn btn-ghost pay-rub-link" id="to-lava-currency">Оплатить в рублях или по СБП</button>
+        <!-- 11.10.2026: обе кнопки рублей и СБП ведут в Tribute (карта любая, СБП, автопродление).
+             Lava осталась тихой ссылкой: евро, PayPal, Apple Pay, карты Мир в рублях. -->
+        <button type="button" class="linkquiet" id="pay-other">Другой способ оплаты</button>
 
         <!-- УСЛОВИЯ НА САМОМ ЭКРАНЕ ОПЛАТЫ (12.09.2026). Подвал с этими ссылками на чекауте
              скрыт (showCheckout прячет .site-footer), а WayForPay требует, чтобы условия
@@ -659,8 +662,9 @@
           <input type="radio" name="lavacur" value="EUR">
           <span class="cur-body"><span class="cur-name">В евро</span><span class="cur-sub">Visa и Mastercard любых стран, PayPal, Apple Pay</span></span>
         </label>
-        <!-- СБП (06.10.2026): разовый месяц, другой продукт Lava. Рублёвая подписка СБП не умеет. -->
-        <label class="cur-opt">
+        <!-- СБП (06.10.2026): разовый месяц, другой продукт Lava. Рублёвая подписка СБП не умеет.
+             С 11.10.2026 СПРЯТАН: СБП с автопродлением идёт через Tribute. Код не удалён. -->
+        <label class="cur-opt" hidden>
           <input type="radio" name="lavacur" value="SBP">
           <span class="cur-body"><span class="cur-name">Через СБП, 1 месяц</span><span class="cur-sub">Оплата в приложении банка. Без автосписания: продлите сами, мы напомним за 3 дня.</span></span>
         </label>
@@ -683,7 +687,7 @@
         <p class="muted lava-hint" id="pay-wait-lava-note" hidden>Письмо «Complete registration» от lava.top - это пароль для кабинета платежей Lava, а НЕ наш вход. Пароль для приложения вы зададите на следующем шаге.</p>
         <button class="btn btn-primary" type="button" id="btn-paid-check">Я оплатила</button>
         <p class="muted" id="pay-wait-msg" hidden></p>
-        <p class="muted pay-addr-note">Если снова отвлечётесь — этот адрес вернёт вас сюда: <strong>app.irenabio.com</strong></p>
+        <p class="muted pay-addr-note">Если снова отвлечётесь, этот адрес вернёт вас сюда: <strong>app.irenabio.com</strong></p>
         <button class="btn btn-ghost" type="button" id="btn-pay-back">Вернуться к тарифам</button>
       </div>
     </section>
@@ -860,6 +864,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=164"></script>
+  <script src="app.js?v=165"></script>
 </body>
 </html>
