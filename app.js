@@ -242,19 +242,22 @@ function track(ev, d, once) {
 }
 
 // ===== ПЛАШКА «НА ЭКРАН ДОМОЙ» (07.10.2026) =====
-// Места: витрина (sc), дом подписчицы (home), «Оплата прошла» (paid) - слоты .a2hs-slot.
+// Места: витрина (sc), дом подписчицы (home) - слоты .a2hs-slot. На «Оплата прошла» её нет
+// (12.10.2026, решение Владлена): отвлекала от пароля.
 // Не показываем: сайт уже открыт с экрана Домой (standalone), компьютер, приложение уже
 // установлено (appinstalled или getInstalledRelatedApps). Варианты:
 //   android - есть beforeinstallprompt: настоящая кнопка «Установить»;
 //   android_menu - Android без него (Firefox, старые браузеры): шаги через меню браузера;
 //   ios - «Поделиться» -> «На экран Домой»;
 //   ig / tg - встроенный браузер Инстаграма или Телеграма: сначала открыть сайт в браузере.
-// Крестик прячет плашку на 3 дня. На «Оплата прошла» она есть и после крестика: там
-// женщина один раз, и это лучший момент. Воронка: a2hs_show, a2hs_click, a2hs_close,
-// a2hs_installed, d = "<вариант>:<место>".
+// Крестик прячет плашку на 3 дня. Первый дом сразу после пароля - исключение: плашка там
+// и после крестика на витрине (a2hsAfterPw), это лучший момент; её собственный крестик
+// исключение снимает. Воронка: a2hs_show, a2hs_click, a2hs_close, a2hs_installed,
+// d = "<вариант>:<место>".
 const A2HS_KEY = "irenabio_a2hs";
 const A2HS_PAUSE_MS = 3 * 24 * 3600 * 1000;
 let a2hsPrompt = null;
+let a2hsAfterPw = false;   // пароль только что задан: на доме показать и в паузе (до крестика)
 let a2hsInstalled = false;
 function a2hsRead() { try { return JSON.parse(localStorage.getItem(A2HS_KEY) || "{}") || {}; } catch (e) { return {}; } }
 function a2hsWrite(o) { try { localStorage.setItem(A2HS_KEY, JSON.stringify(Object.assign(a2hsRead(), o))); } catch (e) {} }
@@ -299,7 +302,8 @@ function a2hsCard(v, slot) {
   const android = v === "android";
   const steps = android ? "" :
     '<ol class="a2hs-steps" hidden>' + a2hsSteps(v).map((t) => "<li>" + t + "</li>").join("") + "</ol>";
-  const note = slot === "paid" && (v === "ig" || v === "tg")
+  // На доме она уже вошла, пароль у неё есть: напомнить, что в браузере вход тот же.
+  const note = slot === "home" && (v === "ig" || v === "tg")
     ? '<p class="a2hs-note">В браузере войди той же почтой и паролем.</p>' : "";
   return '<div class="a2hs">' +
     '<button type="button" class="a2hs-x" aria-label="Закрыть"><i class="ti ti-x"></i></button>' +
@@ -315,7 +319,7 @@ function a2hsShow(slot) {
   if (!box) return;
   const st = a2hsRead();
   const v = (a2hsStandalone() || a2hsInstalled || st.installed) ? "" : a2hsVariant();
-  const paused = slot !== "paid" && st.closed && Date.now() - st.closed < A2HS_PAUSE_MS;
+  const paused = !(slot === "home" && a2hsAfterPw) && st.closed && Date.now() - st.closed < A2HS_PAUSE_MS;
   if (!v || paused) { box.hidden = true; box.innerHTML = ""; return; }
   if (box.dataset.v === v && !box.hidden) return;   // уже нарисована та же
   box.dataset.v = v;
@@ -325,10 +329,10 @@ function a2hsShow(slot) {
   box.querySelector(".a2hs-x").addEventListener("click", () => {
     track("a2hs_close", v + ":" + slot);
     a2hsWrite({ closed: Date.now() });
+    a2hsAfterPw = false;
     document.querySelectorAll(".a2hs-slot").forEach((b) => {
-      if (b.dataset.a2hs !== "paid") { b.hidden = true; b.innerHTML = ""; delete b.dataset.v; }
+      b.hidden = true; b.innerHTML = ""; delete b.dataset.v;
     });
-    if (slot === "paid") { box.hidden = true; box.innerHTML = ""; }
   });
   box.querySelector(".a2hs-go").addEventListener("click", async () => {
     track("a2hs_click", v + ":" + slot);
@@ -1202,7 +1206,6 @@ async function enterPaymentReturn(order) {
       els.pwSuccess.hidden = false;
       els.pwForm.hidden = false;
       els.pwResolveError.hidden = true;
-      a2hsShow("paid");
     } else {
       // Битая/мусорная/устаревшая ссылка -> без галки и без "Оплата прошла", честная ошибка.
       els.pwSuccess.hidden = true;
@@ -1253,7 +1256,6 @@ function showPasswordForm(order, email, isLava) {
   els.pwResolveError.hidden = true;
   els.pwSuccess.hidden = false;
   els.pwForm.hidden = false;
-  a2hsShow("paid");
   // Заказ живой, форма показана -> выхода на экране нет: женщина пришла задать пароль.
   const pwOut2 = document.getElementById("pw-dead-end-out");
   if (pwOut2) pwOut2.hidden = true;
@@ -1342,7 +1344,7 @@ async function attachAndVerify(accessToken) {
     });
     if (v.state === "ok") {
       const data = v.data || {};
-      if (data.access) { clearLavaReturn(); await routeHomeOrCheckout(); return; }  // после оплаты/пароля -> РЕАЛЬНЫЙ ДОМ, не заглушка
+      if (data.access) { clearLavaReturn(); a2hsAfterPw = true; await routeHomeOrCheckout(); return; }  // после оплаты/пароля -> РЕАЛЬНЫЙ ДОМ, не заглушка; плашка «На экран Домой» там
     } else if (v.status === 401) {
       showPwError("Сессия не подтвердилась. Обновите страницу и войдите снова.");
       pwLoading(false);
