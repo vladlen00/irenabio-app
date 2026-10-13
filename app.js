@@ -2586,6 +2586,8 @@ function openSheetByGroup(group) {
   document.querySelectorAll(".sheet").forEach((sheet) => {
     sheet.addEventListener("click", (e) => {
       if (e.target.closest("[data-sheet-close]")) { sheet.hidden = true; return; }
+      // «Упражнения» (13.10) - не мини-апп, а свой экран-справочник: шторку закрываем сами.
+      if (e.target.closest(".sheet-card[data-exercises]")) { sheet.hidden = true; navTo("exercises"); return; }
       const card = e.target.closest(".sheet-card[data-app]");
       if (card) openMiniApp(card.getAttribute("data-app"), card);  // успех -> уходим; ошибка -> flash в карточке
     });
@@ -2628,6 +2630,13 @@ const DAY_LINK_ROUTES = {
   dolgaya: (el) => {
     if (/Telegram/.test(navigator.userAgent || "")) { location.href = "https://t.me/relax2000_bot/studio?startapp=dolgaya"; return; }
     if (homeData) openFromDay("dolgaya", el); else openUrok();
+  },
+  // Справочник «Упражнения» (13.10.2026), вместо ссылок на меню упражнений канала (пост 32).
+  // Подписчица - на экран упражнений (стек вернёт в день), гостья - в шторку «Тренировки».
+  exercises: () => {
+    if (homeData) { navTo("exercises"); return; }
+    const t = SC_TOOLS.find((x) => x.key === "trainings");
+    if (t) openLockSheet("tool", t);
   },
   day:    (el) => openDayLink(el),
   sprint: (el) => openDayLink(el),
@@ -2684,17 +2693,24 @@ const DEMO_LINKS = {
   workout:      "https://vladlen00.github.io/workout-demo/",
 };
 
+// Справочник «Упражнения» (13.10.2026, каталог EXERCISES ниже). Константы стоят ЗДЕСЬ, выше
+// SC_TOOLS: тот вычисляется при загрузке, а const до объявления роняет весь бандл.
+const EXERCISES_SPRINT_TITLE = "Справочник: упражнения";
+const EXERCISES_FREE_DAY_ID = "22237528-2c4c-4702-975c-6f27eed6fbd1";
+
 // Плитки инструментов. Порядок и метки по утверждённому макету D.
 // Состав внутри плитки пишется руками СОЗНАТЕЛЬНО: мини-аппы живут не в базе, а в
 // отдельных репозиториях, и никакого «источника правды» для них в get-public нет.
 // Числа же (сколько программ) всегда из базы.
 const SC_TOOLS = [
-  { key: "trainings", icon: "trainings", name: "Тренировки", sub: "и упражнения", chip: "2 пробные", try: true,
+  { key: "trainings", icon: "trainings", name: "Тренировки", sub: "и упражнения", chip: "3 пробные", try: true,
     title: "Тренировки",
     items: [
       { name: "Женское тело: первая тренировка", demo: "workout" },
       { name: "Биохакинг ягодиц: разбор техники", demo: "glutes" },
-      { name: "Остальные тренировки и разборы", locked: true },
+      // freeDay - бесплатный день (is_free), открывается как бесплатный день спринта (13.10).
+      { name: "Упражнения: правильное дыхание животом", freeDay: EXERCISES_FREE_DAY_ID },
+      { name: "Остальные тренировки, упражнения и разборы", locked: true },
     ] },
   { key: "relax", icon: "relax", name: "Расслабление", sub: "медитации, дыхание", chip: "1 пробная", try: true,
     title: "Расслабление",
@@ -3143,6 +3159,9 @@ function openLockSheet(kind, payload) {
         t.items.map((it) => it.locked
           ? '<div class="lock-day rest"><i class="ti ti-lock"></i><span>' + escapeHtml(it.name) +
             (it.desc ? '<small class="lock-day-desc">' + escapeHtml(it.desc) + "</small>" : "") + "</span></div>"
+          : it.freeDay
+          ? '<div class="lock-day free" data-free-day="' + escapeHtml(it.freeDay) + '"><i class="ti ti-player-play"></i>' +
+            "<span>" + escapeHtml(it.name) + "</span><span class=\"sc-chip sc-chip-try\">попробовать</span></div>"
           : '<div class="lock-day free" data-demo="' + escapeHtml(it.demo) + '"><i class="ti ti-player-play"></i>' +
             "<span>" + escapeHtml(it.name) + "</span><span class=\"sc-chip sc-chip-try\">попробовать</span></div>"
         ).join("") +
@@ -4437,10 +4456,13 @@ function renderDay(data, opts) {
   const daySprintTitle = day.sprint_title || "";
   const dayDup = sameTitle(dayShort, daySprintTitle);   // имя дня = имя спринта -> имя спринта в кикере лишнее
   dayIsEpisode = isSideSprint(daySprint);
-  // Кикер: справочник - «СПРАВОЧНИК», общая полка - «ОТДЕЛЬНЫЙ ВЫПУСК», мини-серия
-  // («Новая ветка вероятности») - её название и номер выпуска.
+  // Кикер: справочник - «СПРАВОЧНИК» (упражнения - «УПРАЖНЕНИЯ»), общая полка - «ОТДЕЛЬНЫЙ ВЫПУСК»,
+  // мини-серия («Новая ветка вероятности») - её название и номер выпуска.
+  // У гостьи daySprint нет (контейнер не на витрине), бесплатное упражнение узнаём по названию.
+  const isExercise = (daySprint && daySprint.cover_slug === "exercises") || daySprintTitle === EXERCISES_SPRINT_TITLE;
   document.getElementById("day-kicker").textContent =
-    daySprint && daySprint.kind === "handbook" ? "СПРАВОЧНИК"
+    isExercise ? "УПРАЖНЕНИЯ"
+    : daySprint && daySprint.kind === "handbook" ? "СПРАВОЧНИК"
     : dayIsEpisode ? (daySprintTitle === "Отдельные выпуски"
         ? "ОТДЕЛЬНЫЙ ВЫПУСК" : (daySprintTitle + " · ВЫПУСК " + (day.day_number || "")).toUpperCase())
     : ((dayDup || !daySprintTitle ? "" : daySprintTitle + " · ") + "ДЕНЬ " + (day.day_number || "")).toUpperCase();
@@ -4785,6 +4807,41 @@ function plurReviews(n) {
   const w = (a > 10 && a < 20) || b === 0 || b > 4 ? "разборов" : b === 1 ? "разбор" : "разбора";
   return n + " " + w;
 }
+// ===================== УПРАЖНЕНИЯ (13.10.2026) =====================
+// Тот же экран, что у справочников, другой каталог. Строки - дни скрытого контейнера
+// «Справочник: упражнения» (kind=handbook, cover_slug "exercises"), порядок групп как в меню
+// упражнений канала (пост 32). Запись app - не день, а мини-апп (вакуум и МТД живут в
+// «Женском теле»). Открывается карточкой в листе «Тренировки» и меткой #/exercises.
+// День 2 «Правильное дыхание животом» is_free: его гостья открывает с витрины (SC_TOOLS).
+const EXERCISES = [
+  { title: "Начните с этого: дыхание и тазовое дно", items: [
+    { t: "Подкаст: техника дыхания и тазовое дно", day: ["exercises", 1] },
+    { t: "Правильное дыхание животом", day: ["exercises", 2] },
+    { t: "Проверка мышц тазового дна", day: ["exercises", 3] },
+    { t: "Как определить диастаз", day: ["exercises", 4] },
+    { t: "Вакуум и тренировка МТД", app: "workout", sub: "в программе «Женское тело»" },
+  ] },
+  { title: "Осанка", items: [
+    { t: "Как правильно стоять", day: ["exercises", 5] },
+    { t: "Как правильно сидеть", day: ["exercises", 6] },
+    { t: "Как правильно вставать", day: ["exercises", 7] },
+  ] },
+  { title: "Лимфа и утро", items: [
+    { t: "Подкаст: запуск лимфы", day: ["exercises", 8] },
+    { t: "Тараканчик", day: ["exercises", 9] },
+    { t: "Прыжки для лимфы", day: ["exercises", 10] },
+    { t: "Утренняя зарядка", day: ["exercises", 11] },
+  ] },
+  { title: "Самомассаж", items: [
+    { t: "Самомассаж живота", day: ["exercises", 12] },
+    { t: "Самомассаж гуаша для живота", day: ["exercises", 13] },
+  ] },
+];
+const CATALOG_HEAD = {
+  handbook: { cat: HANDBOOK, title: "Справочники", sub: "Добавки, анализы, железо и рецепты: всё, что Ирена разбирала в канале" },
+  exercises: { cat: EXERCISES, title: "Упражнения", sub: "Дыхание, тазовое дно, осанка, лимфа и самомассаж: база, с которой Ирена советует начинать" },
+};
+
 function handbookGuestRows(sec) {
   if (!sec.guest) return sec.items.slice(0, 3).map((it) => it.t);
   const n = sec.items.filter((it) => !it.general).length;
@@ -4796,15 +4853,25 @@ function handbookDay(ref) {
   return s ? (s.days || []).find((d) => d.day_number === ref[1]) || null : null;
 }
 
-function openHandbook() {
+function openHandbook(which) {
+  const head = CATALOG_HEAD[which] || CATALOG_HEAD.handbook;
   hideContentViews();
-  document.getElementById("view-handbook").hidden = false;
+  const view = document.getElementById("view-handbook");
+  view.hidden = false;
+  view.querySelector(".lib-title").textContent = head.title;
+  view.querySelector(".lib-sub").textContent = head.sub;
   const completed = new Set((homeData && homeData.progress && homeData.progress.completed_day_ids) || []);
   let html = "";
-  for (const sec of HANDBOOK) {
+  for (const sec of head.cat) {
     let rows = "";
     for (const it of sec.items) {
-      if (it.day) {
+      if (it.app) {
+        rows += '<div class="sprint-day hb-row" data-hb-app="' + escapeHtml(it.app) + '" role="button">' +
+          '<div class="sprint-day-ic"><i class="ti ti-barbell"></i></div>' +
+          '<div class="sprint-day-main"><div class="sprint-day-title">' + escapeHtml(it.t) + "</div>" +
+          (it.sub ? '<div class="sprint-day-sub">' + escapeHtml(it.sub) + "</div>" : "") +
+          "</div></div>";
+      } else if (it.day) {
         const d = handbookDay(it.day);
         if (!d) continue;
         const done = completed.has(d.id);
@@ -4906,7 +4973,8 @@ function openSprints() {
 // Дом - основание: пустой стек значит "мы дома", отдельным кадром он не лежит.
 // Новый экран стоит одной строки в NAV_VIEWS.
 const NAV_VIEWS = {
-  handbook: function () { openHandbook(); },
+  handbook: function () { openHandbook("handbook"); },
+  exercises: function () { openHandbook("exercises"); },
   sprints: function () { openSprints(); },
   sprint:  function (id) { openSprint(id); },
   day:     function (id) { openDay(id); },
@@ -4999,6 +5067,8 @@ function navBack() {
     if (hb) { navTo("handbook"); return; }
     const sc = e.target.closest(".poster[data-sprint-id]");
     if (sc) { navTo("sprint", sc.getAttribute("data-sprint-id")); return; }
+    const hbApp = e.target.closest(".hb-row[data-hb-app]");
+    if (hbApp) { openMiniApp(hbApp.getAttribute("data-hb-app"), hbApp); return; }
     const sd = e.target.closest(".sprint-day[data-day-id]");
     if (sd && !sd.classList.contains("locked")) { navTo("day", sd.getAttribute("data-day-id")); return; }
   });

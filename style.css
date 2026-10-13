@@ -892,6 +892,7 @@ body.has-mini { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
    шторке берёт соседний тон, чтобы строки различались. */
 .sheet-card[data-app="workout"]  { --smoke-a: rgba(96,196,206,.55);  --smoke-b: rgba(116,84,224,.50); --sheet-ic: #6FD3DC; }
 .sheet-card[data-app="glutes"]   { --smoke-a: rgba(228,134,155,.55); --smoke-b: rgba(196,62,116,.50); --sheet-ic: #F0A0B4; }
+.sheet-card[data-exercises]     { --smoke-a: rgba(168,140,240,.55); --smoke-b: rgba(96,196,206,.40); --sheet-ic: #B9A4F5; }   /* «Упражнения», 13.10 */
 .sheet-card[data-app="zdorovie"] { --smoke-a: rgba(246,168,92,.52);  --smoke-b: rgba(196,62,96,.50);  --sheet-ic: #F6A85C; }
 .sheet-card[data-app="cycle"]    { --smoke-a: rgba(176,112,240,.58); --smoke-b: rgba(228,96,180,.46); --sheet-ic: #C08CF5; }
 .sheet-card-body { display: flex; flex-direction: column; flex: 1; min-width: 0; }
