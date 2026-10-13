@@ -5074,6 +5074,36 @@ function navBack() {
   });
 })();
 
+// ВИДЕО ДНЯ ПРИ УХОДЕ С ДНЯ (13.10.2026). Экраны здесь прячутся атрибутом hidden, а
+// спрятанный iframe Kinescope ИГРАЕТ ДАЛЬШЕ: звук шёл на «Упражнениях» и дома, и выключить
+// его было нечем. С дня уходят минимум тремя путями (hideContentViews, showShowcase после
+// «назад» браузером, scGoCheckoutFromDay), поэтому ловим не их, а сам атрибут: скрыли
+// день - iframe заменяем пустым клоном (адрес в data-src); показали ТОТ ЖЕ день без
+// перерисовки (возврат из кассы) - ставим новый iframe с адресом. openDay рисует блоки
+// заново, ему это не мешает. Подкаст дня не задет: он играет через общий app-audio.
+// ⚠️ src у ЗАГРУЖЕННОГО iframe НЕ МЕНЯТЬ (ни на about:blank, ни обратно): это навигация
+// фрейма, она ложится в общую историю браузера, и «назад»/свайп на iPhone начинают листать
+// фрейм вместо экранов (поймано тестом 13.10: «вперёд» переставал открывать день). Замена
+// элемента целиком историю не трогает.
+(function stopDayVideoOnLeave() {
+  const vd = document.getElementById("view-day");
+  if (!vd || typeof MutationObserver === "undefined") return;
+  new MutationObserver(() => {
+    vd.querySelectorAll("#day-blocks iframe").forEach((f) => {
+      const n = f.cloneNode(false);
+      if (vd.hidden && f.getAttribute("src")) {
+        n.setAttribute("data-src", f.getAttribute("src"));
+        n.removeAttribute("src");
+        f.replaceWith(n);
+      } else if (!vd.hidden && !f.getAttribute("src") && f.getAttribute("data-src")) {
+        n.setAttribute("src", f.getAttribute("data-src"));
+        n.removeAttribute("data-src");
+        f.replaceWith(n);
+      }
+    });
+  }).observe(vd, { attributes: true, attributeFilter: ["hidden"] });
+})();
+
 // Прогрев маршрута: решение должно быть готово ДО того, как женщина нажмёт "Войти",
 // иначе проба ляжет в критический путь входа. Здесь, а не выше по файлу, потому что
 // индикатору нужен уже инициализированный homeEls.
