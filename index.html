@@ -39,7 +39,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=99">
+  <link rel="stylesheet" href="style.css?v=100">
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. Файлы Google Fonts у себя (с 01.10.2026),
        собирает biohack/tools/irenabio-app/build_fonts.py. Браузер качает только нужные
        подмножества по unicode-range, как и с Google. -->
@@ -200,9 +200,11 @@
       <div class="login-card">
         <h1>Восстановление доступа</h1>
         <p class="lead">Введите почту, номер заказа и новый пароль.</p>
+        <!-- Настоящая <form> (18.10.2026), как вход: иначе браузер не сохранит новый пароль. -->
+        <form id="reset-form" action="#" method="post" novalidate>
         <label class="field" for="reset-email">
           <span class="field-label">Почта</span>
-          <input id="reset-email" type="email" inputmode="email" autocomplete="username"
+          <input id="reset-email" name="username" type="email" inputmode="email" autocomplete="username"
                  placeholder="ваша@почта.com" autocapitalize="off" spellcheck="false">
         </label>
         <label class="field" for="reset-order">
@@ -214,18 +216,19 @@
         <label class="field" for="reset-password">
           <span class="field-label">Новый пароль</span>
           <div class="pw-field">
-            <input id="reset-password" type="password" autocomplete="new-password"
+            <input id="reset-password" name="new-password" type="password" autocomplete="new-password"
                    placeholder="Минимум 8 символов" minlength="8" autocapitalize="off" spellcheck="false">
             <button type="button" id="reset-eye" class="pw-eye" aria-label="Показать пароль">показать</button>
           </div>
         </label>
         <label class="field" for="reset-password2">
           <span class="field-label">Повторите пароль</span>
-          <input id="reset-password2" type="password" autocomplete="new-password"
+          <input id="reset-password2" name="new-password-repeat" type="password" autocomplete="new-password"
                  placeholder="Повторите пароль" autocapitalize="off" spellcheck="false">
         </label>
         <p class="field-error" id="reset-error" hidden></p>
-        <button class="btn btn-primary" id="btn-reset" type="button">Сбросить пароль</button>
+        <button class="btn btn-primary" id="btn-reset" type="submit">Сбросить пароль</button>
+        </form>
         <button class="btn btn-ghost" id="reset-back" type="button">Назад ко входу</button>
       </div>
     </section>
@@ -914,6 +917,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=172"></script>
+  <script src="app.js?v=173"></script>
 </body>
 </html>

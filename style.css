@@ -1011,6 +1011,13 @@ body.has-mini { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
 .done-inapp .pw-order-copy { display: block; margin-top: 8px; }
 /* Подпись и кнопка «Скопировать адрес» на плашке дома. */
 .a2hs .a2hs-or { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
+/* Значок «открыть снаружи» вместо иконки приложения на плашке «Открой в браузере» (18.10.2026):
+   лотос рядом с этими словами читался как предложение что-то установить. */
+.a2hs-ext { display: flex; align-items: center; justify-content: center; background: var(--brand-grad); color: var(--on-accent); }
+.a2hs-ext svg { width: 24px; height: 24px; }
+/* Один шаг - без цифры «1». */
+.a2hs-steps.single li { padding-left: 0; }
+.a2hs-steps.single li::before { content: none; }
 .a2hs .a2hs-copy { display: block; width: auto; margin: 8px 0 0; padding: 9px 16px; font-size: 13px; border-radius: 10px; }
 /* Стрелка к меню ··· встроенного браузера: оно над страницей, в правом верхнем углу. */
 .done-arrow { position: fixed; top: 8px; right: 14px; z-index: 50; width: 44px; height: 44px; border-radius: 50%;

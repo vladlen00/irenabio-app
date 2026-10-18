@@ -303,6 +303,7 @@ function a2hsVariant() {
   return /Firefox\//.test(ua) ? "android_menu" : "";
 }
 const A2HS_SVG = {
+  compass: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>',
   share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>',
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8v8M8 12h8"/></svg>',
   dotsH: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
@@ -343,15 +344,35 @@ function openInBrowser() {
   location.href = "intent://app.irenabio.com/?login=1#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=" +
     encodeURIComponent(APP_LOGIN_URL) + ";end";
 }
-// Точное название пункта - только где проверено живьём: Инстаграм на iPhone (18.10.2026).
-// Остальным общий шаг.
+// Точное название пункта - только где проверено живьём (18.10.2026): Инстаграм на iPhone
+// (меню ···) и Телеграм на iPhone (компас внизу справа у его браузера). Остальным общий шаг.
 function inAppSteps() {
   if (inAppKind() === "ig" && inAppIos()) {
     return ["Нажми " + a2hsGlyph("dotsH") + " вверху справа",
             "Выбери «Открыть в стороннем браузере»"];
   }
+  if (inAppKind() === "tg" && inAppIos()) {
+    return ["Нажми значок компаса " + a2hsGlyph("compass") + " внизу справа"];
+  }
   return ["Найди в меню приложения (обычно " + a2hsGlyph("dotsH") + " или " + a2hsGlyph("dotsV") +
           " вверху справа) пункт «Открыть в браузере»"];
+}
+// Квадрат со стрелкой ↗ («открыть снаружи»), в стиле стрелки на «Готово».
+const EXT_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>';
+// Safari предлагает сохранить пароль, когда после отправки формы меняется адрес или форма с
+// паролем уходит со страницы (18.10.2026). Делаем оба: новая запись истории (pushState) и
+// форма снимается из DOM, на её место - метка. Экран при следующем показе возвращает её
+// formBack. Ссылки els.* и обработчики живут на самом элементе и не теряются.
+function formDone(form, url) {
+  try { history.pushState(history.state, "", url || location.pathname + location.search + "#in"); } catch (e) {}
+  if (form && form.parentNode) {
+    const mark = document.createComment(form.id);
+    form.parentNode.replaceChild(mark, form);
+    form._mark = mark;
+  }
+}
+function formBack(form) {
+  if (form && form._mark && form._mark.parentNode) { form._mark.parentNode.replaceChild(form, form._mark); form._mark = null; }
 }
 // «Скопировать адрес»: запасной путь, работает в любом встроенном браузере.
 async function copyLoginUrl(btn) {
@@ -370,10 +391,11 @@ function a2hsCard(v, slot) {
     const where = v === "other" ? "Здесь приложение легко потерять" : "Внутри " + inAppName() + " приложение легко потерять";
     return '<div class="a2hs">' +
       '<button type="button" class="a2hs-x" aria-label="Закрыть"><i class="ti ti-x"></i></button>' +
-      '<div class="a2hs-head"><img class="a2hs-ic" src="icon-192.png?v=3" alt="" width="44" height="44">' +
+      '<div class="a2hs-head"><span class="a2hs-ic a2hs-ext" aria-hidden="true">' + EXT_SVG + '</span>' +
       '<div class="a2hs-txt"><b>Открой в браузере</b><span>' + where + '</span></div></div>' +
       (ios ? "" : '<button type="button" class="btn btn-primary a2hs-go">Открыть в браузере</button>') +
-      '<ol class="a2hs-steps"' + (ios ? "" : " hidden") + ">" + inAppSteps().map((t) => "<li>" + t + "</li>").join("") + "</ol>" +
+      '<ol class="a2hs-steps' + (inAppSteps().length === 1 ? " single" : "") + '"' + (ios ? "" : " hidden") + ">" +
+      inAppSteps().map((t) => "<li>" + t + "</li>").join("") + "</ol>" +
       '<p class="a2hs-or">или скопируй адрес и вставь в Safari или Chrome</p>' +
       '<button type="button" class="btn btn-ghost a2hs-copy">Скопировать адрес</button>' +
       '<p class="a2hs-note">В браузере войди той же почтой и паролем.</p></div>';
@@ -1239,6 +1261,7 @@ function fillPwOrder(order) {
 
 async function enterPaymentReturn(order) {
   track("paid_return", order, true);
+  formBack(els.pwForm);
   state.order = order;
   hideEntryViews();
   hidePayFlowExtra();
@@ -1333,6 +1356,7 @@ function leavePaymentReturn() {
 
 // Экран пароля с уже известным email (resolve уже прошёл в опросе экрана 4 / onPaidCheck).
 function showPasswordForm(order, email, isLava) {
+  formBack(els.pwForm);
   state.order = order;
   state.email = email;
   state.lavaReturn = !!isLava;
@@ -1435,7 +1459,7 @@ async function attachAndVerify(accessToken) {
     });
     if (v.state === "ok") {
       const data = v.data || {};
-      if (data.access) { clearLavaReturn(); a2hsAfterPw = true; showPaidDone(state.email, state.order); return; }  // после оплаты/пароля -> «Готово» -> дом; плашка «На экран Домой» там
+      if (data.access) { clearLavaReturn(); a2hsAfterPw = true; formDone(els.pwForm, "/?login=1"); showPaidDone(state.email, state.order); return; }  // после оплаты/пароля -> «Готово» -> дом; плашка «На экран Домой» там
     } else if (v.status === 401) {
       showPwError("Сессия не подтвердилась. Обновите страницу и войдите снова.");
       pwLoading(false);
@@ -1486,6 +1510,7 @@ function showPaidDone(email, order) {
     const steps = document.getElementById("done-steps");
     steps.innerHTML = inAppSteps().map((t) => "<li>" + t + "</li>").join("");
     steps.classList.toggle("big", ios);
+    steps.classList.toggle("single", inAppSteps().length === 1);
     document.getElementById("done-open").hidden = ios;
     document.getElementById("done-steps-sub").hidden = ios;
   }
@@ -3855,7 +3880,9 @@ function resetLoginForm() {
   const eye = document.getElementById("login-eye"); if (eye) eye.textContent = "показать";
   const btn = document.getElementById("btn-login"); if (btn) { btn.disabled = false; btn.textContent = "Войти"; }
 }
+let loginFormEl = null;   // ссылка на форму входа: после удачного входа её нет в DOM (formDone)
 function showLogin() {
+  formBack(loginFormEl);
   hidePayFlowExtra();
   if (siteHeader) siteHeader.hidden = false;
   if (siteFooter) siteFooter.hidden = false;
@@ -3914,6 +3941,7 @@ async function doLogin() {
     }
     // сессия есть -> общий роутинг: активная подписка -> ДОМ; нет -> чекаут (продление)
     track("login_ok");
+    formDone(document.getElementById("login-form"));
     await routeHomeOrCheckout();
   } catch {
     showLoginError(NET_MSG);
@@ -3922,7 +3950,9 @@ async function doLogin() {
 }
 
 // ===================== ВОССТАНОВЛЕНИЕ ПАРОЛЯ по номеру заказа (без писем) =====================
+let resetFormEl = null;   // ссылка на форму сброса: после удачного сброса её нет в DOM (formDone)
 function showReset() {
+  formBack(resetFormEl);
   hidePayFlowExtra();
   if (siteHeader) siteHeader.hidden = false;
   if (siteFooter) siteFooter.hidden = false;
@@ -3982,7 +4012,7 @@ async function doReset() {
       // пароль сменён на сервере -> входим им же -> в приложение
       btn.textContent = "Входим...";
       const inn = await sb.auth.signInWithPassword({ email, password });
-      if (inn.data && inn.data.session) { await routeHomeOrCheckout(); return; }
+      if (inn.data && inn.data.session) { formDone(resetFormEl); await routeHomeOrCheckout(); return; }
       // редкий случай: пароль сменён, авто-вход не удался -> отправляем на вход
       showResetError(null, "Пароль обновлён. Войдите с новым паролем.");
       setTimeout(showLogin, 1400);
@@ -4090,8 +4120,8 @@ async function doClaim() {
   const bind = (id, fn) => { const e = document.getElementById(id); if (e) e.addEventListener("click", fn); };
   bind("start-login", (e) => { e.preventDefault(); showLogin(); });
   bind("start-signup", (e) => { e.preventDefault(); checkoutBackTo = "start"; showCheckout(); });
-  const loginForm = document.getElementById("login-form");   // <form>: кнопка отправляет, doLogin тот же
-  if (loginForm) loginForm.addEventListener("submit", (e) => { e.preventDefault(); doLogin(); });
+  loginFormEl = document.getElementById("login-form");   // <form>: кнопка отправляет, doLogin тот же
+  if (loginFormEl) loginFormEl.addEventListener("submit", (e) => { e.preventDefault(); doLogin(); });
   // «Назад» с формы входа ведёт на ВИТРИНУ: это домашний экран незалогиненной.
   // Старт остался запасным экраном - на него падает сама showShowcase, если
   // витрина не загрузилась. До 22.09.2026 здесь был showStart, и женщина,
@@ -4099,7 +4129,8 @@ async function doClaim() {
   bind("login-back", (e) => { e.preventDefault(); showShowcase(); });
   bind("login-to-signup", (e) => { e.preventDefault(); checkoutBackTo = "login"; showCheckout(); });
   bind("login-to-reset", (e) => { e.preventDefault(); showReset(); });
-  bind("btn-reset", (e) => { e.preventDefault(); doReset(); });
+  resetFormEl = document.getElementById("reset-form");   // <form>: кнопка отправляет, doReset тот же
+  if (resetFormEl) resetFormEl.addEventListener("submit", (e) => { e.preventDefault(); doReset(); });
   bind("reset-back", (e) => { e.preventDefault(); showLogin(); });
   const reye = document.getElementById("reset-eye");
   const rpw = document.getElementById("reset-password");
@@ -4108,7 +4139,7 @@ async function doClaim() {
   });
   ["reset-email", "reset-order", "reset-password", "reset-password2"].forEach((id) => {
     const e = document.getElementById(id);
-    if (e) e.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); doReset(); } });
+    if (e) e.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); submitForm(resetFormEl, doReset); } });
   });
   bind("btn-claim", (e) => { e.preventDefault(); doClaim(); });
   bind("claim-back", (e) => { e.preventDefault(); showStart(); });
@@ -4129,7 +4160,7 @@ async function doClaim() {
     eye.textContent = masked ? "скрыть" : "показать";
   });
   const em = document.getElementById("login-email");
-  const lf = document.getElementById("login-form");
+  const lf = loginFormEl;
   if (pw) pw.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); submitForm(lf, doLogin); } });
   if (em) em.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); submitForm(lf, doLogin); } });
 })();
