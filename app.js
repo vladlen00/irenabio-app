@@ -5258,6 +5258,27 @@ if ("serviceWorker" in navigator) {
   }
 }
 
+// ?paid=1&order=X при живой сессии (18.10.2026, живая проверка): в браузере жила сессия
+// ДРУГОЙ почты, и ссылка на новый заказ открыла чужой дом, экрана пароля не было. Сверяем
+// почту сессии с почтой заказа: другая - выходим и ведём на пароль заказа X; та же или
+// заказ не прочитался - как раньше (дом, экран пароля запасным путём).
+async function paidWithSession(order) {
+  let mine = "";
+  try { const { data } = await sb.auth.getSession(); mine = normalizeEmail((data && data.session && data.session.user && data.session.user.email) || ""); } catch (e) {}
+  const r = await sbFetch(RESOLVE_ORDER_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ orderReference: order }),
+  }, { retry: true });
+  const theirs = r.state === "ok" && r.data && r.data.ok ? normalizeEmail(r.data.email || "") : "";
+  if (mine && theirs && mine !== theirs) {
+    try { await sb.auth.signOut(); } catch (e) {}
+    enterPaymentReturn(order);
+    return;
+  }
+  routeHomeOrCheckout({ paidFallback: () => enterPaymentReturn(order) });
+}
+
 // --- старт: ветвление возврат-после-оплаты / дом / чекаут ---
 const startParams = new URLSearchParams(location.search);
 // Возврат с Lava по адресу возврата (?lava=ok|fail|cancel). Метку снимаем сразу: адрес
@@ -5288,7 +5309,7 @@ if (startParams.get("paid") === "1" && startParams.get("order")) {
   // Есть сессия -> обычный маршрут (дом + чистка адреса), а экран пароля идёт запасным путём.
   // Сессии нет -> она только что оплатила, пароль ещё не задан: сразу экран пароля, без лишнего круга.
   const order = startParams.get("order");
-  if (sb && hasStoredSession()) routeHomeOrCheckout({ paidFallback: () => enterPaymentReturn(order) });
+  if (sb && hasStoredSession()) paidWithSession(order);
   else enterPaymentReturn(order);
 } else if (lavaBack === "ok" && readLavaReturn()) {
   // Lava говорит "оплачено", но вебхук мог ещё не дойти: экран ожидания опрашивает сам.
