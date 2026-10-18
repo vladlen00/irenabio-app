@@ -305,37 +305,43 @@ function a2hsSteps(v) {
 // сайт в обычном браузере сразу на экране входа (?login=1, бут снимает метку): сессию
 // туда не перенести, вход той же почтой и паролем.
 //   Android: intent:// в Chrome; нет Chrome - откроется здесь же по запасному адресу.
-//   iPhone: x-safari-https:// (iOS 17+). Не сработало - на экране остаются шаги через меню.
+//   iPhone: кнопки НЕТ. x-safari-https:// Инстаграм не пускает (живая проверка 18.10.2026,
+//   нажатие ничего не делало). Только шаги через меню ··· и «Скопировать адрес». Меню
+//   открывает в Safari ТЕКУЩИЙ адрес, поэтому «Готово» ставит в строку ?login=1.
 const APP_LOGIN_URL = "https://app.irenabio.com/?login=1";
+function inAppIos() { return !!inAppName() && !/Android/.test(navigator.userAgent || ""); }
 function inAppName() {
   const v = a2hsVariant();
   if (v === "tg") return "Телеграма";
   if (v !== "ig") return "";
   return /Instagram/.test(navigator.userAgent || "") ? "Инстаграма" : "Фейсбука";
 }
+// Только Android: на iPhone кнопки нет.
 function openInBrowser() {
-  if (/Android/.test(navigator.userAgent || "")) {
-    location.href = "intent://app.irenabio.com/?login=1#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=" +
-      encodeURIComponent(APP_LOGIN_URL) + ";end";
-  } else {
-    location.href = "x-safari-" + APP_LOGIN_URL;
-  }
+  location.href = "intent://app.irenabio.com/?login=1#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=" +
+    encodeURIComponent(APP_LOGIN_URL) + ";end";
 }
+// Названия пунктов: iPhone - как в меню Инстаграма (живая проверка 18.10.2026).
 function inAppSteps() {
-  const ios = !/Android/.test(navigator.userAgent || "");
-  return ["Нажми " + a2hsGlyph(ios ? "dotsH" : "dotsV") + " вверху справа",
-          "Выбери «Открыть в браузере» или «Открыть в " + (ios ? "Safari" : "Chrome") + "»",
-          "В браузере войди той же почтой и паролем"];
+  if (/Android/.test(navigator.userAgent || "")) {
+    return ["Нажми " + a2hsGlyph("dotsV") + " вверху справа",
+            "Выбери «Открыть в браузере» или «Открыть в Chrome»"];
+  }
+  return ["Нажми " + a2hsGlyph("dotsH") + " вверху справа",
+          "Выбери «Открыть в стороннем браузере»"];
 }
 function a2hsCard(v, slot) {
   // Дом во встроенном браузере (18.10.2026): звать на экран Домой рано, сначала в обычный браузер.
+  // iPhone: кнопки нет (не работает), шаги видны сразу. Android: кнопка intent://, шаги по нажатию.
   if (slot === "home" && (v === "ig" || v === "tg")) {
+    const ios = inAppIos();
     return '<div class="a2hs">' +
       '<button type="button" class="a2hs-x" aria-label="Закрыть"><i class="ti ti-x"></i></button>' +
       '<div class="a2hs-head"><img class="a2hs-ic" src="icon-192.png?v=3" alt="" width="44" height="44">' +
       '<div class="a2hs-txt"><b>Открой в браузере</b><span>Внутри ' + inAppName() + ' приложение легко потерять</span></div></div>' +
-      '<button type="button" class="btn btn-primary a2hs-go">Открыть в браузере</button>' +
-      '<ol class="a2hs-steps" hidden>' + inAppSteps().map((t) => "<li>" + t + "</li>").join("") + "</ol></div>";
+      (ios ? "" : '<button type="button" class="btn btn-primary a2hs-go">Открыть в браузере</button>') +
+      '<ol class="a2hs-steps"' + (ios ? "" : " hidden") + ">" + inAppSteps().map((t) => "<li>" + t + "</li>").join("") + "</ol>" +
+      '<p class="a2hs-note">В браузере войди той же почтой и паролем.</p></div>';
   }
   const android = v === "android";
   const steps = android ? "" :
@@ -372,7 +378,8 @@ function a2hsShow(slot) {
       b.hidden = true; b.innerHTML = ""; delete b.dataset.v;
     });
   });
-  box.querySelector(".a2hs-go").addEventListener("click", async () => {
+  const goBtn = box.querySelector(".a2hs-go");   // на iPhone во встроенном браузере кнопки нет
+  if (goBtn) goBtn.addEventListener("click", async () => {
     track("a2hs_click", v + ":" + slot);
     if (v !== "android") {
       const ol = box.querySelector(".a2hs-steps");
@@ -1416,6 +1423,9 @@ async function attachAndVerify(accessToken) {
 // перезагрузка отсюда уводит в дом обычным маршрутом.
 function showPaidDone(email, order) {
   stripPaidParams();
+  // Меню встроенного браузера открывает в Safari текущий адрес: пусть это будет вход, а не
+  // использованный заказ. Бут снимет метку, а при живой сессии уведёт в дом.
+  try { history.replaceState(null, "", "/?login=1"); } catch (e) {}
   hideEntryViews();
   hidePayFlowExtra();
   els.viewCheckout.hidden = true;
@@ -1431,10 +1441,17 @@ function showPaidDone(email, order) {
   const name = inAppName();
   const inapp = document.getElementById("done-inapp");
   inapp.hidden = !name;
+  const ios = inAppIos();
   if (name) {
     document.getElementById("done-inapp-name").textContent = name;
-    document.getElementById("done-steps").innerHTML = inAppSteps().map((t) => "<li>" + t + "</li>").join("");
+    const steps = document.getElementById("done-steps");
+    steps.innerHTML = inAppSteps().map((t) => "<li>" + t + "</li>").join("");
+    steps.classList.toggle("big", ios);
+    document.getElementById("done-open").hidden = ios;
+    document.getElementById("done-steps-sub").hidden = ios;
+    document.getElementById("done-copy-url").hidden = !ios;
   }
+  document.getElementById("done-arrow").hidden = !ios;
   const go = document.getElementById("done-go");
   go.className = "btn " + (name ? "btn-ghost" : "btn-primary");
   go.textContent = name ? "Остаться здесь и начать" : "Начать";
@@ -1446,6 +1463,14 @@ function showPaidDone(email, order) {
     document.getElementById("done-open").addEventListener("click", () => {
       track("a2hs_click", (a2hsVariant() || "desktop") + ":done");
       openInBrowser();
+    });
+    const copyUrl = document.getElementById("done-copy-url");
+    copyUrl.addEventListener("click", async () => {
+      track("a2hs_click", (a2hsVariant() || "desktop") + ":done_copy");
+      try { await navigator.clipboard.writeText(APP_LOGIN_URL); }
+      catch { window.prompt("Скопируй адрес:", APP_LOGIN_URL); }
+      copyUrl.textContent = "Скопировано";
+      setTimeout(() => { copyUrl.textContent = "Скопировать адрес"; }, 1600);
     });
     const copy = document.getElementById("done-copy");
     copy.addEventListener("click", async () => {
@@ -1504,6 +1529,14 @@ els.form.addEventListener("submit", (e) => {
   // на старт. Покрывает оба случая - битую ссылку и чужой/старый заказ в адресе.
   bind("pw-dead-end-out", () => { leavePaymentReturn(); showStart(); });
   bind("pw-forgot-link", () => showResetPrefilled(state.email, state.order)); // "не помню пароль" -> восстановление с готовыми полями
+  bind("pw-have-login-link", () => {                   // старая ссылка, пароль уже задан -> вход с её почтой
+    const email = state.email;
+    leavePaymentReturn();
+    els.viewPassword.hidden = true;
+    showLogin();
+    const em = document.getElementById("login-email"); if (em && email) em.value = email;
+    const pw = document.getElementById("login-password"); if (pw && email) pw.focus();
+  });
   bind("btn-lava-pay", () => onLavaPay());            // экран 2 -> счёт и оплата в той же вкладке (Lava)
   bind("btn-paid-check", () => onPaidCheck());         // экран 4 -> ручная проверка
   bind("btn-pay-back", () => { clearLavaReturn(); showCheckout(); }); // экран 4 -> выход к тарифам (чистит stash)

@@ -39,7 +39,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=96">
+  <link rel="stylesheet" href="style.css?v=97">
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. Файлы Google Fonts у себя (с 01.10.2026),
        собирает biohack/tools/irenabio-app/build_fonts.py. Браузер качает только нужные
        подмножества по unicode-range, как и с Google. -->
@@ -725,6 +725,9 @@
             <p class="alt-pay" id="pw-forgot" hidden><a href="#" id="pw-forgot-link" role="button">Не помню пароль</a></p>
             <button id="btn-enter" class="btn btn-primary" type="button" disabled>Открыть доступ</button>
             <button id="btn-retry" class="btn btn-ghost" type="button" hidden>Повторить</button>
+            <!-- Старая ссылка ?paid=1&order= после того, как пароль уже задан (18.10.2026): сервер
+                 этого не различает и снова просит придумать пароль. Отсюда - прямо на вход. -->
+            <p class="alt-pay" id="pw-have-login"><a href="#" id="pw-have-login-link" role="button">Пароль уже есть? Войти</a></p>
           </div>
 
           <!-- СПРАВКА, ниже формы. Номер заказа: сам номер, одна строка зачем он, кнопка копирования.
@@ -760,13 +763,21 @@
           </div>
           <p class="done-note">Входи по этой почте и своему паролю с любого телефона или компьютера. Номер заказа пригодится, если забудешь пароль.</p>
 
-          <!-- Только во встроенном браузере Инстаграма, Фейсбука, Телеграма. -->
+          <!-- Только во встроенном браузере Инстаграма, Фейсбука, Телеграма.
+               iPhone (18.10.2026, живая проверка): Инстаграм не пускает x-safari-https, кнопка
+               молчала. Там кнопки нет: два шага крупно, стрелка к меню и «Скопировать адрес».
+               Android: кнопка intent:// и шаги запасным путём. Раскладку ставит showPaidDone. -->
           <div class="done-inapp" id="done-inapp" hidden>
             <b class="done-inapp-title">Ты сейчас внутри <span id="done-inapp-name">Инстаграма</span></b>
             <p>Здесь приложение легко потерять: закроешь окно, и ссылки не останется. Открой его в обычном браузере.</p>
             <button type="button" id="done-open" class="btn btn-primary">Открыть в браузере</button>
-            <p class="done-inapp-sub">Если кнопка не сработала:</p>
+            <p class="done-inapp-sub" id="done-steps-sub">Если кнопка не сработала:</p>
             <ol class="a2hs-steps" id="done-steps"></ol>
+            <button type="button" id="done-copy-url" class="btn btn-ghost pw-order-copy" hidden>Скопировать адрес</button>
+            <p class="done-inapp-sub">В браузере войди той же почтой и паролем.</p>
+            <div class="done-arrow" id="done-arrow" aria-hidden="true" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+            </div>
           </div>
 
           <button type="button" id="done-go" class="btn btn-primary">Начать</button>
@@ -896,6 +907,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=169"></script>
+  <script src="app.js?v=170"></script>
 </body>
 </html>

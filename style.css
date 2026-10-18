@@ -1005,6 +1005,19 @@ body.has-mini { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
 .pending-card .done-inapp p { font-size: 14px; line-height: 1.45; margin: 0 0 12px; }
 .pending-card .done-inapp p.done-inapp-sub { font-size: 13px; color: var(--muted); margin: 14px 0 0; }
 .done-inapp .a2hs-steps { margin-top: 10px; }
+/* iPhone во встроенном браузере: шаги главное на экране, крупно. */
+.done-inapp .a2hs-steps.big li { font-size: 17px; line-height: 1.5; padding-left: 34px; margin-bottom: 14px; }
+.done-inapp .a2hs-steps.big li::before { width: 24px; height: 24px; line-height: 24px; font-size: 13px; }
+.done-inapp .pw-order-copy { display: block; }
+.done-inapp .pw-order-copy[hidden] { display: none; }
+/* Стрелка к меню ··· встроенного браузера: оно над страницей, в правом верхнем углу. */
+.done-arrow { position: fixed; top: 8px; right: 14px; z-index: 50; width: 44px; height: 44px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; background: var(--brand-grad); color: var(--on-accent);
+  box-shadow: 0 6px 18px rgba(0,0,0,.45); animation: done-arrow 1.4s ease-in-out infinite; }
+.done-arrow[hidden] { display: none; }
+.done-arrow svg { width: 24px; height: 24px; }
+@keyframes done-arrow { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(3px, -4px); } }
+@media (prefers-reduced-motion: reduce) { .done-arrow { animation: none; } }
 
 /* ===================== НОВЫЙ ПОТОК ОПЛАТЫ (экраны 2/3/4) ===================== */
 /* экран 1: ссылка "Оплатить в рублях" */
