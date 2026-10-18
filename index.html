@@ -39,7 +39,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=95">
+  <link rel="stylesheet" href="style.css?v=96">
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. Файлы Google Fonts у себя (с 01.10.2026),
        собирает biohack/tools/irenabio-app/build_fonts.py. Браузер качает только нужные
        подмножества по unicode-range, как и с Google. -->
@@ -744,6 +744,34 @@
           <!-- Плашки «На экран Домой» здесь нет (12.10.2026): отвлекала от пароля. Она на доме сразу после пароля. -->
         </div>
 
+        <!-- ГОТОВО (18.10.2026): доступ открыт, пароль задан. Раньше отсюда сразу уходили в дом,
+             и женщина из встроенного браузера Инстаграма теряла дорогу назад: адреса не видела,
+             письма от нас нет, сессия осталась внутри Инстаграма. Здесь три строки, по которым
+             она вернётся, и во встроенном браузере - выход в обычный. Рисует showPaidDone. -->
+        <div id="pw-done" hidden>
+          <div class="pending-check">✓</div>
+          <h1>Готово, доступ открыт</h1>
+          <p>Сохрани эти три строки, по ним ты всегда вернёшься в приложение.</p>
+          <div class="done-card">
+            <div class="done-row"><span class="done-label">Адрес приложения</span><b class="done-val done-url">app.irenabio.com</b></div>
+            <div class="done-row"><span class="done-label">Почта для входа</span><b class="done-val" id="done-email"></b></div>
+            <div class="done-row" id="done-order-row"><span class="done-label">Номер заказа</span><b class="done-val done-order" id="done-order"></b></div>
+            <button type="button" id="done-copy" class="btn btn-ghost pw-order-copy">Скопировать всё</button>
+          </div>
+          <p class="done-note">Входи по этой почте и своему паролю с любого телефона или компьютера. Номер заказа пригодится, если забудешь пароль.</p>
+
+          <!-- Только во встроенном браузере Инстаграма, Фейсбука, Телеграма. -->
+          <div class="done-inapp" id="done-inapp" hidden>
+            <b class="done-inapp-title">Ты сейчас внутри <span id="done-inapp-name">Инстаграма</span></b>
+            <p>Здесь приложение легко потерять: закроешь окно, и ссылки не останется. Открой его в обычном браузере.</p>
+            <button type="button" id="done-open" class="btn btn-primary">Открыть в браузере</button>
+            <p class="done-inapp-sub">Если кнопка не сработала:</p>
+            <ol class="a2hs-steps" id="done-steps"></ol>
+          </div>
+
+          <button type="button" id="done-go" class="btn btn-primary">Начать</button>
+        </div>
+
         <!-- ОШИБКА: битая/устаревшая ссылка или сбой проверки. Без зелёного успеха. -->
         <p class="form-error" id="pw-resolve-error" hidden></p>
         <!-- Выход ТОЛЬКО для состояния "ссылка недействительна": там форма скрыта и уйти некуда.
@@ -868,6 +896,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=168"></script>
+  <script src="app.js?v=169"></script>
 </body>
 </html>

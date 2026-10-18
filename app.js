@@ -271,7 +271,8 @@ function a2hsVariant() {
   const android = /Android/.test(ua);
   if (!ios && !android) return "";
   if (/Instagram|FBAN|FBAV|FB_IAB/.test(ua)) return "ig";
-  if (/Telegram/.test(ua)) return "tg";
+  // TelegramWebviewProxy: встроенный браузер Телеграма на Android не всегда пишет себя в UA.
+  if (/Telegram/.test(ua) || window.TelegramWebviewProxy) return "tg";
   if (ios) return "ios";
   if (a2hsPrompt) return "android";
   // Chromium без beforeinstallprompt почти всегда значит «уже установлено» или «не дорос»:
@@ -298,7 +299,44 @@ function a2hsSteps(v) {
   const open = "Нажми " + a2hsGlyph(iosLike ? "dotsH" : "dotsV") + " вверху справа, затем «Открыть в браузере»";
   return [open].concat(iosLike ? iosSteps : menuSteps);
 }
+// ===== ВЫХОД ИЗ ВСТРОЕННОГО БРАУЗЕРА (18.10.2026) =====
+// Купившая во встроенном браузере Инстаграма остаётся там: адреса не видит, сессия живёт
+// только внутри Инстаграма, плашка «На экран Домой» там не работает. Кнопка открывает
+// сайт в обычном браузере сразу на экране входа (?login=1, бут снимает метку): сессию
+// туда не перенести, вход той же почтой и паролем.
+//   Android: intent:// в Chrome; нет Chrome - откроется здесь же по запасному адресу.
+//   iPhone: x-safari-https:// (iOS 17+). Не сработало - на экране остаются шаги через меню.
+const APP_LOGIN_URL = "https://app.irenabio.com/?login=1";
+function inAppName() {
+  const v = a2hsVariant();
+  if (v === "tg") return "Телеграма";
+  if (v !== "ig") return "";
+  return /Instagram/.test(navigator.userAgent || "") ? "Инстаграма" : "Фейсбука";
+}
+function openInBrowser() {
+  if (/Android/.test(navigator.userAgent || "")) {
+    location.href = "intent://app.irenabio.com/?login=1#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=" +
+      encodeURIComponent(APP_LOGIN_URL) + ";end";
+  } else {
+    location.href = "x-safari-" + APP_LOGIN_URL;
+  }
+}
+function inAppSteps() {
+  const ios = !/Android/.test(navigator.userAgent || "");
+  return ["Нажми " + a2hsGlyph(ios ? "dotsH" : "dotsV") + " вверху справа",
+          "Выбери «Открыть в браузере» или «Открыть в " + (ios ? "Safari" : "Chrome") + "»",
+          "В браузере войди той же почтой и паролем"];
+}
 function a2hsCard(v, slot) {
+  // Дом во встроенном браузере (18.10.2026): звать на экран Домой рано, сначала в обычный браузер.
+  if (slot === "home" && (v === "ig" || v === "tg")) {
+    return '<div class="a2hs">' +
+      '<button type="button" class="a2hs-x" aria-label="Закрыть"><i class="ti ti-x"></i></button>' +
+      '<div class="a2hs-head"><img class="a2hs-ic" src="icon-192.png?v=3" alt="" width="44" height="44">' +
+      '<div class="a2hs-txt"><b>Открой в браузере</b><span>Внутри ' + inAppName() + ' приложение легко потерять</span></div></div>' +
+      '<button type="button" class="btn btn-primary a2hs-go">Открыть в браузере</button>' +
+      '<ol class="a2hs-steps" hidden>' + inAppSteps().map((t) => "<li>" + t + "</li>").join("") + "</ol></div>";
+  }
   const android = v === "android";
   const steps = android ? "" :
     '<ol class="a2hs-steps" hidden>' + a2hsSteps(v).map((t) => "<li>" + t + "</li>").join("") + "</ol>";
@@ -338,6 +376,11 @@ function a2hsShow(slot) {
     track("a2hs_click", v + ":" + slot);
     if (v !== "android") {
       const ol = box.querySelector(".a2hs-steps");
+      if (slot === "home" && (v === "ig" || v === "tg")) {
+        if (ol) ol.hidden = false;   // кнопка могла не сработать: шаги остаются на экране
+        openInBrowser();
+        return;
+      }
       if (ol) ol.hidden = !ol.hidden;
       return;
     }
@@ -866,8 +909,8 @@ function payRegion() {
   return RUB_FIRST_TIMEZONES.has(tz) ? "rub" : "";
 }
 // TRIBUTE (11.10.2026, решение Владлена): рубли и СБП с автопродлением теперь через Tribute.
-//   "rub": первой «Оплатить картой или по СБП» (Tribute), WayForPay не показываем, Lava ниже
-//          тихой ссылкой «Другой способ оплаты».
+//   "rub": первой «Оплатить картой или по СБП» (Tribute), WayForPay не показываем. Ссылки на Lava
+//          нет (18.10.2026): в рублях Lava за всё время не провела ни одной настоящей оплаты.
 //   "":    первой WayForPay, второй «Оплатить в рублях или по СБП» (Tribute), Lava тихой ссылкой.
 //   "by":  как было: одна кнопка «Оплатить в евро» сразу в Lava EUR (перевод на Tribute после
 //          живой оплаты белорусской картой).
@@ -889,7 +932,7 @@ function applyCountryPay() {
   const rub = document.querySelector(".pay-rub-link");   // вторая кнопка "" -> Tribute
   if (rub) rub.hidden = rubFirst;
   const other = document.getElementById("pay-other");   // Lava, тихая ссылка
-  if (other) other.hidden = region === "by";
+  if (other) other.hidden = region !== "";   // "by" - Lava EUR и так первой кнопкой, "rub" - только Tribute
   const btn = els.btnPay;
   if (btn) btn.hidden = rubFirst;   // "rub": WayForPay не показываем; "by": блокирует (1135)
   if (btn && !btn.disabled) {
@@ -1165,6 +1208,7 @@ async function enterPaymentReturn(order) {
   els.pwLoading.hidden = false;
   els.pwSuccess.hidden = true;
   els.pwForm.hidden = true;
+  const pwDone = document.getElementById("pw-done"); if (pwDone) pwDone.hidden = true;
   els.pwResolveError.hidden = true;
   // Состояния прошлых заходов не должны залипать: "Повторить" и ссылка "Не помню пароль"
   // показываются ТОЛЬКО после своей ошибки, а экран открывается повторно в той же вкладке.
@@ -1256,6 +1300,7 @@ function showPasswordForm(order, email, isLava) {
   els.pwResolveError.hidden = true;
   els.pwSuccess.hidden = false;
   els.pwForm.hidden = false;
+  const pwDone2 = document.getElementById("pw-done"); if (pwDone2) pwDone2.hidden = true;
   // Заказ живой, форма показана -> выхода на экране нет: женщина пришла задать пароль.
   const pwOut2 = document.getElementById("pw-dead-end-out");
   if (pwOut2) pwOut2.hidden = true;
@@ -1344,7 +1389,7 @@ async function attachAndVerify(accessToken) {
     });
     if (v.state === "ok") {
       const data = v.data || {};
-      if (data.access) { clearLavaReturn(); a2hsAfterPw = true; await routeHomeOrCheckout(); return; }  // после оплаты/пароля -> РЕАЛЬНЫЙ ДОМ, не заглушка; плашка «На экран Домой» там
+      if (data.access) { clearLavaReturn(); a2hsAfterPw = true; showPaidDone(state.email, state.order); return; }  // после оплаты/пароля -> «Готово» -> дом; плашка «На экран Домой» там
     } else if (v.status === 401) {
       showPwError("Сессия не подтвердилась. Обновите страницу и войдите снова.");
       pwLoading(false);
@@ -1364,6 +1409,60 @@ async function attachAndVerify(accessToken) {
   showPwError("Оплата обрабатывается. Обновите через минуту - доступ откроется. Если нет - напишите в поддержку.");
   els.btnRetry.hidden = false;
   pwLoading(false);
+}
+
+// Экран «Готово, доступ открыт» (18.10.2026): адрес, почта, номер заказа, во встроенном
+// браузере - выход в обычный. Зовут attachAndVerify и doClaim. Сессия уже есть, поэтому
+// перезагрузка отсюда уводит в дом обычным маршрутом.
+function showPaidDone(email, order) {
+  stripPaidParams();
+  hideEntryViews();
+  hidePayFlowExtra();
+  els.viewCheckout.hidden = true;
+  els.viewPassword.hidden = false;
+  els.pwLoading.hidden = true;
+  els.pwSuccess.hidden = true;
+  els.pwResolveError.hidden = true;
+  const out = document.getElementById("pw-dead-end-out"); if (out) out.hidden = true;
+  const done = document.getElementById("pw-done");
+  document.getElementById("done-email").textContent = email || "";
+  document.getElementById("done-order").textContent = order || "";
+  document.getElementById("done-order-row").hidden = !order;
+  const name = inAppName();
+  const inapp = document.getElementById("done-inapp");
+  inapp.hidden = !name;
+  if (name) {
+    document.getElementById("done-inapp-name").textContent = name;
+    document.getElementById("done-steps").innerHTML = inAppSteps().map((t) => "<li>" + t + "</li>").join("");
+  }
+  const go = document.getElementById("done-go");
+  go.className = "btn " + (name ? "btn-ghost" : "btn-primary");
+  go.textContent = name ? "Остаться здесь и начать" : "Начать";
+  const v = a2hsVariant() || "desktop";
+  track("a2hs_show", v + ":done", true);
+  if (!done.dataset.bound) {
+    done.dataset.bound = "1";
+    go.addEventListener("click", () => { go.disabled = true; routeHomeOrCheckout().finally(() => { go.disabled = false; }); });
+    document.getElementById("done-open").addEventListener("click", () => {
+      track("a2hs_click", (a2hsVariant() || "desktop") + ":done");
+      openInBrowser();
+    });
+    const copy = document.getElementById("done-copy");
+    copy.addEventListener("click", async () => {
+      const em = document.getElementById("done-email").textContent;
+      const ord = document.getElementById("done-order").textContent;
+      const text = "Приложение Ирены: app.irenabio.com\nПочта для входа: " + em + (ord ? "\nНомер заказа: " + ord : "");
+      try { await navigator.clipboard.writeText(text); }
+      catch {
+        const r = document.createRange(); r.selectNodeContents(document.querySelector(".done-card"));
+        const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      }
+      copy.textContent = "Скопировано";
+      setTimeout(() => { copy.textContent = "Скопировать всё"; }, 1600);
+    });
+  }
+  done.hidden = false;
+  window.scrollTo(0, 0);
 }
 
 function showAccess(validUntil) {
@@ -3892,7 +3991,7 @@ async function doClaim() {
       // аккаунт создан на сервере -> входим тем же паролем -> в приложение
       btn.textContent = "Входим...";
       const inn = await sb.auth.signInWithPassword({ email, password });
-      if (inn.data && inn.data.session) { await routeHomeOrCheckout(); return; }
+      if (inn.data && inn.data.session) { a2hsAfterPw = true; showPaidDone(email, order); return; }
       showClaimError(null, "Пароль создан. Войдите с ним.");
       setTimeout(showLogin, 1400);
       return;
@@ -5141,6 +5240,12 @@ const tributeOrder = /^trb_[0-9a-f]{24}$/.test(startParams.get("order") || "") ?
 if (tributeBack) {
   try { const u = new URL(location.href); u.searchParams.delete("tribute"); u.searchParams.delete("order"); history.replaceState(history.state, "", u); } catch (e) {}
 }
+// ?login=1 (18.10.2026): кнопка «Открыть в браузере» со встроенного браузера ведёт сюда, на вход.
+// Метку снимаем сразу: на iPhone экран Домой запоминает текущий адрес.
+const loginBack = startParams.get("login") === "1";
+if (loginBack) {
+  try { const u = new URL(location.href); u.searchParams.delete("login"); history.replaceState(history.state, "", u); } catch (e) {}
+}
 // Метка ?from=demo-<апп> в адресе ОСТАЁТСЯ (демо-копии её ставят), но на маршрут
 // больше не влияет: незалогиненная в любом случае попадает на витрину. Читать её
 // снова придётся, когда заведём source_tag в pending_checkouts.
@@ -5195,6 +5300,7 @@ if (startParams.get("paid") === "1" && startParams.get("order")) {
   // «Назад» с кассы и стрелкой, и браузером ведёт на витрину: scGoCheckout ставит
   // checkoutBackTo = "showcase" и кадр истории.
   if (startParams.get("buy") === "1") scGoCheckout();
+  else if (loginBack) showLogin();
   // Ручной возврат после Lava без входа. С витриной (22.09) бут сюда не смотрел, и женщина
   // после оплаты попадала на витрину вместо ожидания. Найдено 06.10.2026, живых оплат не было.
   else if (freshLavaReturn()) showPayWait();

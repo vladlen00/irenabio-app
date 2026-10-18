@@ -991,6 +991,20 @@ body.has-mini { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
 /* Пояснение про письма WayForPay: спокойный приглушённый текст, по левому краю (проза, не реквизит). */
 .pw-mail-note { font-size: 12px; color: var(--muted); line-height: 1.55; text-align: left; margin: 12px 2px 0; }
 .reset-hint { text-align: left; }
+/* Экран «Готово, доступ открыт» (18.10.2026): реквизиты возврата крупно, слева подпись, справа значение. */
+.done-card { background: var(--accent-wash); border: 1px solid var(--border); border-radius: 14px; padding: 6px 14px 14px; margin: 16px 0 12px; text-align: left; }
+.done-row { padding: 10px 0; border-bottom: 1px solid var(--border); }
+.done-label { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.done-val { display: block; margin-top: 3px; font-size: 16px; font-weight: 700; color: var(--text); word-break: break-all; user-select: all; -webkit-user-select: all; }
+.done-url { font-size: 21px; }
+.done-order { font-family: Consolas, "SF Mono", monospace; font-size: 15px; }
+.done-card .pw-order-copy { display: block; }
+.pending-card p.done-note { font-size: 14px; line-height: 1.5; text-align: left; margin: 0 2px 18px; }
+.done-inapp { text-align: left; border: 1px solid rgba(228,134,155,.45); border-radius: 16px; padding: 14px 16px 16px; margin: 0 0 16px; background: var(--card); }
+.done-inapp-title { display: block; font-size: 16px; color: var(--text); margin-bottom: 6px; }
+.pending-card .done-inapp p { font-size: 14px; line-height: 1.45; margin: 0 0 12px; }
+.pending-card .done-inapp p.done-inapp-sub { font-size: 13px; color: var(--muted); margin: 14px 0 0; }
+.done-inapp .a2hs-steps { margin-top: 10px; }
 
 /* ===================== НОВЫЙ ПОТОК ОПЛАТЫ (экраны 2/3/4) ===================== */
 /* экран 1: ссылка "Оплатить в рублях" */
