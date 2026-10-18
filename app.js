@@ -265,14 +265,37 @@ function a2hsStandalone() {
   try { if (window.matchMedia("(display-mode: standalone)").matches) return true; } catch (e) {}
   return window.navigator.standalone === true;
 }
+// Встроенный браузер приложения (18.10.2026): "" | ig | threads | fb | tg | tiktok | vk | other.
+// Признаки сверены с edge_logs 18.10: Инстаграм iOS 26 пишет в конце «Safari/604.1» (общий
+// признак его не поймал бы, ловим по названию), Телеграм Android - «Telegram-Android/» без «; wv)».
+// Тредс («Barcelona»), Фейсбук, ТикТок, ВК в логах не встречались - признаки общеизвестные.
+// Общие признаки: iPhone без «Safari/» и не Chrome/Firefox/Edge; Android с «; wv)». Окно
+// с экрана Домой на iPhone тоже без «Safari/» - его отсекает a2hsStandalone.
+function inAppKind() {
+  const ua = navigator.userAgent || "";
+  const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const android = /Android/.test(ua);
+  if ((!ios && !android) || a2hsStandalone()) return "";
+  if (/Barcelona/.test(ua)) return "threads";
+  if (/Instagram/.test(ua)) return "ig";
+  if (/FBAN|FBAV|FB_IAB|FB4A/.test(ua)) return "fb";
+  // TelegramWebviewProxy: встроенный браузер Телеграма не всегда пишет себя в UA.
+  if (/Telegram/.test(ua) || window.TelegramWebviewProxy) return "tg";
+  if (/musical_ly|BytedanceWebview|TikTok/i.test(ua)) return "tiktok";
+  if (/VKClient|VKAndroidApp/i.test(ua)) return "vk";
+  if (ios && !/Safari\//.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua)) return "other";
+  if (android && /; wv\)/.test(ua)) return "other";
+  return "";
+}
+const IN_APP_NAMES = { ig: "Инстаграма", threads: "Тредса", fb: "Фейсбука", tg: "Телеграма", tiktok: "ТикТока", vk: "ВК" };
+const isInAppV = (v) => !!v && (v === "other" || v in IN_APP_NAMES);
 function a2hsVariant() {
   const ua = navigator.userAgent || "";
   const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const android = /Android/.test(ua);
   if (!ios && !android) return "";
-  if (/Instagram|FBAN|FBAV|FB_IAB/.test(ua)) return "ig";
-  // TelegramWebviewProxy: встроенный браузер Телеграма на Android не всегда пишет себя в UA.
-  if (/Telegram/.test(ua) || window.TelegramWebviewProxy) return "tg";
+  const k = inAppKind();
+  if (k) return k;
   if (ios) return "ios";
   if (a2hsPrompt) return "android";
   // Chromium без beforeinstallprompt почти всегда значит «уже установлено» или «не дорос»:
@@ -309,38 +332,50 @@ function a2hsSteps(v) {
 //   нажатие ничего не делало). Только шаги через меню ··· и «Скопировать адрес». Меню
 //   открывает в Safari ТЕКУЩИЙ адрес, поэтому «Готово» ставит в строку ?login=1.
 const APP_LOGIN_URL = "https://app.irenabio.com/?login=1";
-function inAppIos() { return !!inAppName() && !/Android/.test(navigator.userAgent || ""); }
+function inAppIos() { return !!inAppKind() && !/Android/.test(navigator.userAgent || ""); }
+// Для «Ты сейчас внутри ...»: название в родительном падеже, неизвестное - «приложения».
 function inAppName() {
-  const v = a2hsVariant();
-  if (v === "tg") return "Телеграма";
-  if (v !== "ig") return "";
-  return /Instagram/.test(navigator.userAgent || "") ? "Инстаграма" : "Фейсбука";
+  const k = inAppKind();
+  return k ? (IN_APP_NAMES[k] || "приложения") : "";
 }
 // Только Android: на iPhone кнопки нет.
 function openInBrowser() {
   location.href = "intent://app.irenabio.com/?login=1#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=" +
     encodeURIComponent(APP_LOGIN_URL) + ";end";
 }
-// Названия пунктов: iPhone - как в меню Инстаграма (живая проверка 18.10.2026).
+// Точное название пункта - только где проверено живьём: Инстаграм на iPhone (18.10.2026).
+// Остальным общий шаг.
 function inAppSteps() {
-  if (/Android/.test(navigator.userAgent || "")) {
-    return ["Нажми " + a2hsGlyph("dotsV") + " вверху справа",
-            "Выбери «Открыть в браузере» или «Открыть в Chrome»"];
+  if (inAppKind() === "ig" && inAppIos()) {
+    return ["Нажми " + a2hsGlyph("dotsH") + " вверху справа",
+            "Выбери «Открыть в стороннем браузере»"];
   }
-  return ["Нажми " + a2hsGlyph("dotsH") + " вверху справа",
-          "Выбери «Открыть в стороннем браузере»"];
+  return ["Найди в меню приложения (обычно " + a2hsGlyph("dotsH") + " или " + a2hsGlyph("dotsV") +
+          " вверху справа) пункт «Открыть в браузере»"];
+}
+// «Скопировать адрес»: запасной путь, работает в любом встроенном браузере.
+async function copyLoginUrl(btn) {
+  track("a2hs_click", (a2hsVariant() || "desktop") + ":copy");
+  try { await navigator.clipboard.writeText(APP_LOGIN_URL); }
+  catch { window.prompt("Скопируй адрес:", APP_LOGIN_URL); }
+  btn.textContent = "Скопировано";
+  setTimeout(() => { btn.textContent = "Скопировать адрес"; }, 1600);
 }
 function a2hsCard(v, slot) {
   // Дом во встроенном браузере (18.10.2026): звать на экран Домой рано, сначала в обычный браузер.
   // iPhone: кнопки нет (не работает), шаги видны сразу. Android: кнопка intent://, шаги по нажатию.
-  if (slot === "home" && (v === "ig" || v === "tg")) {
+  // «Скопировать адрес» - во всех встроенных браузерах.
+  if (slot === "home" && isInAppV(v)) {
     const ios = inAppIos();
+    const where = v === "other" ? "Здесь приложение легко потерять" : "Внутри " + inAppName() + " приложение легко потерять";
     return '<div class="a2hs">' +
       '<button type="button" class="a2hs-x" aria-label="Закрыть"><i class="ti ti-x"></i></button>' +
       '<div class="a2hs-head"><img class="a2hs-ic" src="icon-192.png?v=3" alt="" width="44" height="44">' +
-      '<div class="a2hs-txt"><b>Открой в браузере</b><span>Внутри ' + inAppName() + ' приложение легко потерять</span></div></div>' +
+      '<div class="a2hs-txt"><b>Открой в браузере</b><span>' + where + '</span></div></div>' +
       (ios ? "" : '<button type="button" class="btn btn-primary a2hs-go">Открыть в браузере</button>') +
       '<ol class="a2hs-steps"' + (ios ? "" : " hidden") + ">" + inAppSteps().map((t) => "<li>" + t + "</li>").join("") + "</ol>" +
+      '<p class="a2hs-or">или скопируй адрес и вставь в Safari или Chrome</p>' +
+      '<button type="button" class="btn btn-ghost a2hs-copy">Скопировать адрес</button>' +
       '<p class="a2hs-note">В браузере войди той же почтой и паролем.</p></div>';
   }
   const android = v === "android";
@@ -378,12 +413,14 @@ function a2hsShow(slot) {
       b.hidden = true; b.innerHTML = ""; delete b.dataset.v;
     });
   });
+  const copyBtn = box.querySelector(".a2hs-copy");
+  if (copyBtn) copyBtn.addEventListener("click", () => copyLoginUrl(copyBtn));
   const goBtn = box.querySelector(".a2hs-go");   // на iPhone во встроенном браузере кнопки нет
   if (goBtn) goBtn.addEventListener("click", async () => {
     track("a2hs_click", v + ":" + slot);
     if (v !== "android") {
       const ol = box.querySelector(".a2hs-steps");
-      if (slot === "home" && (v === "ig" || v === "tg")) {
+      if (slot === "home" && isInAppV(v)) {
         if (ol) ol.hidden = false;   // кнопка могла не сработать: шаги остаются на экране
         openInBrowser();
         return;
@@ -1253,6 +1290,7 @@ async function enterPaymentReturn(order) {
       // Заказ найден -> ТОЛЬКО теперь показываем "Оплата прошла" + форму пароля.
       state.email = data.email;
       els.pwEmail.textContent = data.email;
+      const pwUser = document.getElementById("pw-username"); if (pwUser) pwUser.value = data.email;
       fillPwOrder(order);
       els.pwSuccess.hidden = false;
       els.pwForm.hidden = false;
@@ -1314,6 +1352,7 @@ function showPasswordForm(order, email, isLava) {
   els.btnRetry.hidden = true;
   showPwError("");
   els.pwEmail.textContent = email;
+  const pwUser = document.getElementById("pw-username"); if (pwUser) pwUser.value = email;
   fillPwOrder(order);
   const hint = document.getElementById("pw-lava-hint");
   if (hint) hint.hidden = !isLava;
@@ -1449,9 +1488,8 @@ function showPaidDone(email, order) {
     steps.classList.toggle("big", ios);
     document.getElementById("done-open").hidden = ios;
     document.getElementById("done-steps-sub").hidden = ios;
-    document.getElementById("done-copy-url").hidden = !ios;
   }
-  document.getElementById("done-arrow").hidden = !ios;
+  document.getElementById("done-arrow").hidden = inAppKind() !== "ig";   // меню проверено только у Инстаграма
   const go = document.getElementById("done-go");
   go.className = "btn " + (name ? "btn-ghost" : "btn-primary");
   go.textContent = name ? "Остаться здесь и начать" : "Начать";
@@ -1465,13 +1503,7 @@ function showPaidDone(email, order) {
       openInBrowser();
     });
     const copyUrl = document.getElementById("done-copy-url");
-    copyUrl.addEventListener("click", async () => {
-      track("a2hs_click", (a2hsVariant() || "desktop") + ":done_copy");
-      try { await navigator.clipboard.writeText(APP_LOGIN_URL); }
-      catch { window.prompt("Скопируй адрес:", APP_LOGIN_URL); }
-      copyUrl.textContent = "Скопировано";
-      setTimeout(() => { copyUrl.textContent = "Скопировать адрес"; }, 1600);
-    });
+    copyUrl.addEventListener("click", () => copyLoginUrl(copyUrl));
     const copy = document.getElementById("done-copy");
     copy.addEventListener("click", async () => {
       const em = document.getElementById("done-email").textContent;
@@ -1550,9 +1582,12 @@ els.email.addEventListener("input", () => { showEmailError(""); updateEmailEcho(
 updateEmailEcho();   // браузер мог восстановить значение поля при перезагрузке
 
 // слушатели экрана пароля
-els.btnEnter.addEventListener("click", onEnter);
-els.password.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); onEnter(); } });
-els.password2.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); onEnter(); } });
+// <form> (18.10.2026): кнопка отправляет форму, onEnter тот же. Enter в полях - через
+// requestSubmit, чтобы и он был отправкой формы (по ней браузер предлагает сохранить пароль).
+els.pwForm.addEventListener("submit", (e) => { e.preventDefault(); onEnter(); });
+const submitForm = (f, fn) => { if (f && f.requestSubmit) f.requestSubmit(); else fn(); };
+els.password.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); submitForm(els.pwForm, onEnter); } });
+els.password2.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); submitForm(els.pwForm, onEnter); } });
 els.password.addEventListener("input", validatePw);
 els.password2.addEventListener("input", validatePw);
 els.pwEye.addEventListener("click", () => {
@@ -4055,7 +4090,8 @@ async function doClaim() {
   const bind = (id, fn) => { const e = document.getElementById(id); if (e) e.addEventListener("click", fn); };
   bind("start-login", (e) => { e.preventDefault(); showLogin(); });
   bind("start-signup", (e) => { e.preventDefault(); checkoutBackTo = "start"; showCheckout(); });
-  bind("btn-login", (e) => { e.preventDefault(); doLogin(); });
+  const loginForm = document.getElementById("login-form");   // <form>: кнопка отправляет, doLogin тот же
+  if (loginForm) loginForm.addEventListener("submit", (e) => { e.preventDefault(); doLogin(); });
   // «Назад» с формы входа ведёт на ВИТРИНУ: это домашний экран незалогиненной.
   // Старт остался запасным экраном - на него падает сама showShowcase, если
   // витрина не загрузилась. До 22.09.2026 здесь был showStart, и женщина,
@@ -4093,8 +4129,9 @@ async function doClaim() {
     eye.textContent = masked ? "скрыть" : "показать";
   });
   const em = document.getElementById("login-email");
-  if (pw) pw.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); doLogin(); } });
-  if (em) em.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); doLogin(); } });
+  const lf = document.getElementById("login-form");
+  if (pw) pw.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); submitForm(lf, doLogin); } });
+  if (em) em.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); submitForm(lf, doLogin); } });
 })();
 
 // Роутинг: сессия -> get-home -> ДОМ или ЧЕКАУТ. Нет сессии -> СТАРТ (выбор войти/оформить).

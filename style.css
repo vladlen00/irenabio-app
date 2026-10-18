@@ -1008,8 +1008,10 @@ body.has-mini { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
 /* iPhone во встроенном браузере: шаги главное на экране, крупно. */
 .done-inapp .a2hs-steps.big li { font-size: 17px; line-height: 1.5; padding-left: 34px; margin-bottom: 14px; }
 .done-inapp .a2hs-steps.big li::before { width: 24px; height: 24px; line-height: 24px; font-size: 13px; }
-.done-inapp .pw-order-copy { display: block; }
-.done-inapp .pw-order-copy[hidden] { display: none; }
+.done-inapp .pw-order-copy { display: block; margin-top: 8px; }
+/* Подпись и кнопка «Скопировать адрес» на плашке дома. */
+.a2hs .a2hs-or { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
+.a2hs .a2hs-copy { display: block; width: auto; margin: 8px 0 0; padding: 9px 16px; font-size: 13px; border-radius: 10px; }
 /* Стрелка к меню ··· встроенного браузера: оно над страницей, в правом верхнем углу. */
 .done-arrow { position: fixed; top: 8px; right: 14px; z-index: 50; width: 44px; height: 44px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center; background: var(--brand-grad); color: var(--on-accent);

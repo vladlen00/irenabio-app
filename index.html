@@ -39,7 +39,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Био">
 
-  <link rel="stylesheet" href="style.css?v=98">
+  <link rel="stylesheet" href="style.css?v=99">
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. Файлы Google Fonts у себя (с 01.10.2026),
        собирает biohack/tools/irenabio-app/build_fonts.py. Браузер качает только нужные
        подмножества по unicode-range, как и с Google. -->
@@ -171,21 +171,24 @@
     <section id="view-login" hidden>
       <div class="login-card">
         <h1>Вход</h1>
+        <!-- Настоящая <form> (18.10.2026): иначе браузер не предлагает сохранить и подставить пароль. -->
+        <form id="login-form" action="#" method="post" novalidate>
         <label class="field" for="login-email">
           <span class="field-label">Почта</span>
-          <input id="login-email" type="email" inputmode="email" autocomplete="email"
+          <input id="login-email" name="username" type="email" inputmode="email" autocomplete="username"
                  placeholder="ваша@почта.com" autocapitalize="off" spellcheck="false">
         </label>
         <label class="field login-pw-label" for="login-password">
           <span class="field-label">Пароль</span>
           <div class="pw-field">
-            <input id="login-password" type="password" autocomplete="current-password"
+            <input id="login-password" name="password" type="password" autocomplete="current-password"
                    placeholder="Ваш пароль" autocapitalize="off" spellcheck="false">
             <button type="button" id="login-eye" class="pw-eye" aria-label="Показать пароль">показать</button>
           </div>
         </label>
         <p class="field-error" id="login-error" hidden></p>
-        <button class="btn btn-primary" id="btn-login" type="button">Войти</button>
+        <button class="btn btn-primary" id="btn-login" type="submit">Войти</button>
+        </form>
         <p class="alt-pay"><a href="#" id="login-to-signup" role="button">Нет аккаунта? Оформить подписку</a></p>
         <p class="alt-pay"><a href="#" id="login-to-reset" role="button">Забыли пароль?</a></p>
         <button class="btn btn-ghost" id="login-back" type="button">Назад</button>
@@ -199,7 +202,7 @@
         <p class="lead">Введите почту, номер заказа и новый пароль.</p>
         <label class="field" for="reset-email">
           <span class="field-label">Почта</span>
-          <input id="reset-email" type="email" inputmode="email" autocomplete="email"
+          <input id="reset-email" type="email" inputmode="email" autocomplete="username"
                  placeholder="ваша@почта.com" autocapitalize="off" spellcheck="false">
         </label>
         <label class="field" for="reset-order">
@@ -707,28 +710,31 @@
 
           <!-- ПОРЯДОК ЭКРАНА: сначала действие (логин, пароли, кнопка), справка НИЖЕ формы.
                Женщина в этот момент хочет войти, а не читать. -->
-          <div id="pw-form" hidden>
+          <!-- Настоящая <form> (18.10.2026): Safari и Chrome предлагают сохранить пароль только при
+               отправке формы, где рядом с паролем есть логин. Почта заказа - скрытым полем username. -->
+          <form id="pw-form" action="#" method="post" novalidate hidden>
             <p class="muted login-line">Ваш логин: <strong id="pw-email"></strong></p>
+            <input id="pw-username" class="sr-only" type="email" name="username" autocomplete="username" readonly tabindex="-1" aria-hidden="true">
             <div class="pw-field">
-              <input id="password" type="password" inputmode="text" autocomplete="new-password"
+              <input id="password" name="new-password" type="password" inputmode="text" autocomplete="new-password"
                      placeholder="Пароль, минимум 8 символов" minlength="8"
                      autocapitalize="off" spellcheck="false">
               <button type="button" id="pw-eye" class="pw-eye" aria-label="Показать пароль">показать</button>
             </div>
             <div class="pw-field">
-              <input id="password2" type="password" inputmode="text" autocomplete="new-password"
+              <input id="password2" name="new-password-repeat" type="password" inputmode="text" autocomplete="new-password"
                      placeholder="Повторите пароль" autocapitalize="off" spellcheck="false">
             </div>
             <p class="field-error" id="pw-error" hidden></p>
             <!-- Появляется только вместе с ошибкой "аккаунт уже есть": почта и номер заказа
                  на этом экране известны, поэтому в восстановление уходим с заполненными полями. -->
             <p class="alt-pay" id="pw-forgot" hidden><a href="#" id="pw-forgot-link" role="button">Не помню пароль</a></p>
-            <button id="btn-enter" class="btn btn-primary" type="button" disabled>Открыть доступ</button>
+            <button id="btn-enter" class="btn btn-primary" type="submit" disabled>Открыть доступ</button>
             <button id="btn-retry" class="btn btn-ghost" type="button" hidden>Повторить</button>
             <!-- Старая ссылка ?paid=1&order= после того, как пароль уже задан (18.10.2026): сервер
                  этого не различает и снова просит придумать пароль. Отсюда - прямо на вход. -->
             <p class="alt-pay" id="pw-have-login"><a href="#" id="pw-have-login-link" role="button">Пароль уже есть? Войти</a></p>
-          </div>
+          </form>
 
           <!-- СПРАВКА, ниже формы. Номер заказа: сам номер, одна строка зачем он, кнопка копирования.
                Про скриншот не пишем - кнопка копирования эту просьбу заменяет. -->
@@ -768,12 +774,13 @@
                молчала. Там кнопки нет: два шага крупно, стрелка к меню и «Скопировать адрес».
                Android: кнопка intent:// и шаги запасным путём. Раскладку ставит showPaidDone. -->
           <div class="done-inapp" id="done-inapp" hidden>
-            <b class="done-inapp-title">Ты сейчас внутри <span id="done-inapp-name">Инстаграма</span></b>
+            <b class="done-inapp-title">Ты сейчас внутри <span id="done-inapp-name">приложения</span></b>
             <p>Здесь приложение легко потерять: закроешь окно, и ссылки не останется. Открой его в обычном браузере.</p>
             <button type="button" id="done-open" class="btn btn-primary">Открыть в браузере</button>
             <p class="done-inapp-sub" id="done-steps-sub">Если кнопка не сработала:</p>
             <ol class="a2hs-steps" id="done-steps"></ol>
-            <button type="button" id="done-copy-url" class="btn btn-ghost pw-order-copy" hidden>Скопировать адрес</button>
+            <p class="done-inapp-sub">или скопируй адрес и вставь в Safari или Chrome</p>
+            <button type="button" id="done-copy-url" class="btn btn-ghost pw-order-copy">Скопировать адрес</button>
             <p class="done-inapp-sub">В браузере войди той же почтой и паролем.</p>
             <div class="done-arrow" id="done-arrow" aria-hidden="true" hidden>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
@@ -907,6 +914,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=171"></script>
+  <script src="app.js?v=172"></script>
 </body>
 </html>
