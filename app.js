@@ -409,7 +409,7 @@ function a2hsCard(v, slot) {
   return '<div class="a2hs">' +
     '<button type="button" class="a2hs-x" aria-label="Закрыть"><i class="ti ti-x"></i></button>' +
     '<div class="a2hs-head"><img class="a2hs-ic" src="icon-192.png?v=3" alt="" width="44" height="44">' +
-    '<div class="a2hs-txt"><b>Добавь на экран Домой</b><span>Ирена Био будет открываться одним касанием, как приложение</span></div></div>' +
+    '<div class="a2hs-txt"><b>Добавь на экран Домой</b><span>Приложение будет открываться одним касанием, прямо с экрана телефона</span></div></div>' +
     note +
     '<button type="button" class="btn ' + (android ? "btn-primary" : "btn-ghost") + ' a2hs-go">' +
     (android ? "Установить" : "Как добавить") + "</button>" + steps + "</div>";
@@ -2423,7 +2423,7 @@ function plurDaysLeft(n) {
 function memcardHtml(kind, chip, sub, rightLabel, rightValue) {
   const since = sub.started_at ? fmtMonthYear(sub.started_at) : "";
   return '<div class="memcard ' + kind + '">' +
-    '<div class="mtop"><span class="mbrand">ИРЕНА БИО</span><span class="mchip">' + escapeHtml(chip) + '</span></div>' +
+    '<div class="mtop"><span class="mbrand">ПРИЛОЖЕНИЕ ИРЕНЫ</span><span class="mchip">' + escapeHtml(chip) + '</span></div>' +
     '<div class="mname">Полный доступ</div>' +
     '<div class="mline">' +
       (since ? '<div><span>Участница с</span><b>' + escapeHtml(since) + '</b></div>' : '<div></div>') +

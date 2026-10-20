@@ -11,7 +11,7 @@
        irena_theme='light'. Тумблера больше нет, светлых токенов тоже - ключ снимаем, иначе
        он вечно висит мусором и путает при отладке. -->
   <script>(function(){try{document.documentElement.setAttribute('data-theme','dark');if(localStorage.getItem('irena_theme')==='light')localStorage.removeItem('irena_theme');}catch(e){}})();</script>
-  <title>Женский биохакинг с Иреной Пол - оформление</title>
+  <title>Женский Биохакинг с Иреной Пол</title>
   <!-- ИКОНКИ. Все PNG намеренно БЕЗ прозрачности: iOS скругляет углы сама, а
        прозрачный PNG на части версий даёт чёрную подложку.
        ?v= бампать ОБЯЗАТЕЛЬНО при любой замене: фавиконы браузеры держат в кэше
@@ -34,10 +34,10 @@
        black-translucent = статус-бар прозрачный и контент уезжает ПОД него; отступ
        держит env(safe-area-inset-top) у main.wrap.checkout, добавленный 15.08.
        apple-mobile-web-app-title - подпись ПОД иконкой. Без него подтянулся бы
-       <title>, а там «оформление». -->
+       <title>, а он длинный для подписи. -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Ирена Био">
+  <meta name="apple-mobile-web-app-title" content="Ирена Пол">
 
   <link rel="stylesheet" href="style.css?v=100">
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. Файлы Google Fonts у себя (с 01.10.2026),
@@ -917,6 +917,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=173"></script>
+  <script src="app.js?v=174"></script>
 </body>
 </html>
