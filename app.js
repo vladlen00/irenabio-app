@@ -27,6 +27,7 @@ const VERIFY_ACCESS_URL = SUPABASE_URL + "/functions/v1/verify-access-web";
 const GET_HOME_URL = SUPABASE_URL + "/functions/v1/get-home";
 const GET_DAY_URL = SUPABASE_URL + "/functions/v1/get-day";
 const GET_PUBLIC_URL = SUPABASE_URL + "/functions/v1/get-public";   // витрина: без авторизации
+const GET_FILE_URL = SUPABASE_URL + "/functions/v1/get-file";       // файлы справочников: ссылка на час после проверки подписки
 const MARK_DAY_DONE_URL = SUPABASE_URL + "/functions/v1/mark-day-done";
 const SET_CURRENT_SPRINT_URL = SUPABASE_URL + "/functions/v1/set-current-sprint";   // ЯВНЫЙ выбор спринта
 const PROJECT_REF = "kjzxrpwqyyjcykwbqskn";
@@ -5081,8 +5082,10 @@ function openHandbook(which) {
           (d.subtitle && d.subtitle.trim() ? '<div class="sprint-day-sub">' + escapeHtml(d.subtitle.trim()) + "</div>" : "") +
           "</div></div>";
       } else {
+        // Файл (20.10.2026): лежит в закрытом хранилище, ссылку на час даёт get-file после
+        // проверки подписки. Строка рисуется без адреса, signHandbookFiles вставит его сам.
         const isPdf = /\.pdf$/i.test(it.file);
-        rows += '<a class="sprint-day hb-row" href="' + escapeHtml(it.file) + '" target="_blank" rel="noopener">' +
+        rows += '<a class="sprint-day hb-row" data-hb-file="' + escapeHtml(hbFileSlug(it.file)) + '" target="_blank" rel="noopener">' +
           '<div class="sprint-day-ic"><i class="ti ' + (isPdf ? "ti-file-type-pdf" : "ti-books") + '"></i></div>' +
           '<div class="sprint-day-main"><div class="sprint-day-title">' + escapeHtml(it.t) + "</div>" +
           '<div class="sprint-day-sub">' + (isPdf ? "PDF" : "Картинка") + "</div></div></a>";
@@ -5092,7 +5095,47 @@ function openHandbook(which) {
   }
   document.getElementById("handbook-list").innerHTML = html || '<p class="home-loading">Скоро здесь появятся записи.</p>';
   window.scrollTo(0, 0);
+  signHandbookFiles();
 }
+
+// "files/shpargalka-zhelezo.pdf" -> "shpargalka-zhelezo" (slug в club_files).
+function hbFileSlug(path) {
+  return String(path || "").split("/").pop().replace(/\.[a-z0-9]+$/i, "");
+}
+// Ссылки на файлы справочника одним запросом на весь экран. Живут час: экран подписывает
+// их при каждом открытии и заново, если вкладка простояла дольше HB_FILES_FRESH_MS.
+// Сбой - строки остаются без адреса, нажатие повторяет запрос.
+const HB_FILES_FRESH_MS = 45 * 60 * 1000;
+let hbFilesAt = 0;
+let hbFilesBusy = null;
+function signHandbookFiles() {
+  const rows = Array.from(document.querySelectorAll("#handbook-list [data-hb-file]"));
+  if (!rows.length) return Promise.resolve(false);
+  if (hbFilesBusy) return hbFilesBusy;
+  hbFilesBusy = (async () => {
+    const slugs = Array.from(new Set(rows.map((r) => r.getAttribute("data-hb-file"))));
+    const s = await getSessionState({ retry: true });
+    if (s.state !== "ok") return false;
+    const r = await sbFetch(GET_FILE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + s.token },
+      body: JSON.stringify({ slugs, ttl: 3600 }),
+    }, { retry: true });   // чтение, идемпотентно
+    const files = r.state === "ok" && r.data && r.data.ok ? (r.data.files || {}) : null;
+    if (!files) { console.warn("get-file:", r.state, r.status, r.data && r.data.error); return false; }
+    rows.forEach((row) => {
+      const f = files[row.getAttribute("data-hb-file")];
+      if (f && f.url) row.setAttribute("href", f.url); else row.removeAttribute("href");
+    });
+    hbFilesAt = Date.now();
+    return true;
+  })().finally(() => { hbFilesBusy = null; });
+  return hbFilesBusy;
+}
+document.addEventListener("visibilitychange", () => {
+  const view = document.getElementById("view-handbook");
+  if (document.visibilityState === "visible" && view && !view.hidden && Date.now() - hbFilesAt > HB_FILES_FRESH_MS) signHandbookFiles();
+});
 
 function plurEpisodes(n) {
   const t = n % 100, o = n % 10;
@@ -5269,6 +5312,18 @@ function navBack() {
     if (sc) { navTo("sprint", sc.getAttribute("data-sprint-id")); return; }
     const hbApp = e.target.closest(".hb-row[data-hb-app]");
     if (hbApp) { openMiniApp(hbApp.getAttribute("data-hb-app"), hbApp); return; }
+    // Файл без адреса (ссылка ещё не пришла или запрос сорвался): просим заново. Окно
+    // открывать здесь нельзя - после await браузер его заблокирует, нажмёт второй раз.
+    // Адрес старше часа тоже не открываем: хранилище ответит отказом.
+    const hbFile = e.target.closest(".hb-row[data-hb-file]");
+    if (hbFile && (!hbFile.getAttribute("href") || Date.now() - hbFilesAt > HB_FILES_FRESH_MS)) {
+      e.preventDefault();
+      const sub = hbFile.querySelector(".sprint-day-sub");
+      const was = sub ? sub.textContent : "";
+      if (sub) sub.textContent = "Готовим файл…";
+      signHandbookFiles().then((ok) => { if (sub) sub.textContent = ok ? "Готово, нажми ещё раз" : "Не получилось, нажми ещё раз"; setTimeout(() => { if (sub) sub.textContent = was; }, 4000); });
+      return;
+    }
     const sd = e.target.closest(".sprint-day[data-day-id]");
     if (sd && !sd.classList.contains("locked")) { navTo("day", sd.getAttribute("data-day-id")); return; }
   });
