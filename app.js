@@ -2674,8 +2674,8 @@ const MINI_APPS = {
   cycle: { url: "https://vladlen00.github.io/cycle/", v: "3", path: "/cycle/" },
   // Курс «Игра в долгую», широкая карточка под Подружкой (02.10). С path, как glutes: вход тот же
   // (verify-app-token), localStorage курс не трогает, ролики Kinescope разрешены и для
-  // app.irenabio.com. v сверен с START_ROUTES студии (/dolgaya/?v=2).
-  dolgaya: { url: "https://vladlen00.github.io/dolgaya/", v: "2", path: "/dolgaya/" },
+  // app.irenabio.com. v сверен с START_ROUTES студии (/dolgaya/?v=3).
+  dolgaya: { url: "https://vladlen00.github.io/dolgaya/", v: "3", path: "/dolgaya/" },
   // relax БЕЗ path СОЗНАТЕЛЬНО: с нашего origin рвётся возврат из медитаций в студию
   // (кнопка возврата забирает остаток прошлой сессии и затирает им свежий токен).
   // Воспроизведено дважды на живом. См. исключение в sw.js.
@@ -3607,7 +3607,7 @@ function freeLeadText(n) {
 // самого курса. Файл грузится только при открытии экрана, путь как у openMiniApp (свой
 // origin при живом воркере, иначе github.io). ?v= держать равным content.js?v= в
 // dolgaya/index.html, иначе гостья до 10 минут видит прежний текст.
-const DOLGAYA_CONTENT_V = "2";
+const DOLGAYA_CONTENT_V = "3";
 const UROK_QUALITY = "480p";   // стартовое качество: бережёт трафик
 
 function dolgayaBase() {
