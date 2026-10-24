@@ -5426,6 +5426,39 @@ async function paidWithSession(order) {
   routeHomeOrCheckout({ paidFallback: () => enterPaymentReturn(order) });
 }
 
+// ?goal=<id> с лендинга irenabio.com (24.10.2026): витрина гостьи открывается сразу на нужном.
+// Подписчица и протухший вход по такой ссылке идут прежним путём (дом / витрина без шторки).
+// deficits - шторка Справочников (анализы, добавки), она есть у гостьи с 05.10; неизвестное
+// значение - просто витрина. Метку снимаем из адреса при первом
+// чтении (src и utm остаются): иначе перезагрузка снова открывала бы шторку или урок.
+// love обрабатывает бут (урок без витрины под ним, как #urok).
+const GOAL_SPRINT = { sleep: "sleep", weight: "nutrition", hormones: "perimenopause", gut: "gut-body" };
+const GOAL_TOOL = { body: "trainings", calm: "relax" };
+let scGoal;
+function scTakeGoal() {
+  if (scGoal !== undefined) return scGoal;
+  scGoal = null;
+  try {
+    const u = new URL(location.href);
+    scGoal = u.searchParams.get("goal");
+    if (scGoal !== null) { u.searchParams.delete("goal"); history.replaceState(history.state, "", u); }
+  } catch (e) {}
+  return scGoal;
+}
+// shown - промис showShowcase: снимок уже нарисован синхронно, живой ответ ещё идёт.
+async function scOpenGoal(goal, shown) {
+  const tool = GOAL_TOOL[goal] && SC_TOOLS.find((t) => t.key === GOAL_TOOL[goal]);
+  if (tool) { openLockSheet("tool", tool); return; }
+  if (goal === "deficits") { openLockSheet("handbook"); return; }
+  const slug = GOAL_SPRINT[goal];
+  if (!slug) return;
+  const find = () => scSprints().find((x) => x.cover_slug === slug);
+  let s = find();
+  if (!s) { await shown; s = find(); }   // снимка не было: ждём живой ответ
+  const v = document.getElementById("view-showcase");
+  if (s && v && !v.hidden) openLockSheet("sprint", s);   // за время ожидания могла уйти с витрины
+}
+
 // --- старт: ветвление возврат-после-оплаты / дом / чекаут ---
 const startParams = new URLSearchParams(location.search);
 // Возврат с Lava по адресу возврата (?lava=ok|fail|cancel). Метку снимаем сразу: адрес
@@ -5505,13 +5538,13 @@ if (startParams.get("paid") === "1" && startParams.get("order")) {
   // Ручной возврат после Lava без входа. С витриной (22.09) бут сюда не смотрел, и женщина
   // после оплаты попадала на витрину вместо ожидания. Найдено 06.10.2026, живых оплат не было.
   else if (freshLavaReturn()) showPayWait();
-  else if (location.hash === "#urok") {
-    // Прямая ссылка на бесплатный урок (сторис, шапка инстаграма). Под урок кладём
-    // витрину основанием истории: «назад» из урока ведёт на неё, а не прочь с сайта.
+  else if (location.hash === "#urok" || scTakeGoal() === "love") {
+    // Прямая ссылка на бесплатный урок (сторис, шапка инстаграма, ?goal=love с лендинга).
+    // Под урок кладём витрину основанием истории: «назад» из урока ведёт на неё, а не прочь с сайта.
     scMarkShowcase();
     openUrok();
   }
-  else showShowcase();
+  else scOpenGoal(scTakeGoal(), showShowcase());
 } else {
   routeHomeOrCheckout();                           // дом / чекаут / (stash -> экран ожидания)
 }
