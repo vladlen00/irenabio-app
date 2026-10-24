@@ -591,6 +591,11 @@
           &middot;
           <a href="#" data-session-exit="start" style="color:inherit;text-decoration:underline">Выйти</a>
         </p>
+        <!-- ВХОД С КАССЫ ДЛЯ ГОСТЬИ (24.10.2026): подписчица с протухшим входом приходит сюда
+             по ?buy=1 и не должна платить второй раз. Скрывается, когда показан блок выше. -->
+        <p class="reassure" id="checkout-guest-login">
+          Уже есть подписка? <a href="#" id="checkout-to-login" style="color:inherit;text-decoration:underline">Войти</a>
+        </p>
 
         <!-- ЭХО АДРЕСА вместо второго поля "Повторите почту" (2026-08-28).
              Опечатка в почте стоит доступа: почта это ЕДИНСТВЕННЫЙ ключ к аккаунту, писем мы
@@ -917,6 +922,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=178"></script>
+  <script src="app.js?v=180"></script>
 </body>
 </html>

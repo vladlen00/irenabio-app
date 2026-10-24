@@ -1855,6 +1855,7 @@ async function fillSessionBlock(boxId, emailId) {
 }
 async function fillCheckoutSession() {
   const email = await fillSessionBlock("checkout-session", "checkout-session-email");
+  const g = document.getElementById("checkout-guest-login"); if (g) g.hidden = !!email;
   lockCheckoutEmail(email);
 }
 // Почта залогиненной подставляется и ЗАКРЫВАЕТСЯ от правки: другой адрес в форме =
@@ -1890,6 +1891,9 @@ document.addEventListener("click", (e) => {
   e.preventDefault();
   sessionExit(a.getAttribute("data-session-exit"));
 });
+// «Уже есть подписка? Войти» на кассе у гостьи (24.10.2026): подписчица с протухшим входом
+// не платит второй раз, а входит. Назад со входа ведёт на витрину (login-back).
+document.getElementById("checkout-to-login")?.addEventListener("click", (e) => { e.preventDefault(); showLogin(); });
 
 function showCheckout() {
   hideEntryViews();
@@ -4184,6 +4188,20 @@ function openReturnDay() {
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) openDay(id);
 }
 
+// ?buy=1 (кнопка «оформить доступ» с лендинга и демо). Читаем один раз при загрузке и
+// гасим после первого использования: адрес с ?buy=1 остаётся в истории, а routeHomeOrCheckout
+// зовётся повторно (Повторить, возврат), и касса не должна открываться каждый раз.
+let buyIntent = (function () {
+  try { return new URLSearchParams(location.search).get("buy") === "1"; } catch (e) { return false; }
+})();
+// Протухший вход + ?buy=1 (24.10.2026). Раньше такая женщина попадала на витрину: ветка
+// ?buy=1 стоит только у «ключа сессии нет вовсе». Мёртвый ключ снимаем локально, без сети,
+// иначе hasStoredSession продолжит врать и «назад» с кассы (scRouteByHash) не вернёт на витрину.
+async function buyWithDeadSession() {
+  try { await sb.auth.signOut({ scope: "local" }); } catch (e) {}
+  scGoCheckout();
+}
+
 async function routeHomeOrCheckout(opts) {
   const paidFallback = opts && typeof opts.paidFallback === "function" ? opts.paidFallback : null;
   const again = () => routeHomeOrCheckout(opts);
@@ -4197,7 +4215,12 @@ async function routeHomeOrCheckout(opts) {
   };
   // Незалогиненная (и та, у кого сессия протухла) видит ВИТРИНУ, а не голый старт:
   // это её домашний экран, и кнопка "Войти" стоит прямо в герое.
-  const noSession = () => { if (paidFallback) return paidFallback(); if (readLavaReturn()) showPayWait(); else showShowcase(); };
+  const noSession = () => {
+    if (paidFallback) return paidFallback();
+    if (readLavaReturn()) { showPayWait(); return; }
+    if (buyIntent) { buyIntent = false; buyWithDeadSession(); return; }
+    showShowcase();
+  };
 
   // Синхронный пик сохранённой сессии -> прячем чекаут сразу, без мигания.
   // Сессии НЕТ вообще -> человек не залогинен, это не сетевая ситуация -> старт.
