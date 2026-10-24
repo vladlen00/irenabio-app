@@ -4978,6 +4978,7 @@ const HANDBOOK = [
     { t: "Инозитол", day: ["glutes", 35] },
     { t: "Ежовик", day: ["handbook", 4] },
     { t: "Арабиногалактан", day: ["handbook", 7] },
+    { t: "Астаксантин", day: ["handbook", 8] },
   ] },
   { title: "Анализы", items: [
     { t: "Какие анализы и когда сдавать", day: ["nutrition", 2] },
