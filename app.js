@@ -3041,12 +3041,24 @@ function loadPublicLibrary() {
       const d = r.data || {};
       if (r.state === "ok" && scValid(d)) {
         publicData = d;
+        lockSheetFillPrice();
         try { localStorage.setItem(SC_STORE_KEY, JSON.stringify({ at: Date.now(), data: scStripPrice(d) })); } catch (e) {}
       }
       return publicData;
     }).finally(() => { publicLibPromise = null; });
   }
   return publicLibPromise;
+}
+
+// Шторка, открытая до живого get-public (?goal= сразу при загрузке, витрина из снимка без
+// цены), рисуется с «Оформить подписку». Цена приехала: дописываем её в кнопки открытой
+// шторки теми же словами, что в openLockSheet (26.10.2026).
+function lockSheetFillPrice() {
+  const price = scPrice(publicData && publicData.price);
+  if (!price) return;
+  document.querySelectorAll("#lock-panel [data-price-cta]").forEach((b) => {
+    b.textContent = (b.getAttribute("data-price-cta") === "one" ? "Открыть за " : "Открыть всё за ") + price + " в месяц";
+  });
 }
 
 // Полоска с ценой живёт только вместе с витриной.
@@ -3326,7 +3338,7 @@ function openLockSheet(kind, payload) {
         '<div class="lock-head"><img src="icons/dolgaya-card.png?v=1" alt="" width="52" height="52">' +
           "<div><b>Игра в долгую</b><span>курс об отношениях" + (D ? " · " + D.seasons.length + " сезонов" : "") + "</span></div></div>" +
         '<div class="lock-lead">Этот урок открыт по подписке' + (lessons ? ": весь курс, " + lessons + " уроков, методички и задания." : ".") + "</div>" +
-        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy-urok>' + escapeHtml(buyAll) + "</button>" +
+        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy-urok data-price-cta="all">' + escapeHtml(buyAll) + "</button>" +
         '<div class="lock-note">отмена в любой момент</div>' +
         hurry +
       "</div>";
@@ -3344,7 +3356,7 @@ function openLockSheet(kind, payload) {
           handbookGuestRows(sec).map((t) =>
             '<div class="lock-day rest"><i class="ti ti-lock"></i><span>' + escapeHtml(t) + "</span></div>").join("")
         ).join("") +
-        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>' + escapeHtml(buyAll) + "</button>" +
+        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy data-price-cta="all">' + escapeHtml(buyAll) + "</button>" +
         hurry +
       "</div>";
   } else if (kind === "tool") {
@@ -3361,7 +3373,7 @@ function openLockSheet(kind, payload) {
           : '<div class="lock-day free" data-demo="' + escapeHtml(it.demo) + '"><i class="ti ti-player-play"></i>' +
             "<span>" + escapeHtml(it.name) + "</span><span class=\"sc-chip sc-chip-try\">попробовать</span></div>"
         ).join("") +
-        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>' + escapeHtml(buyAll) + "</button>" +
+        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy data-price-cta="all">' + escapeHtml(buyAll) + "</button>" +
         hurry +
       "</div>";
   } else if (scIncomplete(payload) || scNotYet(payload)) {
@@ -3383,7 +3395,7 @@ function openLockSheet(kind, payload) {
         (about
           ? '<div class="lock-lead">' + escapeHtml(about) + '</div><div class="lock-note lock-note-left">Дни добавляются в приложение постепенно</div>'
           : '<div class="lock-lead">Скоро откроется</div>') +
-        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>' + escapeHtml(buyAll) + "</button>" +
+        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy data-price-cta="all">' + escapeHtml(buyAll) + "</button>" +
         hurry +
       "</div>";
   } else {
@@ -3414,7 +3426,7 @@ function openLockSheet(kind, payload) {
         }).join("") +
         (rest > 0 ? '<div class="lock-day rest"><i class="n">…</i><span>и ещё ' + escapeHtml(plurDays(rest)) + "</span></div>" : "") +
         "</div>" : "") +
-        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>' + escapeHtml(buyOne) + "</button>" +
+        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy data-price-cta="one">' + escapeHtml(buyOne) + "</button>" +
         scAltHtml(s, free) +
         hurry +
       "</div>";
@@ -3651,14 +3663,14 @@ function gkLessonsCount(D) {
 function fillUrokBuy() {
   const price = scPrice(publicData && publicData.price);
   const D = window.DOLGAYA;
-  const what = D ? "Все " + D.seasons.length + " сезонов, " + gkLessonsCount(D) + " уроков, методички и задания в клубе."
-                 : "Весь курс, методички и задания в клубе.";
+  const what = D ? "Все " + D.seasons.length + " сезонов, " + gkLessonsCount(D) + " уроков, методички и задания в подписке."
+                 : "Весь курс, методички и задания в подписке.";
   document.querySelectorAll("#view-urok .urok-buy-slot").forEach((slot) => {
     slot.innerHTML =
       '<div class="card urok-buy">' +
         '<p class="urok-buy-lead">' + escapeHtml(what) + "</p>" +
         '<button type="button" class="btn btn-primary urok-buy-btn" data-urok-buy>' +
-          (price ? "Вступить в клуб за " + escapeHtml(price) + " в месяц" : "Вступить в клуб") + "</button>" +
+          (price ? "Оформить подписку за " + escapeHtml(price) + " в месяц" : "Оформить подписку") + "</button>" +
         '<div class="urok-buy-note">откроется сразу после оплаты, отмена в любой момент</div>' +
       "</div>";
   });
@@ -5433,8 +5445,8 @@ async function paidWithSession(order) {
 // чтении (src и utm остаются): иначе перезагрузка снова открывала бы шторку или урок.
 // love обрабатывает бут (урок без витрины под ним, как #urok).
 // glutes (25.10.2026) - шторка программы «Биохакинг ягодиц», а если её на витрине нет,
-// шторка «Тренировки» (GOAL_TOOL_FALLBACK).
-const GOAL_SPRINT = { sleep: "sleep", weight: "nutrition", hormones: "perimenopause", gut: "gut-body", glutes: "glutes" };
+// шторка «Тренировки» (GOAL_TOOL_FALLBACK). youth (26.10.2026) - «Омоложение изнутри».
+const GOAL_SPRINT = { sleep: "sleep", weight: "nutrition", hormones: "perimenopause", gut: "gut-body", glutes: "glutes", youth: "rejuvenation" };
 const GOAL_TOOL = { body: "trainings", calm: "relax" };
 const GOAL_TOOL_FALLBACK = { glutes: "trainings" };
 function scGoalTool(key) { return key && SC_TOOLS.find((t) => t.key === key); }
