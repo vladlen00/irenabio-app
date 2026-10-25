@@ -5432,8 +5432,12 @@ async function paidWithSession(order) {
 // значение - просто витрина. Метку снимаем из адреса при первом
 // чтении (src и utm остаются): иначе перезагрузка снова открывала бы шторку или урок.
 // love обрабатывает бут (урок без витрины под ним, как #urok).
-const GOAL_SPRINT = { sleep: "sleep", weight: "nutrition", hormones: "perimenopause", gut: "gut-body" };
+// glutes (25.10.2026) - шторка программы «Биохакинг ягодиц», а если её на витрине нет,
+// шторка «Тренировки» (GOAL_TOOL_FALLBACK).
+const GOAL_SPRINT = { sleep: "sleep", weight: "nutrition", hormones: "perimenopause", gut: "gut-body", glutes: "glutes" };
 const GOAL_TOOL = { body: "trainings", calm: "relax" };
+const GOAL_TOOL_FALLBACK = { glutes: "trainings" };
+function scGoalTool(key) { return key && SC_TOOLS.find((t) => t.key === key); }
 let scGoal;
 function scTakeGoal() {
   if (scGoal !== undefined) return scGoal;
@@ -5447,7 +5451,7 @@ function scTakeGoal() {
 }
 // shown - промис showShowcase: снимок уже нарисован синхронно, живой ответ ещё идёт.
 async function scOpenGoal(goal, shown) {
-  const tool = GOAL_TOOL[goal] && SC_TOOLS.find((t) => t.key === GOAL_TOOL[goal]);
+  const tool = scGoalTool(GOAL_TOOL[goal]);
   if (tool) { openLockSheet("tool", tool); return; }
   if (goal === "deficits") { openLockSheet("handbook"); return; }
   const slug = GOAL_SPRINT[goal];
@@ -5456,7 +5460,10 @@ async function scOpenGoal(goal, shown) {
   let s = find();
   if (!s) { await shown; s = find(); }   // снимка не было: ждём живой ответ
   const v = document.getElementById("view-showcase");
-  if (s && v && !v.hidden) openLockSheet("sprint", s);   // за время ожидания могла уйти с витрины
+  if (!v || v.hidden) return;   // за время ожидания могла уйти с витрины
+  if (s) { openLockSheet("sprint", s); return; }
+  const fallback = scGoalTool(GOAL_TOOL_FALLBACK[goal]);
+  if (fallback) openLockSheet("tool", fallback);
 }
 
 // --- старт: ветвление возврат-после-оплаты / дом / чекаут ---
