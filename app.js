@@ -3321,9 +3321,9 @@ function openLockSheet(kind, payload) {
           '<div class="lock-bub her">И ежедневный приём мешает усвоению: через день выходит больше, чем каждый день.</div>' +
         "</div>" +
         '<div class="lock-list">' +
+          "<div><i>•</i><span>Это не обычный ChatGPT, а наша собственная разработка, лучшая среди ИИ: она опирается на современные исследования в сфере здоровья и биохакинга</span></div>" +
           "<div><i>•</i><span>Присылаешь фото анализов, она разбирает по функциональным нормам</span></div>" +
           "<div><i>•</i><span>Помнит твои добавки, цикл и прошлые вопросы</span></div>" +
-          "<div><i>•</i><span>Отвечает по материалам Ирены, а не по интернету</span></div>" +
         "</div>" +
         '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>Открыть Подружку</button>' +
         '<div class="lock-note">' + escapeHtml(podNote) + "</div>" +
