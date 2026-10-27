@@ -28,6 +28,18 @@
   <!-- Манифест (07.10.2026): без него Android Chrome не даёт кнопку «Установить»
        (beforeinstallprompt). Название, иконки и цвет - в manifest.webmanifest. -->
   <link rel="manifest" href="manifest.webmanifest">
+  <!-- Яндекс Метрика (24.10.2026): ТОТ ЖЕ счётчик, что у лендинга irenabio.com, ради цели
+       purchase на экране «Готово» (ymPurchase в app.js). Номер ровно здесь; 0 = выключен,
+       tag.js не грузится. Вебвизор выключен: в политике обещана обезличенная статистика.
+       Счётчик ставится при первом заходе с лендинга, поэтому запоминает метки рекламы
+       (yclid, utm) до ухода в кассу; адреса возврата касс их уже не несут. -->
+  <script>
+  window.YM_COUNTER = 113821443;
+  if (window.YM_COUNTER) {
+    (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};m[i].l=1*new Date();for(var j=0;j<document.scripts.length;j++){if(document.scripts[j].src===r){return;}}k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})(window,document,'script','https://mc.yandex.ru/metrika/tag.js','ym');
+    ym(window.YM_COUNTER, 'init', {clickmap:true, trackLinks:true, accurateTrackBounce:true, webvisor:false});
+  }
+  </script>
   <meta name="theme-color" content="#0B080C">
 
   <!-- Режим «с экрана Домой»: отдельное окно без адресной строки.
@@ -922,6 +934,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=185"></script>
+  <script src="app.js?v=186"></script>
 </body>
 </html>

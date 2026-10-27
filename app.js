@@ -1527,8 +1527,24 @@ async function attachAndVerify(accessToken) {
 // Экран «Готово, доступ открыт» (18.10.2026): адрес, почта, номер заказа, во встроенном
 // браузере - выход в обычный. Зовут attachAndVerify и doClaim. Сессия уже есть, поэтому
 // перезагрузка отсюда уводит в дом обычным маршрутом.
+// Цель purchase в Яндекс Метрику (24.10.2026), счётчик window.YM_COUNTER из index.html.
+// Один раз на номер заказа: «Готово» показывает и первый пароль по номеру заказа (claim),
+// в том числе через дни после оплаты. Номер заказа в Метрику НЕ уходит: статистика обезличенная.
+function ymPurchase(order) {
+  const id = window.YM_COUNTER;
+  if (!id || !window.ym || !order) return;
+  try {
+    const seen = JSON.parse(localStorage.getItem("irenabio_ym_purchase") || "[]");
+    if (seen.includes(order)) return;
+    seen.push(order);
+    localStorage.setItem("irenabio_ym_purchase", JSON.stringify(seen.slice(-20)));
+  } catch (e) {}
+  try { ym(id, "reachGoal", "purchase"); } catch (e) {}
+}
+
 function showPaidDone(email, order) {
   stripPaidParams();
+  ymPurchase(order);
   // Меню встроенного браузера открывает в Safari текущий адрес: пусть это будет вход, а не
   // использованный заказ. Бут снимет метку, а при живой сессии уведёт в дом.
   try { history.replaceState(null, "", "/?login=1"); } catch (e) {}
