@@ -229,13 +229,52 @@ function funnelSrc() {
   try { if (document.referrer) { const h = new URL(document.referrer).hostname; if (h && h !== location.hostname) return "ref:" + h; } } catch (e) {}
   return "direct";
 }
+// Постоянный номер устройства (27.10.2026): случайный, живёт в localStorage, без почты и IP.
+// dn - сколько суток (UTC) прошло с первого захода: 0 первый день, 1 вернулась на 2-й, 6 на 7-й.
+// Сводка в людях за сутки по-прежнему считает по sid, этот номер нужен только для возвратов.
+// ⚠️ Safari стирает localStorage сайта, на который не заходили 7 дней (ITP): поздние возвраты
+// с iPhone недосчитаются, вернувшаяся после перерыва посчитается новой.
+function funnelDevice() {
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    let j = JSON.parse(localStorage.getItem("irenabio_did") || "null");
+    if (!j || !j.id || !/^\d{4}-\d{2}-\d{2}$/.test(j.first || "")) {
+      j = { id: Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, "0")).join(""), first: today };
+      localStorage.setItem("irenabio_did", JSON.stringify(j));
+    }
+    return { did: j.id, dn: Math.max(0, Math.round((Date.parse(today) - Date.parse(j.first)) / 86400000)) };
+  } catch (e) { return { did: "", dn: 0 }; }
+}
+// Наши устройства (27.10.2026): один раз открыть app.irenabio.com/?internal=1, и устройство
+// навсегда помечено как наше (i=1), сводка его не считает. ?internal=0 снимает отметку.
+// Метку убираем из адреса, чтобы она не уехала дальше при пересылке ссылки.
+const FUNNEL_INTERNAL_KEY = "irenabio_internal";
+(function funnelInternalMark() {
+  try {
+    const u = new URL(location.href);
+    const v = u.searchParams.get("internal");
+    if (v === null) return;
+    if (v === "0") localStorage.removeItem(FUNNEL_INTERNAL_KEY); else localStorage.setItem(FUNNEL_INTERNAL_KEY, "1");
+    u.searchParams.delete("internal");
+    history.replaceState(history.state, "", u.pathname + u.search + u.hash);
+    setTimeout(() => alert(v === "0" ? "Отметка снята: счётчик снова считает это устройство."
+                                     : "Готово: это устройство отмечено как наше, счётчик его больше не считает."), 300);
+  } catch (e) {}
+})();
+function funnelInternal() {
+  try { return localStorage.getItem(FUNNEL_INTERNAL_KEY) === "1"; } catch (e) { return false; }
+}
 // once=true: событие уходит один раз за загрузку страницы (витрина, касса перерисовываются часто).
+// Сервер (ir-funnel) сам делит события на гостей, наших (i), автоматику (w, браузер робота) и
+// тестовые прогоны (?src=test...). Наша автоматика ВСЕГДА открывает сайт с ?src=test.
 function track(ev, d, once) {
   if (!FUNNEL_URL) return;
   const key = ev + "|" + (d || "");
   if (once) { if (trackOnce.has(key)) return; trackOnce.add(key); }
   try {
-    const body = JSON.stringify({ sid: funnelSid(), ev, src: funnelSrc(), d: d || "" });
+    const dev = funnelDevice();
+    const body = JSON.stringify({ sid: funnelSid(), ev, src: funnelSrc(), d: d || "", did: dev.did, dn: dev.dn,
+                                  i: funnelInternal() ? 1 : 0, w: navigator.webdriver ? 1 : 0 });
     if (!(navigator.sendBeacon && navigator.sendBeacon(FUNNEL_URL, body))) {
       fetch(FUNNEL_URL, { method: "POST", body, keepalive: true, mode: "no-cors" }).catch(() => {});
     }
@@ -635,9 +674,12 @@ function emailValid(email) {
 // ошибкой). Защита от опечатки живёт в updateEmailEcho: адрес показывается крупно прямо над
 // кнопкой оплаты. Не срезать её, не заменив равноценной - почта это единственный ключ к
 // аккаунту, писем мы не шлём, и ошибка не всплывёт никогда (коммент у #email-echo).
-function readCheckoutEmail() {
+// method - для счётчика: нажатие кнопки оплаты пишется ДО проверки почты (pay_try), отказ
+// проверки отдельно (email_bad). pay_click остаётся «нажала с верной почтой» (27.10.2026).
+function readCheckoutEmail(method) {
   const email = normalizeEmail(els.email.value);
-  if (!emailValid(email)) { showEmailError(EMAIL_HINT); els.email.focus(); return null; }
+  if (method) track("pay_try", method);
+  if (!emailValid(email)) { if (method) track("email_bad", method); showEmailError(EMAIL_HINT); els.email.focus(); return null; }
   return email;
 }
 
@@ -921,7 +963,7 @@ function hideCoreViews() {
 // WFP вернётся по returnUrl -> ?paid=1&order= -> enterPaymentReturn (пароль). ---
 async function goCheckoutSubmit() {
   clearErrors();
-  const email = readCheckoutEmail();
+  const email = readCheckoutEmail("wfp");
   if (!email) return;
   state.method = "wayforpay";
   state.email = email;
@@ -1013,7 +1055,7 @@ function applyCountryPay() {
 const TRIBUTE_ORDER_TIMEOUT_MS = 25000;   // сервер ждёт Tribute до 15 с плюс база до 5 с
 async function goTribute(btn) {
   clearErrors();
-  const email = readCheckoutEmail();
+  const email = readCheckoutEmail("tribute");
   if (!email) return;
   if (btn && btn.disabled) return;   // уже ждём заказ: второй клик дал бы второй заказ
   state.method = "tribute";
@@ -1041,7 +1083,7 @@ async function goTribute(btn) {
 // --- экран 1 -> ссылка "Оплатить в рублях": та же валидация, дальше экран 2 (выбор валюты) ---
 function goLavaCurrency() {
   clearErrors();
-  const email = readCheckoutEmail();
+  const email = readCheckoutEmail("lava");
   if (!email) return;
   state.method = "lava";
   state.email = email;
@@ -1051,7 +1093,7 @@ function goLavaCurrency() {
 // --- Беларусь: первая кнопка кассы -> сразу счёт Lava в евро, без экрана выбора способа ---
 function goLavaEuro() {
   clearErrors();
-  const email = readCheckoutEmail();
+  const email = readCheckoutEmail("lava");
   if (!email) return;
   state.method = "lava";
   state.email = email;
@@ -1581,7 +1623,7 @@ els.form.addEventListener("submit", (e) => {
   bind("to-lava-currency", () => goTribute(document.getElementById("to-lava-currency"))); // "": вторая кнопка -> Tribute
   bind("pay-other", goLavaCurrency);                   // тихая ссылка -> экран 2 (Lava)
   bind("btn-pay-rub", () => (payRegion() === "by" ? goLavaEuro() : goTribute(document.getElementById("btn-pay-rub")))); // BY - Lava EUR, "rub" - Tribute
-  bind("checkout-back", () => checkoutBack());         // чекаут -> туда, откуда пришли
+  bind("checkout-back", () => { track("co_back"); checkoutBack(); });         // чекаут -> туда, откуда пришли
   bind("lavacur-back", () => showCheckout());          // экран 2 -> назад к тарифам
   // Единственный выход с экрана пароля: чистит адрес (иначе перезагрузка вернёт сюда же) и ведёт
   // на старт. Покрывает оба случая - битую ссылку и чужой/старый заказ в адресе.
@@ -1893,7 +1935,7 @@ document.addEventListener("click", (e) => {
 });
 // «Уже есть подписка? Войти» на кассе у гостьи (24.10.2026): подписчица с протухшим входом
 // не платит второй раз, а входит. Назад со входа ведёт на витрину (login-back).
-document.getElementById("checkout-to-login")?.addEventListener("click", (e) => { e.preventDefault(); showLogin(); });
+document.getElementById("checkout-to-login")?.addEventListener("click", (e) => { e.preventDefault(); track("co_login"); showLogin(); });
 
 function showCheckout() {
   hideEntryViews();
@@ -3297,8 +3339,25 @@ function scPosterHtml(s) {
 
 // ===================== ШТОРКА ЗАМКА =====================
 // Одна шторка на три случая. Кнопка ведёт СРАЗУ в чекаут: женщина уже нажала дважды.
+// Метка шторки для счётчика: инструмент по ключу, программа как sp:<cover_slug> (латиница,
+// кириллицу маяк вырезает), без обложки sp:<id>. Её же несёт sheet_buy (кнопка покупки в шторке).
+let lockSheetTag = "";
+function sheetTag(kind, payload) {
+  if (kind === "tool") return payload.key;
+  if (kind === "podruzhka" || kind === "course" || kind === "handbook") return kind;
+  return "sp:" + ((payload && (payload.cover_slug || payload.id)) || "x");
+}
+// Бесплатный день для счётчика: <cover_slug программы>:<номер дня>, не нашли - id дня.
+function freeDayTag(dayId) {
+  for (const s of scSprints()) {
+    const f = (s.free_days || []).find((x) => x.id === dayId);
+    if (f) return (s.cover_slug || "x") + ":" + f.day_number;
+  }
+  return String(dayId || "");
+}
 function openLockSheet(kind, payload) {
-  track("sheet", kind === "tool" ? payload.key : kind === "podruzhka" || kind === "course" || kind === "handbook" ? kind : "sprint");
+  lockSheetTag = sheetTag(kind, payload);
+  track("sheet", lockSheetTag);
   const panel = document.getElementById("lock-panel");
   const price = scPrice(publicData && publicData.price);
   // Цены может ещё не быть: витрина рисуется из снимка без цены, и шторку можно открыть
@@ -3454,7 +3513,7 @@ function scFreeSprintTitle() {
 // Тот же экран дня, что у подписчицы, но содержимое приезжает из get-public и
 // кнопки "пройдено" нет: отмечать прогресс некуда, пока нет аккаунта.
 async function openFreeDay(dayId, forceHost, fromHistory) {
-  if (!forceHost) track("free_day");
+  if (!forceHost) track("free_day", freeDayTag(dayId));
   currentDayId = dayId;
   // Кадр в историю: "назад" из дня вернёт на витрину, а не на посторонний адрес.
   // При возврате ПО истории кадр не плодим, иначе "назад" зациклится на дне.
@@ -3527,8 +3586,8 @@ async function openFreeDay(dayId, forceHost, fromHistory) {
   if (sheet) {
     sheet.addEventListener("click", (e) => {
       if (e.target.closest("[data-sheet-close]")) { sheet.hidden = true; return; }
-      if (e.target.closest("[data-lock-buy]")) { sheet.hidden = true; scGoCheckout(); return; }
-      if (e.target.closest("[data-lock-buy-urok]")) { sheet.hidden = true; scGoCheckoutFromUrok(); return; }
+      if (e.target.closest("[data-lock-buy]")) { track("sheet_buy", lockSheetTag); sheet.hidden = true; scGoCheckout(); return; }
+      if (e.target.closest("[data-lock-buy-urok]")) { track("sheet_buy", lockSheetTag); sheet.hidden = true; scGoCheckoutFromUrok(); return; }
       if (e.target.closest("[data-lock-free]")) {
         sheet.hidden = true;
         const s = scSprints().find((x) => (x.free_days || []).length > 0);
@@ -3539,8 +3598,10 @@ async function openFreeDay(dayId, forceHost, fromHistory) {
       if (day) { openFreeDay(day.getAttribute("data-free-day")); return; }
       const demo = e.target.closest("[data-demo]");
       if (demo) {
-        const url = DEMO_LINKS[demo.getAttribute("data-demo")];
-        if (url) location.href = url;   // демо открываются без токена и без сессии
+        const key = demo.getAttribute("data-demo");
+        const url = DEMO_LINKS[key];
+        // Маяк до ухода: sendBeacon переживает смену страницы, а сами демо маяк не шлют.
+        if (url) { track("demo", key); location.href = url; }   // демо открываются без токена и без сессии
       }
     });
   }
@@ -3784,6 +3845,15 @@ function scGoCheckoutFromUrok() {
   });
   const back = document.getElementById("urok-back");
   if (back) back.addEventListener("click", () => { hideUrok(); showShowcase(); });
+  // Запуск видео урока (27.10.2026): плеер Kinescope сам шлёт странице postMessage
+  // KINESCOPE_PLAYER_PLAY_EVENT (проверено живым прогоном). Берём только от нашего iframe урока.
+  window.addEventListener("message", (e) => {
+    if (e.origin !== "https://kinescope.io") return;
+    const f = document.getElementById("urok-frame");
+    if (!f || e.source !== f.contentWindow) return;
+    const t = e.data && typeof e.data === "object" ? e.data.type : "";
+    if (t === "KINESCOPE_PLAYER_PLAY_EVENT") track("urok_play", "", true);
+  });
 })();
 
 // ===== ИСТОРИЯ ГОСТЬИ =====
