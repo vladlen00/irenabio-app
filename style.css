@@ -1236,6 +1236,12 @@ body.sc-open.has-mini { padding-bottom: calc(var(--sc-bar-h, 76px) + 80px + env(
 #view-urok { --gk-bg: #140d0e; --gk-card: #1b1214; --gk-accent: #c98f89;
   --gk-text: #f3ece8; --gk-muted: #9a8b88; --gk-hair: rgba(243,236,232,.08);
   background: var(--gk-bg); color: var(--gk-text); min-height: 100vh; }
+/* Шапка во весь экран, как в мини-аппе dolgaya (27.10). Экран лежит внутри main.wrap.checkout,
+   а её отступы (вырез сверху, 16px по бокам, ширина 560) нужны кассе и остальным экранам.
+   Снимаем их только пока #urok открыт: условие в :has, без класса, который JS мог бы забыть
+   снять. Вырез у кнопки «назад» учитывает сама .gk-back. Без :has (старый WebView) экран
+   остаётся прежним, с отступами. */
+main.checkout:has(> #view-urok:not([hidden])) { padding: 0; max-width: none; }
 .gk { max-width: 480px; margin: 0 auto; padding-bottom: 40px; }
 .gk-cover { position: relative; height: 370px; overflow: hidden; background: var(--gk-bg);
   display: flex; flex-direction: column; justify-content: flex-end; padding: 0 22px 22px; }
