@@ -2970,10 +2970,14 @@ const SC_TOOLS = [
   { key: "relax", icon: "relax", name: "Расслабление", sub: "медитации, дыхание", chip: "1 пробная", try: true,
     title: "Расслабление",
     // Названия как в Студии практик (studio/index.html, вкладки Медитации, Дыхание, Музыка), 03.10.
+    // 28.10: медитации сверены со студией, названия и порядок её вкладки «Медитации».
+    // «Один день» первым, потому что он пробный.
     items: [
       { name: "Медитация «Один день»", demo: "oneday" },
+      { name: "Медитация счастливых отношений", locked: true },
+      { name: "Настройка на день", locked: true },
+      { name: "Отпускание контроля", locked: true },
       { name: "Медитация чувственности", locked: true },
-      { name: "Утро на своей стороне", locked: true },
       { name: "Глубокое расслабление", locked: true },
       { name: "Глубокий сон", locked: true },
       { name: "Внутреннее спокойствие", locked: true },
@@ -2982,7 +2986,6 @@ const SC_TOOLS = [
       { name: "Митохондрии", locked: true },
       { name: "Идеальная реальность", locked: true },
       { name: "Горит внутри", locked: true },
-      { name: "Отпускание контроля", locked: true },
       { name: "Дыхание 4·7·8", locked: true },
       { name: "Дыхание 4·4·6", locked: true },
       { name: "Музыка для медитации", locked: true },
