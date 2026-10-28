@@ -51,7 +51,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Пол">
 
-  <link rel="stylesheet" href="style.css?v=101">
+  <link rel="stylesheet" href="style.css?v=102">
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. Файлы Google Fonts у себя (с 01.10.2026),
        собирает biohack/tools/irenabio-app/build_fonts.py. Браузер качает только нужные
        подмножества по unicode-range, как и с Google. -->
@@ -467,6 +467,8 @@
               <div id="urok-toc"></div>
             </details>
           </div>
+          <!-- Карточка «Следующий урок» после окончания вступления (showUrokNext). -->
+          <div class="card urok-next" id="urok-next" hidden></div>
           <div class="urok-buy-slot"></div>
           <div id="gk-seasons"></div>
           <div class="gk-fail" id="gk-fail" hidden>Не получилось загрузить курс. Проверьте интернет и
@@ -491,20 +493,9 @@
           <div id="day-blocks"></div>
           <button type="button" class="day-done" id="day-done" hidden><i class="ti ti-circle-check"></i> Отметить день пройденным</button>
           <!-- Призыв в конце бесплатного дня. Только для гостьи: у подписчицы блок скрыт.
-               Цена приезжает из get-public, руками её здесь писать нельзя. -->
-          <div class="day-buy" id="day-buy" hidden>
-            <div class="home-tools-h">Понравилось?</div>
-            <div class="card home-sub sc-buy" id="day-buy-card" role="button">
-              <div class="home-sub-left">
-                <i class="ti ti-diamond"></i>
-                <div>
-                  <div class="home-sub-title">Открыть полный доступ</div>
-                  <div class="home-sub-until" id="day-buy-sub"></div>
-                </div>
-              </div>
-              <i class="ti ti-chevron-right home-sub-arrow"></i>
-            </div>
-          </div>
+               Содержимое рисует showDayBuy по номеру бесплатного дня. Цена, число дней и
+               названия приезжают из get-public, руками их здесь писать нельзя. -->
+          <div class="day-buy" id="day-buy" hidden></div>
           <p class="day-error" id="day-error" hidden></p>
         </div>
       </div>
@@ -934,6 +925,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=188"></script>
+  <script src="app.js?v=189"></script>
 </body>
 </html>

@@ -3626,8 +3626,20 @@ async function openFreeDay(dayId, forceHost, fromHistory) {
   }
   const bar = document.getElementById("sc-bottom-btn");
   if (bar) bar.addEventListener("click", scGoCheckout);
-  const dayBuy = document.getElementById("day-buy-card");
-  if (dayBuy) dayBuy.addEventListener("click", scGoCheckoutFromDay);
+  const dayBuy = document.getElementById("day-buy");
+  if (dayBuy) dayBuy.addEventListener("click", (e) => {
+    const next = e.target.closest("[data-free-next]");
+    if (next) {
+      const id = next.getAttribute("data-free-next");
+      track("free_next", freeDayTag(id));
+      openFreeDay(id);
+      return;
+    }
+    if (e.target.closest("[data-day-buy]")) {
+      track("free_buy_day" + (dayBuy.getAttribute("data-free-n") || "x"), freeDayTag(currentDayId));
+      scGoCheckoutFromDay();
+    }
+  });
   const sup = document.getElementById("sc-support-btn");
   if (sup) sup.addEventListener("click", () => {
     const box = document.getElementById("sc-support-contacts");
@@ -3642,17 +3654,70 @@ async function openFreeDay(dayId, forceHost, fromHistory) {
 //
 // Цена берётся из get-public и больше ниоткуда: вписать её сюда руками значит
 // завести второй источник правды и разъехаться с кассой в первый же месяц.
+//
+// 28.10.2026: призыв зависит от номера бесплатного дня. Если за этим днём есть ещё
+// бесплатный, зовём в него, а кассу даём мелкой ссылкой. После последнего бесплатного
+// говорим, сколько дней впереди, и называем следующие. Число дней и названия тоже из
+// get-public: days_total (или план estimated_days) и days_preview. days_preview сейчас
+// отдаёт только три первых дня, поэтому после дня 2 назван один следующий, а не два.
+// Маяки: free_next, free_buy_day<номер дня>.
+function freeDayPlace(dayId) {
+  for (const s of scSprints()) {
+    const free = s.free_days || [];
+    const i = free.findIndex((f) => f.id === dayId);
+    if (i >= 0) return { s, free, i };
+  }
+  return null;
+}
+
+function dayBuyHtml(p) {
+  const price = scPrice(publicData && publicData.price);
+  const next = p && p.free[p.i + 1];
+  if (next) {
+    const n = next.day_number;
+    return '<div class="card day-buy-card">' +
+        '<div class="day-buy-h">Дальше день ' + n + ", он тоже бесплатный</div>" +
+        '<button type="button" class="btn btn-primary day-buy-btn" data-free-next="' + escapeHtml(next.id) + '">Слушать день ' + n + "</button>" +
+        '<button type="button" class="day-buy-alt" data-day-buy>' +
+          escapeHtml(price ? "или сразу открыть всё за " + price + " в месяц" : "или сразу открыть всё") + "</button>" +
+      "</div>";
+  }
+  const note = price ? "Всё приложение за " + price + " в месяц, отмена в любой момент"
+                     : "Откроется сразу после оплаты, отмена в любой момент";
+  if (!p) {
+    // День не нашёлся среди бесплатных (состава ещё нет): прежний общий призыв.
+    return '<div class="card day-buy-card">' +
+        '<div class="day-buy-h">Понравилось?</div>' +
+        '<button type="button" class="btn btn-primary day-buy-btn" data-day-buy>Открыть полный доступ</button>' +
+        '<div class="day-buy-note">' + escapeHtml(note) + "</div>" +
+      "</div>";
+  }
+  const s = p.s;
+  const lastN = p.free[p.free.length - 1].day_number;
+  const left = scDaysTotal(s) - lastN;
+  const names = (s.days_preview || []).filter((d) => d.day_number > lastN).slice(0, 2)
+    .map((d) => dayShortTitle(d.title || "")).filter(Boolean).map((t) => "«" + t + "»");
+  const prog = s.cover_slug === "sleep" ? "программы сна" : "программы «" + (s.title || "") + "»";
+  const lead = left > 0
+    ? "Впереди ещё " + plurDays(left) + " " + prog + (names.length ? ": " + names.join(", ") + " и другие." : ".")
+    : "";
+  return '<div class="card day-buy-card">' +
+      '<div class="day-buy-h">Это был последний бесплатный день</div>' +
+      (lead ? '<p class="day-buy-lead">' + escapeHtml(lead) + "</p>" : "") +
+      '<button type="button" class="btn btn-primary day-buy-btn" data-day-buy>Продолжить программу</button>' +
+      '<div class="day-buy-note">' + escapeHtml(note) + "</div>" +
+    "</div>";
+}
+
 async function showDayBuy() {
   const box = document.getElementById("day-buy");
   if (!box) return;
-  const sub = document.getElementById("day-buy-sub");
+  const dayId = currentDayId;
   const fill = () => {
-    const price = scPrice(publicData && publicData.price);
-    if (sub) {
-      sub.textContent = price
-        ? ("Всё приложение за " + price + " в месяц, отмена в любой момент")
-        : "Откроется сразу после оплаты, отмена в любой момент";
-    }
+    if (currentDayId !== dayId) return;   // пока догружали, открыли другой день
+    const p = freeDayPlace(dayId);
+    box.setAttribute("data-free-n", p ? String(p.free[p.i].day_number) : "x");
+    box.innerHTML = dayBuyHtml(p);
   };
   fill();
   box.hidden = false;
@@ -3778,6 +3843,40 @@ function renderGkSeasons(D) {
   ).join("");
 }
 
+// Карточка после окончания вступительного урока (28.10.2026). Название следующего урока
+// и число уроков из content.js курса. Кнопка та же, что «Оформить подписку» на экране.
+function plurLessons(n) {
+  const t = n % 100, o = n % 10;
+  if (t >= 11 && t <= 14) return n + " уроков";
+  if (o === 1) return n + " урок";
+  if (o >= 2 && o <= 4) return n + " урока";
+  return n + " уроков";
+}
+function showUrokNext() {
+  const box = document.getElementById("urok-next");
+  const D = window.DOLGAYA;
+  const v = document.getElementById("view-urok");
+  if (!box || !D || !v || v.hidden) return;
+  const lessons = D.seasons.reduce((a, s) => a.concat(s.lessons), []);
+  const first = lessons[0];
+  if (!first) return;
+  track("urok_end", "", true);
+  const rest = lessons.length - 1;
+  box.innerHTML =
+    '<p class="urok-next-lead">Следующий урок: «' + escapeHtml(first.title || "") + "»." +
+      (rest > 0 ? " Он и ещё " + escapeHtml(plurLessons(rest)) + " ждут тебя внутри." : "") + "</p>" +
+    '<button type="button" class="btn btn-primary urok-buy-btn" data-urok-buy>Смотреть дальше</button>';
+  if (box.hidden) {
+    box.hidden = false;
+    requestAnimationFrame(() => requestAnimationFrame(() => box.classList.add("show")));
+  }
+  setTimeout(() => box.scrollIntoView({ behavior: "smooth", block: "center" }), 60);
+}
+function resetUrokNext() {
+  const box = document.getElementById("urok-next");
+  if (box) { box.hidden = true; box.classList.remove("show"); box.innerHTML = ""; }
+}
+
 function fillUrokContent(D) {
   document.getElementById("urok-label").textContent = "Начни отсюда · " + D.intro.duration;
   document.getElementById("urok-title").textContent = D.intro.title || "";
@@ -3812,7 +3911,7 @@ function hideUrok() {
 }
 
 async function openUrok(fromHistory) {
-  if (!fromHistory) scPushView("urok");
+  if (!fromHistory) { scPushView("urok"); resetUrokNext(); }
   track("urok", "", true);
   const sheet = document.getElementById("lock-sheet"); if (sheet) sheet.hidden = true;
   // Гасим ВСЁ, откуда сюда можно прийти (правило экранов, см. openFreeDay).
@@ -3866,12 +3965,25 @@ function scGoCheckoutFromUrok() {
   if (back) back.addEventListener("click", () => { hideUrok(); showShowcase(); });
   // Запуск видео урока (27.10.2026): плеер Kinescope сам шлёт странице postMessage
   // KINESCOPE_PLAYER_PLAY_EVENT (проверено живым прогоном). Берём только от нашего iframe урока.
+  // Окончание (28.10.2026, живой прогон): своего события конца Kinescope сам НЕ шлёт.
+  // Плеер говорит по протоколу player.js: присылает строку JSON {context:"player.js",
+  // event:"ready"}, и после подписки (method addEventListener, value "ended") присылает
+  // {event:"ended"}. Подписываемся на каждый ready: setUrokFrame меняет сам iframe.
   window.addEventListener("message", (e) => {
     if (e.origin !== "https://kinescope.io") return;
     const f = document.getElementById("urok-frame");
     if (!f || e.source !== f.contentWindow) return;
-    const t = e.data && typeof e.data === "object" ? e.data.type : "";
-    if (t === "KINESCOPE_PLAYER_PLAY_EVENT") track("urok_play", "", true);
+    let m = e.data;
+    if (typeof m === "string" && m.charAt(0) === "{") { try { m = JSON.parse(m); } catch (err) { m = null; } }
+    if (!m || typeof m !== "object") return;
+    if (m.type === "KINESCOPE_PLAYER_PLAY_EVENT") { track("urok_play", "", true); return; }
+    if (m.context !== "player.js") return;
+    if (m.event === "ready") {
+      f.contentWindow.postMessage(JSON.stringify({ context: "player.js", version: m.version || "0.0.11",
+        method: "addEventListener", value: "ended", listener: "urok_end" }), "https://kinescope.io");
+    } else if (m.event === "ended") {
+      showUrokNext();
+    }
   });
 })();
 
