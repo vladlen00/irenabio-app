@@ -2943,8 +2943,11 @@ let publicData = null;
 // С 30.09.2026 дыхание 4-4-6 и тест «Возраст тела» больше не бесплатные: их демо
 // убраны отсюда, а сами демо-страницы сняты с публикации (Pages выключен).
 // С 20.10.2026 демо «Ягодиц» с витрины убрано (страница glutes-demo пока живёт).
+// С 29.10.2026 «Один день» живёт на НАШЕМ домене: файл oneday-demo/index.html в этом
+// репозитории, главная копия, текст правят там. Старая страница на github.io заморожена.
+// Воркер тут ни при чём: "oneday-demo" нет в MINI, файл отдаёт сам Pages.
 const DEMO_LINKS = {
-  oneday:       "https://vladlen00.github.io/oneday-demo/",
+  oneday:       "/oneday-demo/",
   workout:      "https://vladlen00.github.io/workout-demo/",
 };
 

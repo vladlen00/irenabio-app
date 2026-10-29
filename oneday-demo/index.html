@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="robots" content="noindex, nofollow">
+<title>Медитация «Один день» · демо</title>
+
+<!-- ============================================================================
+     ДЕМО «ОДИН ДЕНЬ», ГЛАВНАЯ КОПИЯ (с 29.10.2026). Текст правят ЗДЕСЬ.
+
+     Адрес: app.irenabio.com/oneday-demo/. Витрина ведёт сюда (DEMO_LINKS в app.js).
+     Перенесена из репозитория oneday-demo (vladlen00.github.io/oneday-demo/,
+     коммит 3a67071), чтобы гостья из рекламы не видела в адресной строке github.io.
+     Старая страница на github.io НЕ удалена и больше не правится: на неё могут
+     вести старые ссылки, она живёт как есть.
+
+     Почему файл, а не sw.js: воркер ставится только после первого захода на
+     дом, а холодная гостья приходит впервые. Файл же отдаёт сам GitHub Pages
+     по нашему домену, с воркером и без. Пути "oneday-demo" в списке MINI нет
+     и быть не должно: тогда воркер его не трогает вовсе.
+
+     Звук берётся с vladlen00.github.io/oneday/oneday.mp3 (платный oneday):
+     это подресурс, а не переход, адресную строку он не меняет, перемотку
+     Pages отдаёт (Range). Ссылки в приложение относительные ("/?..."), то есть
+     на тот же домен. Счётчика Метрики на странице нет, хранилища она не пишет.
+     ============================================================================ -->
+
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=Raleway:wght@200;300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width:100%; height:100%; background:#080300; overflow:hidden; font-family:'Raleway',sans-serif; touch-action:manipulation; }
+
+  #c { position:fixed; inset:0; z-index:0; }
+
+  .screen {
+    position:relative; z-index:2;
+    height:100%;
+    display:flex; flex-direction:column; align-items:center; justify-content:space-between;
+    padding: clamp(32px,6vh,56px) 32px clamp(28px,5vh,48px);
+    pointer-events:none;
+  }
+
+  .header-wrap {
+    display:flex; flex-direction:column; align-items:center; gap:6px; width:100%;
+  }
+  .title {
+    font-family:'Cormorant Garamond',serif; font-style:italic; font-weight:300;
+    font-size:clamp(1.6rem,6.5vw,2.4rem);
+    color:#ffd060;
+    text-align:center;
+    text-shadow:0 2px 10px rgba(0,0,0,1), 0 0 25px rgba(0,0,0,0.6);
+  }
+  .subtitle {
+    font-family:'Raleway',sans-serif; font-weight:400;
+    font-size:12px; letter-spacing:0.1em; text-transform:uppercase;
+    color:#a89970;
+    text-shadow:0 1px 4px rgba(0,0,0,0.9);
+  }
+
+  .info-block {
+    pointer-events:all;
+    width:100%; max-width:380px;
+    display:flex; flex-direction:column; align-items:center;
+    gap:10px; text-align:center;
+    background:rgba(0,0,0,0.78);
+    backdrop-filter:blur(4px);
+    -webkit-backdrop-filter:blur(4px);
+    border-radius:18px;
+    padding:18px 20px;
+  }
+  .info-intro {
+    font-family:'Cormorant Garamond',serif;
+    font-style:italic;
+    font-size:14px;
+    color:#d4b870;
+    font-weight:400;
+  }
+  .info-list {
+    list-style:none; padding:0; margin:0;
+    display:flex; flex-direction:column; gap:7px;
+    font-family:'Raleway',sans-serif;
+    font-weight:500;
+    font-size:14px; line-height:1.4;
+    color:#f0e0c4;
+    text-align:left;
+    width:100%;
+  }
+  .info-list li {
+    position:relative;
+    padding-left:18px;
+  }
+  .info-list li::before {
+    content:"·";
+    color:#ffd060;
+    font-weight:700;
+    position:absolute;
+    left:4px;
+    top:0;
+  }
+  .info-details {
+    display:none;
+    margin-top:4px;
+    font-family:'Raleway',sans-serif;
+    font-weight:400;
+    font-size:13px; line-height:1.6;
+    color:#e8d4a8;
+    text-align:left;
+  }
+  .info-details p { margin-bottom:8px; text-align:left; }
+  .info-details p:last-child { margin-bottom:0; }
+  .recommend {
+    margin-top:10px;
+    padding:12px 14px;
+    background:rgba(255,208,96,0.1);
+    border:1px solid rgba(255,208,96,0.3);
+    border-radius:10px;
+    font-family:'Raleway',sans-serif;
+    font-weight:400;
+    font-size:13px; line-height:1.5;
+    color:#f0e0c4;
+    text-align:left;
+    display:flex;
+    gap:8px;
+    align-items:flex-start;
+  }
+  .warning-block {
+    margin-top:4px;
+    padding:10px 12px;
+    background:rgba(220,140,80,0.12);
+    border:1px solid rgba(220,140,80,0.4);
+    border-left:3px solid #e89060;
+    border-radius:8px;
+    font-family:'Raleway',sans-serif;
+    font-weight:400;
+    font-size:12px;
+    line-height:1.5;
+    color:#f0d4b0;
+    text-align:left;
+    width:100%;
+  }
+  .warning-block strong {
+    color:#ffb060;
+    font-weight:600;
+  }
+  .info-toggle {
+    background:none; border:none; cursor:pointer;
+    color:#ffd060;
+    font-family:'Raleway',sans-serif;
+    font-weight:500;
+    font-size:13px;
+    padding:8px 14px;
+    -webkit-tap-highlight-color:transparent;
+    letter-spacing:0.04em;
+  }
+
+  body.details-open .info-details { display:block; }
+  body.session-active .info-block,
+  body.session-active .subtitle { display:none; }
+
+  .bottom {
+    pointer-events:all;
+    display:flex; flex-direction:column; align-items:center; gap:14px; width:100%;
+  }
+
+  .btn {
+    background:rgba(0,0,0,0.5);
+    border:1px solid rgba(255,190,80,0.55);
+    border-radius:40px;
+    color:rgba(255,220,140,1);
+    font-family:'Raleway',sans-serif; font-weight:300;
+    font-size:clamp(0.68rem,2.2vw,0.82rem);
+    letter-spacing:0.45em; text-transform:uppercase;
+    padding:14px 40px; cursor:pointer;
+    transition:all 0.4s;
+    text-shadow:0 0 12px rgba(255,180,60,0.6);
+    box-shadow:0 0 20px rgba(255,150,30,0.15);
+    backdrop-filter:blur(6px);
+    -webkit-tap-highlight-color:transparent;
+    min-width:160px;
+  }
+  .btn:hover, .btn:active {
+    border-color:rgba(255,210,100,0.85); color:#fff;
+    box-shadow:0 0 35px rgba(255,160,40,0.35);
+  }
+
+  /* Progress wrap */
+  .progress-wrap {
+    width:clamp(240px,80vw,360px);
+    display:none; flex-direction:column; gap:10px; align-items:center;
+    background:rgba(0,0,0,0.5); border-radius:20px;
+    padding:14px 20px; backdrop-filter:blur(6px);
+  }
+
+  /* Scrub bar */
+  .progress-track {
+    width:100%; height:8px;
+    background:rgba(255,180,60,0.15); border-radius:8px;
+    cursor:pointer; position:relative;
+  }
+  .progress-track:hover { background:rgba(255,180,60,0.25); }
+  .progress-fill {
+    height:100%; width:0%;
+    background:linear-gradient(90deg,#ff6a00,#ffb830);
+    border-radius:8px;
+    box-shadow:0 0 8px rgba(255,160,40,0.7);
+    pointer-events:none;
+  }
+
+  /* Skip controls row */
+  .skip-row {
+    display:flex; align-items:center; justify-content:center; gap:20px; width:100%;
+  }
+  .skip-btn {
+    background:none; border:none; cursor:pointer;
+    color:rgba(255,210,130,0.6); font-family:'Raleway',sans-serif;
+    font-size:0.72rem; letter-spacing:0.15em;
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    padding:6px 10px; border-radius:8px;
+    transition:all 0.2s; -webkit-tap-highlight-color:transparent;
+  }
+  .skip-btn:hover, .skip-btn:active { color:rgba(255,220,150,1); }
+  .skip-btn svg { width:22px; height:22px; }
+  .skip-label { font-size:0.62rem; letter-spacing:0.1em; opacity:0.7; }
+
+  .progress-time {
+    font-family:'Raleway',sans-serif; font-weight:200;
+    font-size:clamp(0.65rem,2vw,0.75rem);
+    letter-spacing:0.3em; color:rgba(255,210,130,0.7);
+    text-shadow:0 1px 6px rgba(0,0,0,0.9);
+  }
+
+  /* Author */
+  .author {
+    position:fixed; bottom:10px; left:0; right:0;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    z-index:3; pointer-events:none;
+  }
+  .author-name {
+    font-family:'Raleway',sans-serif; font-weight:200;
+    font-size:0.72rem; letter-spacing:0.25em;
+    color:rgba(255,210,140,0.75);
+    text-shadow:0 1px 4px rgba(0,0,0,0.9);
+  }
+
+  /* Finish */
+  .finish {
+    display:none; position:fixed; inset:0; z-index:20;
+    background:rgba(8,3,0,0.92);
+    flex-direction:column; align-items:center; justify-content:center;
+    gap:22px; text-align:center; padding:40px;
+  }
+  .finish.show { display:flex; }
+  .finish-title {
+    font-family:'Cormorant Garamond',serif; font-style:italic; font-weight:300;
+    font-size:clamp(1.2rem,5vw,1.7rem); letter-spacing:0.1em;
+    color:rgba(255,210,130,0.75); opacity:0;
+    animation:fu 1.5s ease 0.3s forwards;
+  }
+  .finish-sub {
+    font-size:clamp(0.62rem,2vw,0.72rem); letter-spacing:0.35em;
+    text-transform:uppercase; color:rgba(255,180,80,0.25);
+    opacity:0; animation:fu 1.5s ease 0.9s forwards;
+  }
+  .finish-author {
+    display:flex; align-items:center; gap:6px;
+    opacity:0; animation:fu 1.5s ease 1.2s forwards;
+  }
+  .finish-btn { opacity:0; animation:fu 1.5s ease 1.4s forwards; }
+  @keyframes fu { to { opacity:1; } }
+  .app { display: none; height: 100%; }
+  .app.ready { display: block; }
+
+  /* ====== ДЕМО: приглашение в приложение ====== */
+  .demo-note {
+    width:100%; margin-top:4px; padding-top:14px;
+    border-top:1px solid rgba(255,210,140,0.18);
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+  }
+  .demo-note-text {
+    font-family:'Raleway',sans-serif; font-weight:300; font-size:0.78rem;
+    line-height:1.5; color:rgba(255,235,200,0.72); text-align:center;
+  }
+  .demo-cta {
+    display:inline-block; padding:11px 24px;
+    background:rgba(255,208,96,0.14);
+    border:1px solid rgba(255,208,96,0.45);
+    border-radius:14px;
+    font-family:'Raleway',sans-serif; font-weight:400; font-size:0.8rem;
+    letter-spacing:0.06em; color:rgb(255,208,96); text-decoration:none;
+    pointer-events:all;
+  }
+  .finish .demo-cta { margin-top:16px; }
+
+  /* Финал демо: тихое предложение проявляется не сразу, а через 7.5 с после показа,
+     чтобы не ломать паузу после практики. Анимация перезапускается при каждом показе
+     #fin (display none -> flex). До проявления блок не нажимается. */
+  .finish-offer {
+    display:flex; flex-direction:column; align-items:center; gap:0;
+    max-width:300px; opacity:0; pointer-events:none;
+    animation:offerIn 1.6s ease 7.5s forwards;
+  }
+  @keyframes offerIn { to { opacity:1; pointer-events:auto; } }
+  .finish-offer-text {
+    font-family:'Raleway',sans-serif; font-weight:300; font-size:0.86rem;
+    line-height:1.55; color:rgba(255,235,200,0.78);
+  }
+  .finish-offer-text b { font-weight:500; color:rgba(255,222,160,0.96); }
+  .finish .finish-offer .demo-cta { margin-top:18px; pointer-events:inherit; }
+  .finish-offer-note {
+    margin-top:10px; font-family:'Raleway',sans-serif; font-weight:300;
+    font-size:0.68rem; line-height:1.4; color:rgba(255,235,200,0.45);
+  }
+  /* «Повторить» второстепенная: без рамки и подложки, мельче. */
+  .finish .finish-repeat {
+    background:none; border:none; box-shadow:none; backdrop-filter:none;
+    min-width:0; padding:8px 14px; font-size:0.62rem; letter-spacing:0.3em;
+    color:rgba(255,210,140,0.5); text-shadow:none;
+  }
+  .finish .finish-repeat:hover, .finish .finish-repeat:active { color:rgba(255,220,150,0.85); box-shadow:none; }
+
+  /* ДЕМО: кнопка выхода висит поверх экрана в левом верхнем углу, поэтому
+     содержимому нужен свой отступ сверху. Без него на узком экране (320px,
+     iPhone SE и старые андроиды) заголовок практики лезет прямо под кнопку:
+     у "Дыхание 4-4-6" наложение было 1891 px2. Замерено playwright, а не на глаз. */
+  .screen { padding-top: 62px; }
+  /* Совсем узкие экраны (Galaxy Fold в сложенном виде и подобные): заголовок
+     практики переносится на две строки и съедает отступ. Замерено на 280px. */
+  @media (max-width: 320px) {
+    .screen { padding-top: 96px; }
+  }
+</style>
+</head>
+<body>
+<a id="demoMoreBtn" href="/?from=demo-oneday" style="display:inline-flex;position:fixed;top:12px;left:12px;z-index:100;align-items:center;gap:6px;padding:8px 14px;background:rgba(160,120,255,0.15);border:1px solid rgba(160,120,255,0.35);border-radius:12px;color:#e0d8f0;font-size:13px;font-weight:600;text-decoration:none;">Что ещё есть</a>
+<div class="app">
+
+<canvas id="c"></canvas>
+
+<audio id="audio" preload="auto">
+  <source src="https://vladlen00.github.io/oneday/oneday.mp3" type="audio/mpeg">
+</audio>
+
+<div class="screen">
+  <div class="header-wrap">
+    <div class="title">Один день</div>
+    <div class="subtitle">25 МИН · ЦЕННОСТЬ МОМЕНТА</div>
+  </div>
+
+  <div class="info-block" id="infoBlock">
+    <div class="info-intro">Медитация для тех, кто хочет:</div>
+    <ul class="info-list">
+      <li>Снова почувствовать вкус и радость жизни</li>
+      <li>Перестать жить на автопилоте</li>
+      <li>Ощутить ценность того, что уже есть</li>
+    </ul>
+    <div class="info-details">
+      <p>Эта практика приведёт тебя в момент, когда тебе 90 лет и ты смотришь назад на свою жизнь. После неё настоящее начинает ощущаться иначе - ярче, теплее, своим. Возможно, будет много слёз.</p>
+      <div class="recommend">
+        <span>🔁</span>
+        <span>Это не ежедневная медитация. Рекомендуется 1-2 раза в месяц когда ощущаешь что перестала ценить то что есть.</span>
+      </div>
+    </div>
+    <div class="warning-block">
+      <strong>⚠ Важно:</strong> не делай в период острого стресса, тревожности, депрессии, после потери близкого или при приёме антидепрессантов.
+    </div>
+    <button class="info-toggle" id="infoToggle" type="button">↓ Подробнее</button>
+    <div class="demo-note">
+      <div class="demo-note-text">Это бесплатная практика из приложения Ирены Пол. Внутри ещё практики, дыхание, тренировки, трекеры и подкасты.</div>
+      <a class="demo-cta" href="/?from=demo-oneday&amp;buy=1">Открыть полный доступ</a>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <button class="btn" id="mainBtn">Старт</button>
+    <div class="progress-wrap" id="pw">
+
+      <!-- Scrub bar -->
+      <div class="progress-track" id="progressTrack">
+        <div class="progress-fill" id="pf"></div>
+      </div>
+
+      <!-- Skip controls -->
+      <div class="skip-row">
+        <button class="skip-btn" id="skipBack" title="-15 сек">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 17l-5-5 5-5"/>
+            <path d="M18 17l-5-5 5-5"/>
+          </svg>
+          <span class="skip-label">-15 сек</span>
+        </button>
+
+        <div class="progress-time" id="pt">осталось 15:00</div>
+
+        <button class="skip-btn" id="skipFwd" title="+15 сек">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13 17l5-5-5-5"/>
+            <path d="M6 17l5-5-5-5"/>
+          </svg>
+          <span class="skip-label">+15 сек</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="author">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,210,140,0.75)" stroke-width="1.5" stroke-linecap="round">
+    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+    <circle cx="12" cy="12" r="4"/>
+    <circle cx="17.5" cy="6.5" r="1.2" fill="rgba(255,210,140,0.75)" stroke="none"/>
+  </svg>
+  <span class="author-name">irena.bio</span>
+</div>
+
+<div class="finish" id="fin">
+  <div class="finish-title">Медитация завершена</div>
+  <div class="finish-sub">Побудь в тишине ещё минуту</div>
+  <div class="finish-author">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,210,140,0.6)" stroke-width="1.5" stroke-linecap="round">
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+      <circle cx="12" cy="12" r="4"/>
+      <circle cx="17.5" cy="6.5" r="1.2" fill="rgba(255,210,140,0.6)" stroke="none"/>
+    </svg>
+    <span style="font-family:'Raleway',sans-serif;font-weight:200;font-size:0.68rem;letter-spacing:0.25em;color:rgba(255,210,140,0.6);">irena.bio</span>
+  </div>
+  <button class="btn finish-btn finish-repeat" id="repeatBtn">Повторить</button>
+  <div class="finish-offer">
+    <p class="finish-offer-text"><b>Отозвалось? Это одна из моих медитаций.</b> Внутри ещё 12: чтобы вернуть тепло в отношения, полюбить своё тело, отпустить контроль и крепко засыпать.</p>
+    <a class="demo-cta" href="/?from=demo-oneday-end&amp;buy=1">Открыть все медитации</a>
+    <div class="finish-offer-note">Оформление за минуту, отменить можно в любой момент</div>
+  </div>
+</div>
+
+</div>
+<script>
+
+
+// Canvas
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, cx, cy, S;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  cx = W/2; cy = H/2; S = Math.min(W,H);
+}
+window.addEventListener('resize', resize);
+resize();
+
+const PI2 = Math.PI * 2;
+
+function petal(ocx,ocy,len,angle,w,fillStyle) {
+  ctx.save(); ctx.translate(ocx,ocy); ctx.rotate(angle);
+  ctx.beginPath();
+  ctx.moveTo(0,0);
+  ctx.bezierCurveTo(w,-len*0.35,w,-len*0.78,0,-len);
+  ctx.bezierCurveTo(-w,-len*0.78,-w,-len*0.35,0,0);
+  ctx.fillStyle=fillStyle; ctx.fill(); ctx.restore();
+}
+
+class Spark {
+  constructor() { this.reset(true); }
+  reset(init) {
+    this.x = cx+(Math.random()-0.5)*S*0.5;
+    this.y = init ? Math.random()*H : cy+S*0.15;
+    this.vx = (Math.random()-0.5)*0.6;
+    this.vy = -(0.4+Math.random()*1.2);
+    this.life = init ? Math.random()*120 : 0;
+    this.maxL = 80+Math.random()*120;
+    this.r = 0.8+Math.random()*2;
+    this.hue = 42+Math.random()*18;
+    this.phase = Math.random()*PI2;
+  }
+  update() {
+    this.life++;
+    this.x += this.vx+Math.sin(this.life*0.08+this.phase)*0.4;
+    this.y += this.vy;
+    if (this.life>=this.maxL||this.y<-10) this.reset(false);
+  }
+  draw() {
+    const t=this.life/this.maxL, a=(t<0.2?t/0.2:1-t)*0.95;
+    ctx.save(); ctx.globalCompositeOperation='screen'; ctx.globalAlpha=a;
+    ctx.fillStyle=`hsl(${this.hue},95%,75%)`;
+    ctx.shadowBlur=8; ctx.shadowColor=`hsl(${this.hue},100%,65%)`;
+    ctx.beginPath(); ctx.arc(this.x,this.y,this.r*(1-t*0.5),0,PI2); ctx.fill();
+    ctx.restore();
+  }
+}
+const sparks = Array.from({length:70},()=>new Spark());
+let t=0;
+let flowerScale = 1, flowerTarget = 1;
+
+function drawFrame() {
+  t+=0.006;
+  ctx.fillStyle='rgba(8,3,0,0.22)'; ctx.fillRect(0,0,W,H);
+  flowerScale += (flowerTarget - flowerScale) * 0.08;
+  const R=S*0.38*flowerScale;
+  ctx.save(); ctx.globalCompositeOperation='screen';
+  const halo=ctx.createRadialGradient(cx,cy,0,cx,cy,R*1.4);
+  halo.addColorStop(0,`rgba(160,60,0,${0.12+0.05*Math.sin(t*0.7)})`);
+  halo.addColorStop(0.6,'rgba(80,20,0,0.05)');
+  halo.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=halo; ctx.fillRect(0,0,W,H);
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(t*0.18);
+  for(let i=0;i<8;i++){const a=(i/8)*PI2,p=0.78+0.22*Math.sin(t*1.2+i*0.5),hue=40+i*3;petal(0,0,R,a,R*0.19*p,`hsla(${hue},95%,62%,${0.22*p})`);}
+  ctx.restore();
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(-t*0.32);
+  for(let i=0;i<12;i++){const a=(i/12)*PI2,p=0.75+0.25*Math.sin(t*1.05+i*0.45),hue=42+i*2;petal(0,0,R*0.68,a,R*0.12*p,`hsla(${hue},100%,68%,${0.28*p})`);}
+  ctx.restore();
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(t*0.55);
+  for(let i=0;i<6;i++){const a=(i/6)*PI2,p=0.82+0.18*Math.sin(t*1.6+i*0.7);petal(0,0,R*0.38,a,R*0.075*p,`hsla(45,100%,65%,${0.42*p})`);}
+  ctx.restore();
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(-t*1.1);
+  for(let i=0;i<4;i++){const a=(i/4)*PI2,p=0.88+0.12*Math.sin(t*2.2+i);petal(0,0,R*0.17,a,R*0.04*p,`hsla(58,100%,78%,${0.55*p})`);}
+  ctx.restore();
+  [0.72,0.5,0.32,0.18].forEach((frac,i)=>{
+    ctx.beginPath();ctx.arc(cx,cy,R*frac,0,PI2);
+    ctx.strokeStyle=`hsla(${30+i*8},85%,58%,${0.07+0.04*Math.sin(t*0.9+i)})`;
+    ctx.lineWidth=0.6;ctx.stroke();
+  });
+  const coreR=R*0.09*(0.88+0.12*Math.sin(t*2.8));
+  const core=ctx.createRadialGradient(cx,cy,0,cx,cy,coreR);
+  core.addColorStop(0,`hsla(60,100%,97%,${0.95+0.05*Math.sin(t*3.5)})`);
+  core.addColorStop(0.35,'hsla(50,100%,80%,0.85)');
+  core.addColorStop(0.7,'hsla(35,95%,62%,0.5)');
+  core.addColorStop(1,'hsla(38,95%,60%,0)');
+  ctx.fillStyle=core;ctx.beginPath();ctx.arc(cx,cy,coreR,0,PI2);ctx.fill();
+  ctx.restore();
+  sparks.forEach(s=>{s.update();s.draw();});
+  requestAnimationFrame(drawFrame);
+}
+drawFrame();
+
+// UI
+const audio     = document.getElementById('audio');
+const mainBtn   = document.getElementById('mainBtn');
+const pw        = document.getElementById('pw');
+const pf        = document.getElementById('pf');
+const pt        = document.getElementById('pt');
+const fin       = document.getElementById('fin');
+const repeatBtn = document.getElementById('repeatBtn');
+const track     = document.getElementById('progressTrack');
+const skipBack  = document.getElementById('skipBack');
+const skipFwd   = document.getElementById('skipFwd');
+const infoToggle = document.getElementById('infoToggle');
+
+infoToggle.addEventListener('click', function() {
+  const open = document.body.classList.toggle('details-open');
+  flowerTarget = open ? 0.75 : 1;
+  infoToggle.textContent = open ? '↑ Свернуть' : '↓ Подробнее';
+});
+
+let mode = 'start';
+let rafAudio = null;
+let elapsed = 0, lastTs = null;
+const SESSION = 1500;
+
+function fmt(s) {
+  s = Math.max(0,Math.floor(s));
+  return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+}
+
+function updateBar() {
+  const dur = (audio.duration && isFinite(audio.duration)) ? audio.duration : SESSION;
+  const left = Math.max(dur - elapsed, 0);
+  pf.style.width = (Math.min(elapsed/dur,1)*100)+'%';
+  pt.textContent = 'осталось '+fmt(left);
+}
+
+function tickAudio(ts) {
+  if (mode !== 'playing') return;
+  if (lastTs) elapsed += (ts-lastTs)/1000;
+  lastTs = ts;
+  const dur = (audio.duration && isFinite(audio.duration)) ? audio.duration : SESSION;
+  const left = Math.max(dur-elapsed,0);
+  updateBar();
+  if (left <= 25) audio.volume = Math.max(0,(left/25)*0.9);
+  if (left <= 0) { endSession(); return; }
+  rafAudio = requestAnimationFrame(tickAudio);
+}
+
+// Scrub by click
+track.addEventListener('click', function(e) {
+  if (mode === 'start') return;
+  const rect = this.getBoundingClientRect();
+  const frac = Math.max(0, Math.min(1,(e.clientX-rect.left)/rect.width));
+  const dur = (audio.duration && isFinite(audio.duration)) ? audio.duration : SESSION;
+  elapsed = frac * dur;
+  audio.currentTime = elapsed;
+  lastTs = null;
+  updateBar();
+});
+
+// Skip ±15s
+function skip(sec) {
+  if (mode === 'start') return;
+  const dur = (audio.duration && isFinite(audio.duration)) ? audio.duration : SESSION;
+  elapsed = Math.max(0, Math.min(dur-1, elapsed+sec));
+  audio.currentTime = elapsed;
+  lastTs = null;
+  updateBar();
+}
+skipBack.addEventListener('click', () => skip(-15));
+skipFwd.addEventListener('click',  () => skip(15));
+
+mainBtn.addEventListener('click', function() {
+  if (mode === 'start') {
+    mode = 'playing'; elapsed = 0; lastTs = null;
+    document.body.classList.add('session-active');
+    pw.style.display = 'flex';
+    mainBtn.textContent = 'Пауза';
+    audio.currentTime = 0; audio.volume = 0;
+    audio.play().catch(()=>{});
+    let v=0; const fi=setInterval(()=>{v=Math.min(v+0.04,0.9);audio.volume=v;if(v>=0.9)clearInterval(fi);},200);
+    rafAudio = requestAnimationFrame(tickAudio);
+  } else if (mode === 'playing') {
+    mode='paused'; lastTs=null; cancelAnimationFrame(rafAudio);
+    audio.pause(); mainBtn.textContent='Продолжить';
+  } else if (mode === 'paused') {
+    mode='playing'; audio.play().catch(()=>{});
+    mainBtn.textContent='Пауза';
+    rafAudio=requestAnimationFrame(tickAudio);
+  }
+});
+
+repeatBtn.addEventListener('click', function() {
+  mode='start'; elapsed=0; lastTs=null;
+  cancelAnimationFrame(rafAudio); audio.pause();
+  fin.classList.remove('show');
+  pf.style.width='0%'; pw.style.display='none';
+  mainBtn.textContent='Старт';
+  document.body.classList.remove('session-active');
+});
+
+
+// Фикс: возобновляем аудио когда Telegram возвращает фокус
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible' && mode === 'playing') {
+    audio.play().catch(function(){});
+    lastTs = null;
+    if (!rafAudio) rafAudio = requestAnimationFrame(tickAudio);
+  }
+});
+window.addEventListener('focus', function() {
+  if (mode === 'playing') {
+    audio.play().catch(function(){});
+    lastTs = null;
+  }
+});
+
+// ── Защита от обрывов сети (auto-recovery) ──
+let lastReloadAt = 0;
+const reloadHistory = [];
+
+function attemptReload(reason) {
+  if (mode !== 'playing') return;
+  const now = Date.now();
+  if (now - lastReloadAt < 10000) return;
+
+  const savedTime = (isFinite(audio.currentTime) && audio.currentTime > 0)
+    ? audio.currentTime
+    : elapsed;
+  if (!isFinite(savedTime) || savedTime <= 0) return;
+
+  lastReloadAt = now;
+  reloadHistory.push(now);
+  while (reloadHistory.length && reloadHistory[0] < now - 30000) reloadHistory.shift();
+  if (reloadHistory.length >= 3) {
+    console.warn('[audio recovery] частые перезагрузки:', reloadHistory.length, 'за 30 сек,', reason);
+  }
+  console.log('[audio recovery]', reason, 'at', savedTime.toFixed(1));
+
+  const onReady = function() {
+    audio.removeEventListener('canplay', onReady);
+    try { audio.currentTime = savedTime; } catch (e) {}
+    if (mode === 'playing') audio.play().catch(function(){});
+  };
+  audio.addEventListener('canplay', onReady);
+  try { audio.load(); } catch (e) {}
+}
+
+audio.addEventListener('stalled', function() { attemptReload('stalled'); });
+audio.addEventListener('error',   function() { attemptReload('error'); });
+audio.addEventListener('waiting', function() {
+  setTimeout(function() {
+    if (mode === 'playing' && audio.readyState < 3) attemptReload('waiting');
+  }, 4000);
+});
+
+function endSession() {
+  mode='start'; cancelAnimationFrame(rafAudio); audio.pause();
+  mainBtn.textContent='Старт';
+  fin.classList.add('show');
+}
+
+function init() {
+  document.querySelector('.app').classList.add('ready');
+}
+
+// Демо: гейта нет, практика открыта сразу.
+init();
+</script>
+</body>
+</html>
