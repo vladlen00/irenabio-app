@@ -2946,9 +2946,11 @@ let publicData = null;
 // С 29.10.2026 «Один день» живёт на НАШЕМ домене: файл oneday-demo/index.html в этом
 // репозитории, главная копия, текст правят там. Старая страница на github.io заморожена.
 // Воркер тут ни при чём: "oneday-demo" нет в MINI, файл отдаёт сам Pages.
+// С 29.10.2026 тем же способом и «Женское тело»: workout-demo/index.html, главная копия.
+// Сегмент "workout-demo" не равен "workout" из MINI, воркер его не трогает.
 const DEMO_LINKS = {
   oneday:       "/oneday-demo/",
-  workout:      "https://vladlen00.github.io/workout-demo/",
+  workout:      "/workout-demo/",
 };
 
 // Справочник «Упражнения» (13.10.2026, каталог EXERCISES ниже). Константы стоят ЗДЕСЬ, выше

@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="robots" content="noindex, nofollow">
+<title>Тренировки · демо</title>
+
+<!-- ============================================================================
+     ДЕМО «ЖЕНСКОЕ ТЕЛО: ПЕРВАЯ ТРЕНИРОВКА», ГЛАВНАЯ КОПИЯ (с 29.10.2026).
+     Текст правят ЗДЕСЬ.
+
+     Адрес: app.irenabio.com/workout-demo/. Витрина ведёт сюда (DEMO_LINKS в app.js).
+     Перенесена из репозитория workout-demo (vladlen00.github.io/workout-demo/,
+     коммит fe6f7e5), чтобы гостья из рекламы не видела в адресной строке github.io.
+     Старая страница на github.io НЕ удалена и больше не правится: на неё могут
+     вести старые ссылки, она живёт как есть. Тем же способом 29.10 переехал
+     «Один день» (oneday-demo/index.html).
+
+     Почему файл, а не sw.js: воркер ставится только после первого захода на
+     дом, а холодная гостья приходит впервые. Файл отдаёт сам GitHub Pages по
+     нашему домену, с воркером и без. Пути "workout-demo" в списке MINI нет и
+     быть не должно (там "workout", это другой сегмент пути): воркер его не трогает.
+
+     Ролик Kinescope разрешён для app.irenabio.com и vladlen00.github.io
+     (проверено 29.10.2026, tools/kinescope/check.sh в biohack). Домены стоят
+     у КАЖДОГО ролика: сменишь ролик - проверь домены у нового.
+     Ссылки в приложение относительные ("/?..."), то есть на тот же домен.
+     Отличия от github.io: эти ссылки и нижний отступ .player-info (подпись
+     irena.bio не ложится на кнопку). Счётчика Метрики нет, хранилища не пишет.
+     ============================================================================ -->
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Raleway:wght@200;300;400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 100%; height: 100%;
+  background: #1a1228;
+  font-family: 'Raleway', sans-serif;
+  color: #e0d8f0;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+.bg {
+  position: fixed; inset: 0; z-index: 0;
+  background: radial-gradient(ellipse 70% 50% at 30% 20%, rgba(140,60,200,0.3) 0%, transparent 70%),
+              radial-gradient(ellipse 50% 40% at 80% 70%, rgba(100,40,160,0.2) 0%, transparent 60%);
+  pointer-events: none;
+}
+.app {
+  position: relative; z-index: 1;
+  max-width: 480px; margin: 0 auto;
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+}
+.header { padding: 20px 24px 0; flex-shrink: 0; }
+.header-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic; font-weight: 300;
+  font-size: 1.6rem; letter-spacing: 0.1em;
+  color: rgba(220,200,255,0.9);
+  text-shadow: 0 0 30px rgba(160,80,220,0.4);
+}
+.header-sub {
+  font-size: 0.7rem; letter-spacing: 0.25em;
+  color: rgba(160,140,210,0.5);
+  margin-top: 2px; text-transform: uppercase;
+  display: flex; align-items: center; gap: 6px;
+}
+.ig-icon { width: 13px; height: 13px; flex-shrink: 0; opacity: 0.5; }
+
+/* Podcast index button (header) */
+.podcast-index-link {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%;
+  margin-top: 14px;
+  background: rgba(140,80,240,0.18);
+  border: 1px solid rgba(160,100,255,0.4);
+  border-radius: 14px;
+  padding: 11px 16px;
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.75rem; font-weight: 300;
+  letter-spacing: 0.12em;
+  color: rgba(220,200,255,0.95);
+  cursor: pointer; text-align: center;
+  transition: all 0.25s;
+  -webkit-tap-highlight-color: transparent;
+}
+.podcast-index-link:active {
+  background: rgba(140,80,240,0.35);
+  border-color: rgba(160,100,255,0.6);
+}
+.podcast-index-icon { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* Tabs */
+.tabs {
+  display: flex; gap: 6px;
+  padding: 16px 24px 0;
+  flex-shrink: 0;
+}
+.tab-btn {
+  flex: 1;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.75rem; font-weight: 300;
+  letter-spacing: 0.12em;
+  color: rgba(180,160,230,0.6);
+  cursor: pointer; white-space: nowrap;
+  transition: all 0.3s;
+  -webkit-tap-highlight-color: transparent;
+}
+.tab-btn.active {
+  background: rgba(120,60,220,0.3);
+  border-color: rgba(140,80,220,0.5);
+  color: rgba(220,200,255,1);
+}
+
+/* Loading */
+.loading {
+  display: flex; align-items: center; justify-content: center;
+  flex: 1; padding: 40px;
+}
+.loading-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: rgba(160,120,255,0.6);
+  animation: pulse 1.2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:0.3;transform:scale(0.8)} 50%{opacity:1;transform:scale(1)} }
+
+/* Player screen */
+.player-screen { display: none; flex-direction: column; flex: 1; }
+.player-screen.active { display: flex; }
+.player-back {
+  display: inline-flex; align-items: center; gap: 8px;
+  align-self: flex-start;
+  margin: 12px 24px 6px;
+  padding: 9px 16px 9px 14px;
+  cursor: pointer;
+  color: #fff;
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.9rem; font-weight: 500; letter-spacing: 0.02em;
+  background: rgba(140,80,240,0.18);
+  border: 1px solid rgba(160,100,255,0.4);
+  border-radius: 12px;
+  transition: background 0.25s, border-color 0.25s;
+  -webkit-tap-highlight-color: transparent;
+}
+.player-back::before {
+  content: '';
+  width: 8px; height: 8px;
+  border-left: 2px solid rgba(210,190,255,0.95);
+  border-bottom: 2px solid rgba(210,190,255,0.95);
+  transform: rotate(45deg);
+  flex-shrink: 0;
+}
+.player-back:active { background: rgba(140,80,240,0.3); border-color: rgba(160,100,255,0.6); }
+.player-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 9 / 16;
+    margin: 0 auto;
+    background: #000;
+    flex-shrink: 0;
+}
+.player-wrap iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
+/* Снизу 48, а не 24: иначе фиксированная подпись .author ложится на кнопку блока (29.10.2026). */
+.player-info { padding: 16px 24px 48px; }
+.player-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 400; font-size: 1.3rem;
+  color: rgba(220,200,255,0.9); margin-bottom: 4px;
+}
+
+/* Player podcast button */
+.player-podcast-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%;
+  margin-top: 14px;
+  background: rgba(140,80,240,0.4);
+  border: 1px solid rgba(160,100,255,0.5);
+  border-radius: 14px;
+  padding: 12px 16px;
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.8rem; font-weight: 300;
+  letter-spacing: 0.1em;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.25s;
+  -webkit-tap-highlight-color: transparent;
+}
+.player-podcast-btn:active { background: rgba(120,60,220,0.55); }
+.player-podcast-btn.disabled {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.1);
+  color: rgba(200,180,240,0.55);
+  cursor: default;
+  pointer-events: none;
+}
+.player-podcast-icon { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* Player description (collapsible) */
+.player-desc {
+  margin-top: 18px;
+}
+.player-desc summary {
+  list-style: none;
+  cursor: pointer;
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.8rem; font-weight: 500;
+  letter-spacing: 0.02em;
+  color: #fff;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  background: rgba(140,80,240,0.18);
+  border: 1px solid rgba(160,100,255,0.4);
+  border-radius: 14px;
+  padding: 12px 16px;
+  transition: background 0.25s, border-color 0.25s;
+  -webkit-tap-highlight-color: transparent;
+}
+.player-desc summary:active { background: rgba(140,80,240,0.3); }
+.player-desc summary::-webkit-details-marker { display: none; }
+.player-desc summary::after {
+  content: '';
+  width: 9px; height: 9px;
+  border-right: 2px solid rgba(210,190,255,0.95);
+  border-bottom: 2px solid rgba(210,190,255,0.95);
+  transform: rotate(45deg);
+  transition: transform 0.25s;
+  flex-shrink: 0;
+  margin-top: -3px;
+}
+.player-desc[open] summary {
+  background: rgba(140,80,240,0.28);
+  border-color: rgba(160,100,255,0.55);
+}
+.player-desc[open] summary::after { transform: rotate(225deg); margin-top: 3px; }
+.player-desc-body { margin-top: 12px; }
+.player-desc-subhead {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 400; font-size: 1.05rem;
+  color: rgba(220,200,255,0.95);
+  margin-bottom: 8px;
+}
+.player-desc-text {
+  font-family: 'Raleway', sans-serif;
+  font-size: 0.85rem; font-weight: 300;
+  line-height: 1.65;
+  color: rgba(220,200,255,0.85);
+  white-space: pre-line;
+}
+
+/* List screen */
+.list-screen { display: none; flex-direction: column; flex: 1; padding: 16px 24px 40px; }
+.list-screen.active { display: flex; }
+.panel { display: none; }
+.panel.active { display: block; }
+
+.section-label {
+  font-size: 0.62rem; letter-spacing: 0.3em; text-transform: uppercase;
+  color: rgba(150,130,200,0.45); margin-bottom: 14px; margin-top: 8px;
+}
+
+.workout-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: 16px; margin-bottom: 10px;
+  cursor: pointer; transition: all 0.25s;
+}
+.workout-item:active { background: rgba(120,60,220,0.3); border-color: rgba(160,100,255,0.5); }
+.workout-item.locked { opacity: 0.5; cursor: default; pointer-events: none; }
+/* ДЕМО: закрытые тренировки нажимаются и ведут в оформление подписки. */
+.workout-item.locked.demo-buy { pointer-events: auto; cursor: pointer; }
+
+.workout-num {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: rgba(140,80,240,0.4);
+  border: 1px solid rgba(160,100,255,0.5);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1rem; font-weight: 300;
+  color: #fff; flex-shrink: 0;
+}
+.workout-item.locked .workout-num {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.12);
+  color: rgba(200,180,240,0.6);
+}
+.workout-info { flex: 1; min-width: 0; }
+.workout-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 400; font-size: 1.05rem; color: #fff;
+}
+.unlock-soon {
+  font-size: 0.6rem; letter-spacing: 0.06em;
+  color: rgba(200,180,240,0.6); margin-top: 3px;
+}
+.workout-play {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: #8c50f0;
+  border: none;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; font-size: 0.75rem;
+  color: #fff; padding-left: 2px;
+}
+.workout-item.locked .workout-play {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.1);
+  font-size: 0.85rem; padding-left: 0;
+  color: rgba(200,180,240,0.5);
+}
+
+.author {
+  position: fixed; bottom: 8px; left: 0; right: 0;
+  text-align: center; z-index: 10;
+  font-size: 0.65rem; letter-spacing: 0.2em;
+  color: rgba(120,100,180,0.35); pointer-events: none;
+}
+
+/* ДЕМО: приглашение под видео. Женщина смотрит тренировку и упирается в технику,
+   это лучший момент сказать, что разборы техники есть. Без хранилища и скриптов. */
+.demo-upsell {
+  margin-top: 18px; padding: 16px;
+  background: rgba(140,80,240,0.12);
+  border: 1px solid rgba(160,100,255,0.3);
+  border-radius: 14px;
+  transition: background 1.2s ease, border-color 1.2s ease, box-shadow 1.2s ease;
+}
+/* Ролик досмотрен (событие ended плеера Kinescope по протоколу player.js):
+   блок мягко подсвечивается. Без всплывающих окон и без прокрутки. */
+.demo-upsell.lit {
+  background: rgba(140,80,240,0.22);
+  border-color: rgba(190,140,255,0.75);
+  box-shadow: 0 0 26px rgba(150,90,255,0.28);
+}
+.demo-upsell-title {
+  font-size: 0.95rem; font-weight: 600; color: #e0d8f0; margin-bottom: 6px;
+}
+.demo-upsell-text {
+  font-size: 0.85rem; line-height: 1.5; color: rgba(220,200,255,0.75); margin-bottom: 12px;
+}
+.demo-upsell-cta {
+  display: block; text-align: center; padding: 12px 16px;
+  background: rgba(140,80,240,0.4); border: 1px solid rgba(160,100,255,0.5);
+  border-radius: 14px; color: #e0d8f0; font-size: 0.9rem; font-weight: 600;
+  text-decoration: none;
+}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+
+<div class="app">
+  <!-- ДЕМО: возврат на витрину app.irenabio.com (03.10, было «Что ещё есть»).
+       Видна всегда: демо живёт только в браузере. -->
+  <button id="demoMoreBtn" type="button" onclick="location.href='/?from=demo-workout'"
+    style="display:inline-flex;align-items:center;gap:6px;margin:14px 24px 0;padding:8px 14px;background:rgba(140,80,240,0.18);border:1px solid rgba(160,100,255,0.35);border-radius:12px;color:#e0d8f0;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">← Вернуться</button>
+  <div class="header">
+    <div class="header-title">Тренировки «Женское тело»</div>
+    <div class="header-sub">
+      <svg class="ig-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+        <circle cx="12" cy="12" r="4"/>
+        <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+      </svg>
+      irena.bio
+    </div>
+  </div>
+
+  <div class="loading" id="loadingScreen"><div class="loading-dot"></div></div>
+
+  <div class="list-screen" id="listScreen">
+    <div class="panel active" id="panel-workouts">
+      <div class="section-label">Программа · Женское тело</div>
+      <div id="workoutList"></div>
+    </div>
+  </div>
+
+  <div class="player-screen" id="playerScreen">
+    <div class="player-back" onclick="closeVideo()">Назад</div>
+    <div class="player-wrap">
+      <iframe id="videoFrame" src="" allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write; screen-wake-lock;" allowfullscreen></iframe>
+    </div>
+    <div class="player-info">
+      <div class="player-title" id="playerTitle"></div>
+
+      <button class="player-podcast-btn" id="playerPodcastBtn" type="button">
+        <svg class="player-podcast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 14v-2a9 9 0 0 1 18 0v2"/>
+          <rect x="3" y="14" width="5" height="7" rx="1.5"/>
+          <rect x="16" y="14" width="5" height="7" rx="1.5"/>
+        </svg>
+        <span id="playerPodcastLabel">Слушать подкаст к тренировке</span>
+      </button>
+
+      <button class="player-podcast-btn" id="playerSelfCheckBtn" type="button">
+        <svg class="player-podcast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 11l3 3L22 4"/>
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+        <span id="playerSelfCheckLabel">Открыть самопроверку</span>
+      </button>
+
+      <details class="player-desc" id="playerDesc">
+        <summary>Описание тренировки</summary>
+        <div class="player-desc-body">
+          <div class="player-desc-subhead" id="playerDescSubhead"></div>
+          <div class="player-desc-text" id="playerDescText"></div>
+        </div>
+      </details>
+      <div class="demo-upsell">
+        <div class="demo-upsell-title">Почувствовала мышцы?</div>
+        <div class="demo-upsell-text">Это первая из семи тренировок. Остальные шесть и разборы техники ждут тебя внутри.</div>
+        <a class="demo-upsell-cta" href="/?from=demo-workout-end&amp;buy=1">Открыть все тренировки</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="author">irena.bio</div>
+
+<script>
+
+// ДЕМО: своего бэкенда тут нет. Расписание открытия тренировок не читается,
+// единственная тренировка демо открыта всегда. Ссылок в закрытый
+// телеграм-канал в этом файле тоже нет ни одной.
+
+// ДЕМО: каталог из ОДНОЙ тренировки, первой. В файле остаётся РОВНО ОДИН
+// Kinescope ID: белый список Kinescope доменный, а не постраничный, и любой
+// лишний ID заиграл бы у любого, кто откроет исходник.
+const WORKOUTS = [
+  {
+    id: 1, title: 'Тренировка 01',
+    src: 'https://kinescope.io/embed/uubwddwtUe1wCwxekvoSnC',
+    description: `База курса
+
+База, с которой начинается всё остальное.
+Для тех, кто хочет настроить работу диафрагмы и мышц тазового дна, закрыть диастаз и начать путь к плоскому животу.
+Если есть диастаз - делай эту тренировку минимум 7 дней.`,
+  },
+];
+
+
+let currentTab = 'workouts';
+
+// ДЕМО: вкладка одна, переключать нечего. Функция оставлена пустой, потому
+// что на неё может сослаться разметка, а не потому что она что-то делает.
+function switchTab(tab) { currentTab = tab; }
+
+// ДЕМО: остальные тренировки программы (названия из боевого workout, без роликов).
+// Нажатие ведёт в оформление подписки на app.irenabio.com.
+const DEMO_BUY_URL = '/?from=demo-workout&buy=1';
+const LOCKED_WORKOUTS = [
+  ['Тренировка 02', 'Базовый этап'],
+  ['Тренировка 03', 'На силу и контроль'],
+  ['Тренировка 04', 'Укрепление корпуса'],
+  ['Тренировка 05', 'Максимальный рельеф'],
+  ['Тренировка 06', 'Бонусная, с фитболом'],
+  ['Тренировка МТД', 'Как заниматься'],
+];
+
+async function init() {
+  // ДЕМО: расписания нет, тренировка одна и открыта всегда.
+  const wList = document.getElementById('workoutList');
+  WORKOUTS.forEach((v, idx) => {
+    const div = document.createElement('div');
+    div.className = 'workout-item';
+    div.innerHTML = `
+      <div class="workout-num">${String(idx + 1).padStart(2, '0')}</div>
+      <div class="workout-info">
+        <div class="workout-name">${v.title}</div>
+      </div>
+      <div class="workout-play"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
+    `;
+    div.onclick = () => openVideo(v);
+    wList.appendChild(div);
+  });
+
+  // ДЕМО: остальная программа видна целиком, но под замком. Только названия, роликов нет.
+  LOCKED_WORKOUTS.forEach(([title, sub], idx) => {
+    const div = document.createElement('div');
+    div.className = 'workout-item locked demo-buy';
+    div.innerHTML = `
+      <div class="workout-num">${String(WORKOUTS.length + idx + 1).padStart(2, '0')}</div>
+      <div class="workout-info">
+        <div class="workout-name">${title}</div>
+        <div class="unlock-soon">${sub} · по подписке</div>
+      </div>
+      <div class="workout-play">🔒</div>
+    `;
+    div.onclick = () => { location.href = DEMO_BUY_URL; };
+    wList.appendChild(div);
+  });
+
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('listScreen').classList.add('active');
+}
+
+function openVideo(item) {
+  document.getElementById('videoFrame').src = item.src;
+  document.getElementById('playerTitle').textContent = item.title;
+
+  // ДЕМО: подкаста и самопроверки нет. Оба жили постами в закрытом
+  // телеграм-канале, и для пришедшей из браузера это был бы тупик.
+  document.getElementById('playerPodcastBtn').style.display = 'none';
+  document.getElementById('playerSelfCheckBtn').style.display = 'none';
+
+  // Описание: первая строка - подзаголовок, остальное - body. По умолчанию свёрнуто.
+  const desc = document.getElementById('playerDesc');
+  if (item.description) {
+    const lines = item.description.split('\n');
+    const subhead = lines[0];
+    const rest = lines.slice(1).join('\n').replace(/^\n+/, '');
+    document.getElementById('playerDescSubhead').textContent = subhead;
+    document.getElementById('playerDescText').textContent = rest;
+    desc.open = false;
+    desc.style.display = '';
+  } else {
+    desc.style.display = 'none';
+  }
+
+  document.getElementById('listScreen').classList.remove('active');
+  document.getElementById('playerScreen').classList.add('active');
+  window.scrollTo(0, 0);
+
+}
+
+function closeVideo() {
+  document.getElementById('videoFrame').src = '';
+  document.querySelector('.demo-upsell').classList.remove('lit');
+  document.getElementById('playerPodcastBtn').onclick = null;
+  document.getElementById('playerSelfCheckBtn').onclick = null;
+  document.getElementById('playerDesc').open = false;
+
+
+  document.getElementById('playerScreen').classList.remove('active');
+  document.getElementById('listScreen').classList.add('active');
+}
+
+// ДЕМО: конец ролика. Kinescope сам события конца не шлёт, но говорит по протоколу
+// player.js: присылает {context:"player.js", event:"ready"} строкой JSON, а после
+// подписки на "ended" присылает {event:"ended"} (проверено живым прогоном 28.10.2026
+// на app.irenabio.com/#urok). Берём сообщения только от нашего iframe.
+window.addEventListener('message', function(e) {
+  if (e.origin !== 'https://kinescope.io') return;
+  const f = document.getElementById('videoFrame');
+  if (!f || e.source !== f.contentWindow) return;
+  let m = e.data;
+  if (typeof m === 'string' && m.charAt(0) === '{') { try { m = JSON.parse(m); } catch (err) { m = null; } }
+  if (!m || typeof m !== 'object' || m.context !== 'player.js') return;
+  if (m.event === 'ready') {
+    f.contentWindow.postMessage(JSON.stringify({ context: 'player.js', version: m.version || '0.0.11',
+      method: 'addEventListener', value: 'ended', listener: 'demo_end' }), 'https://kinescope.io');
+  } else if (m.event === 'ended') {
+    document.querySelector('.demo-upsell').classList.add('lit');
+  }
+});
+
+// ДЕМО: гейта нет, тренировка открыта сразу.
+init().catch(() => {
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('listScreen').classList.add('active');
+});
+</script>
+</body>
+</html>
