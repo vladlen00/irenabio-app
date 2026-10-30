@@ -2972,8 +2972,11 @@ const SC_TOOLS = [
       { name: "Упражнения: правильное дыхание животом", locked: true },
       { name: "Остальные тренировки, упражнения и разборы", locked: true },
     ] },
-  { key: "relax", icon: "relax", name: "Расслабление", sub: "медитации, дыхание", chip: "1 пробная", try: true,
-    title: "Расслабление",
+  // 29.10.2026: у гостьи плитка и шторка называются «Медитации» (было «Расслабление»). Ключ relax
+  // и метки прежние. Дом подписчицы рисуется НЕ отсюда (index.html, data-app="relax") и остался
+  // «Расслабление»: менять название здесь дом не задевает.
+  { key: "relax", icon: "relax", name: "Медитации", sub: "и дыхание", chip: "1 пробная", try: true,
+    title: "Медитации",
     // Названия как в Студии практик (studio/index.html, вкладки Медитации, Дыхание, Музыка), 03.10.
     // 28.10: медитации сверены со студией, названия и порядок её вкладки «Медитации».
     // «Один день» первым, потому что он пробный.
@@ -5653,8 +5656,11 @@ async function paidWithSession(order) {
 // love обрабатывает бут (урок без витрины под ним, как #urok).
 // glutes (25.10.2026) - шторка программы «Биохакинг ягодиц», а если её на витрине нет,
 // шторка «Тренировки» (GOAL_TOOL_FALLBACK). youth (26.10.2026) - «Омоложение изнутри».
-const GOAL_SPRINT = { sleep: "sleep", weight: "nutrition", hormones: "perimenopause", gut: "gut-body", glutes: "glutes", youth: "rejuvenation" };
-const GOAL_TOOL = { body: "trainings", calm: "relax" };
+// calm (29.10.2026) - программа сна, как sleep: раньше вёл в шторку медитаций, а у бесплатного
+// «Одного дня» на первом экране «не делай в период острого стресса, тревожности». Метка calm
+// остаётся отдельной, чтобы в отчётах эти женщины не смешались с пришедшими по sleep.
+const GOAL_SPRINT = { sleep: "sleep", calm: "sleep", weight: "nutrition", hormones: "perimenopause", gut: "gut-body", glutes: "glutes", youth: "rejuvenation" };
+const GOAL_TOOL = { body: "trainings" };
 const GOAL_TOOL_FALLBACK = { glutes: "trainings" };
 function scGoalTool(key) { return key && SC_TOOLS.find((t) => t.key === key); }
 let scGoal;
