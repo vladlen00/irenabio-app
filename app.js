@@ -5659,8 +5659,10 @@ async function paidWithSession(order) {
 // calm (29.10.2026) - программа сна, как sleep: раньше вёл в шторку медитаций, а у бесплатного
 // «Одного дня» на первом экране «не делай в период острого стресса, тревожности». Метка calm
 // остаётся отдельной, чтобы в отчётах эти женщины не смешались с пришедшими по sleep.
+// calm (31.10.2026) - программа «Анти-хаос», как weight ведёт в «Основы питания». Бесплатных
+// дней у «Анти-хаоса» нет, кнопка на лендинге для calm - «Посмотреть программу».
 // oneday (30.10.2026) - шторка «Медитации», первым в ней пробный «Один день» (/oneday-demo/).
-const GOAL_SPRINT = { sleep: "sleep", calm: "sleep", weight: "nutrition", hormones: "perimenopause", gut: "gut-body", glutes: "glutes", youth: "rejuvenation" };
+const GOAL_SPRINT = { sleep: "sleep", calm: "antichaos", weight: "nutrition", hormones: "perimenopause", gut: "gut-body", glutes: "glutes", youth: "rejuvenation" };
 const GOAL_TOOL = { body: "trainings", oneday: "relax" };
 const GOAL_TOOL_FALLBACK = { glutes: "trainings" };
 function scGoalTool(key) { return key && SC_TOOLS.find((t) => t.key === key); }
