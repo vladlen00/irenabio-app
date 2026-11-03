@@ -8,7 +8,7 @@
 
 // Метка сборки. Печатается в консоль при загрузке, чтобы можно было убедиться,
 // что браузер взял свежий app.js, а не кэш. Поднимать вместе с ?v= в index.html.
-const APP_BUILD = "2026-10-01 ссылка шторки при снимке, сборка #13";
+const APP_BUILD = "2026-11-03 третий путь sb-ru, сборка #14";
 try {
   console.info("app.js build:", APP_BUILD);
   document.documentElement.setAttribute("data-build", APP_BUILD);
@@ -55,17 +55,31 @@ const ROUTE_TTL_MS = 24 * 60 * 60 * 1000;   // сутки, потом дешёв
 const ROUTE_PROBE_MS = 4000;                // первый заход без памяти: не ждём все 8 секунд
 const ROUTE_RECHECK_MS = 2500;              // раз в сутки пробуем вернуться на прямой путь
 
-// Память маршрута. Пишем ТОЛЬКО "proxy": отсутствие записи и есть "прямой путь".
+// Третий путь (03.11.2026): российский сервер ir-sb-ru-nsk (Timeweb, Новосибирск), Caddy
+// пропускает ровно те же /sb/functions/v1/* и /sb/auth/v1/*, что ir-sb-web. Нужен тем, у кого
+// молчат и supabase.co, и Vercel (мобильный РФ, замеры 02-03.11). Берётся ТОЛЬКО когда прямой
+// путь не ответил, а ir-sb-web не ответил или не успел (см. pickFallback).
+// ⚠️ Auth видит здесь один IP сервера на всех: X-Forwarded-For он не учитывает (docs Rate limits).
+const SB_RU_BASE = "https://sb-ru.irenabio.com/sb";
+// sb-ru ответил, а ir-sb-web ещё молчит: ждём его не дольше этого и берём sb-ru. Живой Vercel
+// отвечает за 0.3-1.7 с (замер 26.07), в РФ на мобильном он висит до таймаута (02.11).
+const ROUTE_RU_GRACE_MS = 1000;
+const ROUTE_BASES = { proxy: SB_PROXY_BASE, ru: SB_RU_BASE };
+// Только явные два значения: голый ROUTE_BASES[x] пропустил бы "toString" и "__proto__" из адреса.
+function isFallbackRoute(r) { return r === "proxy" || r === "ru"; }
+
+// Память маршрута. Пишем ТОЛЬКО "proxy" или "ru": отсутствие записи и есть "прямой путь".
+// Старый app.js (откат) запись "ru" не узнаёт и просто начинает с прямого пути.
 function readRoute() {
   try {
     const j = JSON.parse(localStorage.getItem(ROUTE_KEY) || "null");
-    if (!j || j.route !== "proxy") return null;
+    if (!j || !isFallbackRoute(j.route)) return null;
     const ts = j.ts || 0;
-    return { route: "proxy", ts, reason: j.reason || "", stale: (Date.now() - ts) > ROUTE_TTL_MS };
+    return { route: j.route, ts, reason: j.reason || "", stale: (Date.now() - ts) > ROUTE_TTL_MS };
   } catch (e) { return null; }
 }
-function writeRoute(reason) {
-  try { localStorage.setItem(ROUTE_KEY, JSON.stringify({ route: "proxy", ts: Date.now(), reason: reason || "" })); } catch (e) {}
+function writeRoute(route, reason) {
+  try { localStorage.setItem(ROUTE_KEY, JSON.stringify({ route, ts: Date.now(), reason: reason || "" })); } catch (e) {}
 }
 function clearRoute() { try { localStorage.removeItem(ROUTE_KEY); } catch (e) {} }
 
@@ -109,8 +123,27 @@ let sbRoutePromise = null;   // чтобы не пробивать путь по
 // на другую, и худшую (у прямого пути хотя бы полосы, а тут глухие сутки).
 // Одна лишняя проба дешевле суток без доступа, поэтому стираем даже на разовом обрыве.
 function routeFailed(usedRoute) {
-  if (usedRoute === "proxy") clearRoute();
+  if (isFallbackRoute(usedRoute)) clearRoute();   // proxy и ru: оба общие на всех, правило одно
   sbRoute = null;
+}
+
+// Прямой путь молчит: пробуем ir-sb-web и sb-ru ОДНОВРЕМЕННО, но ir-sb-web главнее.
+//   ir-sb-web ответил (когда угодно, пока решение не принято) -> "proxy", как было до sb-ru;
+//   sb-ru ответил первым -> ждём ir-sb-web ещё ROUTE_RU_GRACE_MS, не ответил -> "ru";
+//   ir-sb-web отказал -> "ru", если sb-ru жив; молчат оба -> null.
+// Проигравшая проба доживает до своего таймаута сама и ни на что не влияет.
+function pickFallback() {
+  return new Promise((resolve) => {
+    let proxyOk = null, ruOk = null, grace = null, done = false;
+    const finish = (v) => { if (done) return; done = true; if (grace) clearTimeout(grace); resolve(v); };
+    const decide = () => {
+      if (proxyOk === true) return finish("proxy");
+      if (proxyOk === false) { if (ruOk !== null) finish(ruOk ? "ru" : null); return; }
+      if (ruOk === true && !grace) grace = setTimeout(() => finish("ru"), ROUTE_RU_GRACE_MS);
+    };
+    routeAlive(SB_PROXY_BASE, SB_TIMEOUT_MS).then((ok) => { proxyOk = ok; decide(); });
+    routeAlive(SB_RU_BASE, SB_TIMEOUT_MS).then((ok) => { ruOk = ok; decide(); });
+  });
 }
 
 // Решаем маршрут ДО отправки. Это принципиально: signUp и signInWithPassword повторять
@@ -123,19 +156,20 @@ async function ensureRoute(force) {
   if (sbRoutePromise && !force) return sbRoutePromise;
   sbRoutePromise = (async () => {
     const mem = readRoute();
-    if (mem && !mem.stale && !force) return (sbRoute = "proxy");   // память свежая: проб нет
+    if (mem && !mem.stale && !force) return (sbRoute = mem.route);   // память свежая: проб нет
     routeProbeStatus("Проверяем доступ…");
     // Прямой путь пробуем ВСЕГДА, когда решаем заново. Если память была - проба дешёвая.
     if (await routeAlive(SUPABASE_URL, mem ? ROUTE_RECHECK_MS : ROUTE_PROBE_MS)) {
       clearRoute();
       return (sbRoute = "direct");
     }
-    // прямой молчит -> проверяем запасной ПЕРЕД тем, как что-то на него посылать
-    if (await routeAlive(SB_PROXY_BASE, SB_TIMEOUT_MS)) {
-      writeRoute("direct_unreachable");
-      return (sbRoute = "proxy");
+    // прямой молчит -> проверяем запасные ПЕРЕД тем, как что-то на них посылать
+    const fb = await pickFallback();
+    if (fb) {
+      writeRoute(fb, "direct_unreachable");
+      return (sbRoute = fb);
     }
-    // Молчат оба. Запоминать нечего, память СТИРАЕМ - чтобы не залипнуть на мёртвом прокси.
+    // Молчат все три. Запоминать нечего, память СТИРАЕМ - чтобы не залипнуть на мёртвом прокси.
     // Запрос отдаст unreachable, человек увидит экран связи, следующая попытка пробьёт заново.
     clearRoute();
     return (sbRoute = "direct");
@@ -148,8 +182,9 @@ async function ensureRoute(force) {
 // смена маршрута не выкидывает из аккаунта.
 function routeUrl(url) {
   const s = String(url);
-  if (sbRoute !== "proxy") return s;
-  return s.indexOf(SUPABASE_URL) === 0 ? SB_PROXY_BASE + s.slice(SUPABASE_URL.length) : s;
+  if (!isFallbackRoute(sbRoute)) return s;
+  const base = ROUTE_BASES[sbRoute];
+  return s.indexOf(SUPABASE_URL) === 0 ? base + s.slice(SUPABASE_URL.length) : s;
 }
 function routeInput(input) {
   if (typeof input === "string") return routeUrl(input);
@@ -160,12 +195,13 @@ function routeInput(input) {
 
 // Ручной тумблер для поддержки, по образцу неприметного переключателя хранилища:
 //   ?route=proxy  - принудительно запасной маршрут (запоминается на сутки)
+//   ?route=ru     - принудительно российский сервер (запоминается на сутки)
 //   ?route=direct - принудительно прямой (память стирается)
 // На экране ничего не рисуем: это инструмент поддержки, а не настройка для подписчицы.
 (function applyRouteOverride() {
   try {
     const p = new URLSearchParams(location.search).get("route");
-    if (p === "proxy") { writeRoute("manual"); sbRoute = "proxy"; }
+    if (isFallbackRoute(p)) { writeRoute(p, "manual"); sbRoute = p; }
     else if (p === "direct") { clearRoute(); sbRoute = "direct"; }
   } catch (e) {}
 })();
@@ -3567,9 +3603,10 @@ async function openFreeDay(dayId, forceHost, fromHistory) {
   if (!forceHost) window.scrollTo(0, 0);
 
   const body = { day_id: dayId };
-  const host = forceHost || rememberedAudioHost();
-  if (host) body.force_host = host;
   const seq = ++dayLoadSeq;
+  const host = await preferredMediaHost(forceHost);
+  if (seq !== dayLoadSeq) return;   // пока решался маршрут, открыли другой день
+  if (host) body.force_host = host;
   const r = await withTimeout(loadPublic("day", body), DAY_DEADLINE_MS).catch(() => ({ state: "timeout" }));
   if (seq !== dayLoadSeq) return;   // уже нажали «Повторить» или открыли другой день
   loading.hidden = true;
@@ -4541,6 +4578,19 @@ function rememberedAudioHost() {
   try { const v = sessionStorage.getItem(AUDIO_HOST_KEY); return (v === "timeweb" || v === "minio") ? v : null; }
   catch (e) { return null; }
 }
+// Хранилище, которое просим у get-day / get-file сами (03.11.2026). Через sb-ru функции видят
+// IP сервера 179.252.219.13, его нет в ru_ip_ranges (проверено 03.11), и без подсказки отдали бы
+// MinIO Алматы, мёртвый у тех же женщин, что сидят на sb-ru: звук ждал бы 4 с сторожа, а у
+// картинок и pdf запасного хранилища нет вовсе. На Timeweb лежат все файлы (HEAD 03.11: 220 аудио,
+// 48 картинок, 28 pdf, 31 файл справочников, отсутствующих 0). Память сессии сильнее подсказки:
+// если Timeweb не отвечает, лестница звука переключит на MinIO и запомнит это.
+// ensureRoute ДО решения: при открытии дня по ссылке маршрут мог ещё не определиться.
+async function preferredMediaHost(forceHost) {
+  if (forceHost) return forceHost;
+  const mem = rememberedAudioHost();
+  if (mem) return mem;
+  return (await ensureRoute()) === "ru" ? "timeweb" : null;
+}
 function rememberAudioHost(h) {
   if (h !== "timeweb" && h !== "minio") return;
   try { sessionStorage.setItem(AUDIO_HOST_KEY, h); } catch (e) {}
@@ -5024,7 +5074,7 @@ async function fetchDay(dayId, forceHost) {
   const body = { day_id: dayId };
   // Запомненное за сессию живое хранилище подставляем сами: иначе на каждом подкасте
   // придётся заново ждать сторож. Явный ручной выбор всегда сильнее памяти.
-  const host = forceHost || rememberedAudioHost();
+  const host = await preferredMediaHost(forceHost);
   if (host) body.force_host = host;
   // get-day - чтение, идемпотентно -> автоповтор разрешён
   return sbFetch(GET_DAY_URL, {
@@ -5363,10 +5413,13 @@ function signHandbookFiles() {
     const slugs = Array.from(new Set(rows.map((r) => r.getAttribute("data-hb-file"))));
     const s = await getSessionState({ retry: true });
     if (s.state !== "ok") return false;
+    const fileBody = { slugs, ttl: 3600 };
+    // Только на sb-ru: на других путях get-file подсказки не получал никогда, так и оставляем.
+    if ((await ensureRoute()) === "ru") fileBody.force_host = await preferredMediaHost(null);
     const r = await sbFetch(GET_FILE_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + s.token },
-      body: JSON.stringify({ slugs, ttl: 3600 }),
+      body: JSON.stringify(fileBody),
     }, { retry: true });   // чтение, идемпотентно
     const files = r.state === "ok" && r.data && r.data.ok ? (r.data.files || {}) : null;
     if (!files) { console.warn("get-file:", r.state, r.status, r.data && r.data.error); return false; }
