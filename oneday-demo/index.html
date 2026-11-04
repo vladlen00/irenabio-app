@@ -20,10 +20,18 @@
      по нашему домену, с воркером и без. Пути "oneday-demo" в списке MINI нет
      и быть не должно: тогда воркер его не трогает вовсе.
 
-     Звук берётся с vladlen00.github.io/oneday/oneday.mp3 (платный oneday):
-     это подресурс, а не переход, адресную строку он не меняет, перемотку
-     Pages отдаёт (Range). Ссылки в приложение относительные ("/?..."), то есть
-     на тот же домен. Счётчика Метрики на странице нет, хранилища она не пишет.
+     Звук (с 04.11.2026): odin-den-promo.m4a РЯДОМ с этим файлом, на нашем домене.
+     Это промо-версия Ирены с приглашением в конце, +6.75 дБ ровным усилением
+     (-27.5 LUFS, как «Отпускание контроля»), AAC 128k, faststart. Платный oneday
+     и его oneday.mp3 НЕ тронуты: студия играет прежний звук. До 04.11 демо брало
+     vladlen00.github.io/oneday/oneday.mp3.
+     Конец промо-версии: 24:32 «и если ты хочешь начать прямо сейчас», 24:35 «нажми
+     на кнопку на экране», 24:39 «обнимаю», дальше около 18 с музыки. Поэтому кнопка
+     «Открыть полный доступ» в плеере появляется по audio.currentTime >= CTA_AT (1471 с),
+     а звук затухает только в последние 10 с. Сменят файл - перемерить оба числа.
+     Ссылки в приложение относительные ("/?..."), то есть на тот же домен.
+     Метки: кнопка в плеере from=demo-oneday, на финале from=demo-oneday-end.
+     Счётчика Метрики на странице нет, хранилища она не пишет.
      ============================================================================ -->
 
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=Raleway:wght@200;300;400;500&display=swap" rel="stylesheet">
@@ -58,10 +66,14 @@
     text-shadow:0 1px 4px rgba(0,0,0,0.9);
   }
 
+  /* Экран входа минималистичный: панель с описанием скрыта и раскрывается
+     строкой под «Старт». На низких экранах панель прокручивается. */
   .info-block {
     pointer-events:all;
     width:100%; max-width:380px;
-    display:flex; flex-direction:column; align-items:center;
+    display:none; flex-direction:column; align-items:center;
+    min-height:0; flex-shrink:1; overflow-y:auto; margin:14px 0;
+    -webkit-overflow-scrolling:touch;
     gap:10px; text-align:center;
     background:rgba(0,0,0,0.78);
     backdrop-filter:blur(4px);
@@ -99,7 +111,6 @@
     top:0;
   }
   .info-details {
-    display:none;
     margin-top:4px;
     font-family:'Raleway',sans-serif;
     font-weight:400;
@@ -143,20 +154,35 @@
     color:#ffb060;
     font-weight:600;
   }
-  .info-toggle {
+  /* Одна неприметная строка под «Старт»: предупреждение и вход в подробности. */
+  .details-line {
     background:none; border:none; cursor:pointer;
-    color:#ffd060;
-    font-family:'Raleway',sans-serif;
-    font-weight:500;
-    font-size:13px;
-    padding:8px 14px;
+    font-family:'Raleway',sans-serif; font-weight:300;
+    font-size:11.5px; line-height:1.4; letter-spacing:0.02em;
+    color:rgba(255,220,160,0.55);
+    padding:10px 14px; margin-top:-4px;
+    text-shadow:0 1px 4px rgba(0,0,0,0.9);
     -webkit-tap-highlight-color:transparent;
-    letter-spacing:0.04em;
   }
+  .details-line u { text-underline-offset:3px; text-decoration-color:rgba(255,220,160,0.35); }
 
-  body.details-open .info-details { display:block; }
+  body.details-open .info-block { display:flex; }
   body.session-active .info-block,
+  body.session-active .details-line,
   body.session-active .subtitle { display:none; }
+
+  /* Кнопка в плеере: появляется по времени звука (CTA_AT в скрипте) и остаётся. */
+  .player-cta {
+    display:none; flex-direction:column; align-items:center; gap:12px;
+    width:clamp(240px,80vw,360px);
+    background:rgba(0,0,0,0.55); border-radius:20px;
+    padding:14px 18px; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  }
+  body.session-active.cta-on .player-cta { display:flex; animation:ctaIn 1.2s ease forwards; }
+  @keyframes ctaIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+  /* Финал полупрозрачный (0.92): без этого сквозь него просвечивает весь нижний блок
+     (кнопка плеера второй кнопкой, «Старт», полоса с «осталось»). «Повторить» возвращает. */
+  body.finished .bottom { visibility:hidden; }
 
   .bottom {
     pointer-events:all;
@@ -271,12 +297,7 @@
   .app { display: none; height: 100%; }
   .app.ready { display: block; }
 
-  /* ====== ДЕМО: приглашение в приложение ====== */
-  .demo-note {
-    width:100%; margin-top:4px; padding-top:14px;
-    border-top:1px solid rgba(255,210,140,0.18);
-    display:flex; flex-direction:column; align-items:center; gap:10px;
-  }
+  /* ====== ДЕМО: приглашение в приложение (плеер с 24:31 и финал) ====== */
   .demo-note-text {
     font-family:'Raleway',sans-serif; font-weight:300; font-size:0.78rem;
     line-height:1.5; color:rgba(255,235,200,0.72); text-align:center;
@@ -292,25 +313,19 @@
   }
   .finish .demo-cta { margin-top:16px; }
 
-  /* Финал демо: тихое предложение проявляется не сразу, а через 7.5 с после показа,
-     чтобы не ломать паузу после практики. Анимация перезапускается при каждом показе
-     #fin (display none -> flex). До проявления блок не нажимается. */
+  /* Финал демо (с 04.11.2026): то же одно предложение и та же кнопка, что в плеере
+     с 24:31, видно сразу. Задержки 7.5 с больше нет: Ирена в конце звука сама зовёт
+     нажать кнопку. Мягкое проявление без задержки. */
   .finish-offer {
     display:flex; flex-direction:column; align-items:center; gap:0;
-    max-width:300px; opacity:0; pointer-events:none;
-    animation:offerIn 1.6s ease 7.5s forwards;
+    max-width:300px; opacity:0;
+    animation:fu 0.8s ease forwards;
   }
-  @keyframes offerIn { to { opacity:1; pointer-events:auto; } }
   .finish-offer-text {
     font-family:'Raleway',sans-serif; font-weight:300; font-size:0.86rem;
     line-height:1.55; color:rgba(255,235,200,0.78);
   }
-  .finish-offer-text b { font-weight:500; color:rgba(255,222,160,0.96); }
-  .finish .finish-offer .demo-cta { margin-top:18px; pointer-events:inherit; }
-  .finish-offer-note {
-    margin-top:10px; font-family:'Raleway',sans-serif; font-weight:300;
-    font-size:0.68rem; line-height:1.4; color:rgba(255,235,200,0.45);
-  }
+  .finish .finish-offer .demo-cta { margin-top:18px; }
   /* «Повторить» второстепенная: без рамки и подложки, мельче. */
   .finish .finish-repeat {
     background:none; border:none; box-shadow:none; backdrop-filter:none;
@@ -338,7 +353,7 @@
 <canvas id="c"></canvas>
 
 <audio id="audio" preload="auto">
-  <source src="https://vladlen00.github.io/oneday/oneday.mp3" type="audio/mpeg">
+  <source src="odin-den-promo.m4a" type="audio/mp4">
 </audio>
 
 <div class="screen">
@@ -364,15 +379,15 @@
     <div class="warning-block">
       <strong>⚠ Важно:</strong> не делай в период острого стресса, тревожности, депрессии, после потери близкого или при приёме антидепрессантов.
     </div>
-    <button class="info-toggle" id="infoToggle" type="button">↓ Подробнее</button>
-    <div class="demo-note">
-      <div class="demo-note-text">Это бесплатная практика из приложения Ирены Пол. Внутри ещё практики, дыхание, тренировки, трекеры и подкасты.</div>
-      <a class="demo-cta" href="/?from=demo-oneday&amp;buy=1">Открыть полный доступ</a>
-    </div>
   </div>
 
   <div class="bottom">
+    <div class="player-cta" id="playerCta">
+      <div class="demo-note-text">Это бесплатная практика из приложения Ирены Пол. Внутри ещё практики, дыхание, тренировки, трекеры и подкасты.</div>
+      <a class="demo-cta" href="/?from=demo-oneday&amp;buy=1">Открыть полный доступ</a>
+    </div>
     <button class="btn" id="mainBtn">Старт</button>
+    <button class="details-line" id="detailsLine" type="button">Не для периода острого стресса и депрессии · <u id="detailsWord">подробнее</u></button>
     <div class="progress-wrap" id="pw">
 
       <!-- Scrub bar -->
@@ -427,9 +442,8 @@
   </div>
   <button class="btn finish-btn finish-repeat" id="repeatBtn">Повторить</button>
   <div class="finish-offer">
-    <p class="finish-offer-text"><b>Отозвалось? Это одна из моих медитаций.</b> Внутри ещё 12: чтобы вернуть тепло в отношения, полюбить своё тело, отпустить контроль и крепко засыпать.</p>
-    <a class="demo-cta" href="/?from=demo-oneday-end&amp;buy=1">Открыть все медитации</a>
-    <div class="finish-offer-note">Оформление за минуту, отменить можно в любой момент</div>
+    <p class="finish-offer-text">Это бесплатная практика из приложения Ирены Пол. Внутри ещё практики, дыхание, тренировки, трекеры и подкасты.</p>
+    <a class="demo-cta" href="/?from=demo-oneday-end&amp;buy=1">Открыть полный доступ</a>
   </div>
 </div>
 
@@ -544,18 +558,35 @@ const repeatBtn = document.getElementById('repeatBtn');
 const track     = document.getElementById('progressTrack');
 const skipBack  = document.getElementById('skipBack');
 const skipFwd   = document.getElementById('skipFwd');
-const infoToggle = document.getElementById('infoToggle');
+const detailsLine = document.getElementById('detailsLine');
+const detailsWord = document.getElementById('detailsWord');
 
-infoToggle.addEventListener('click', function() {
+detailsLine.addEventListener('click', function() {
   const open = document.body.classList.toggle('details-open');
   flowerTarget = open ? 0.75 : 1;
-  infoToggle.textContent = open ? '↑ Свернуть' : '↓ Подробнее';
+  detailsWord.textContent = open ? 'свернуть' : 'подробнее';
 });
 
 let mode = 'start';
 let rafAudio = null;
 let elapsed = 0, lastTs = null;
 const SESSION = 1500;
+
+// Кнопка «Открыть полный доступ» в плеере. Ирена в 24:32 говорит «и если ты хочешь
+// начать прямо сейчас, нажми на кнопку на экране». Смотрим на время самого звука
+// (currentTime), а не на таймер плеера: пауза, сворачивание и перемотка не сбивают.
+// Появившись, кнопка остаётся до конца прослушивания, «Повторить» её прячет.
+const CTA_AT = 1471;   // 24:31, пауза перед «и если ты хочешь»
+const FADE_SEC = 10;   // затухание только по музыке после «обнимаю» (24:39)
+let ctaShown = false;
+function checkCta() {
+  if (ctaShown || mode === 'start') return;
+  if (audio.currentTime >= CTA_AT) {
+    ctaShown = true;
+    document.body.classList.add('cta-on');
+  }
+}
+['timeupdate', 'seeked', 'play'].forEach(function(ev) { audio.addEventListener(ev, checkCta); });
 
 function fmt(s) {
   s = Math.max(0,Math.floor(s));
@@ -576,7 +607,7 @@ function tickAudio(ts) {
   const dur = (audio.duration && isFinite(audio.duration)) ? audio.duration : SESSION;
   const left = Math.max(dur-elapsed,0);
   updateBar();
-  if (left <= 25) audio.volume = Math.max(0,(left/25)*0.9);
+  if (left <= FADE_SEC) audio.volume = Math.max(0,(left/FADE_SEC)*0.9);
   if (left <= 0) { endSession(); return; }
   rafAudio = requestAnimationFrame(tickAudio);
 }
@@ -629,6 +660,7 @@ repeatBtn.addEventListener('click', function() {
   mode='start'; elapsed=0; lastTs=null;
   cancelAnimationFrame(rafAudio); audio.pause();
   fin.classList.remove('show');
+  ctaShown = false; document.body.classList.remove('cta-on', 'finished');
   pf.style.width='0%'; pw.style.display='none';
   mainBtn.textContent='Старт';
   document.body.classList.remove('session-active');
@@ -692,6 +724,7 @@ audio.addEventListener('waiting', function() {
 function endSession() {
   mode='start'; cancelAnimationFrame(rafAudio); audio.pause();
   mainBtn.textContent='Старт';
+  document.body.classList.add('finished');
   fin.classList.add('show');
 }
 
