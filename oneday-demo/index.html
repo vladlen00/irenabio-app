@@ -27,7 +27,7 @@
      vladlen00.github.io/oneday/oneday.mp3.
      Конец промо-версии: 24:32 «и если ты хочешь начать прямо сейчас», 24:35 «нажми
      на кнопку на экране», 24:39 «обнимаю», дальше около 18 с музыки. Поэтому кнопка
-     «Открыть полный доступ» в плеере появляется по audio.currentTime >= CTA_AT (1471 с),
+     «Начать прямо сейчас» в плеере появляется по audio.currentTime >= CTA_AT (1471 с),
      а звук затухает только в последние 10 с. Сменят файл - перемерить оба числа.
      Ссылки в приложение относительные ("/?..."), то есть на тот же домен.
      Метки: кнопка в плеере from=demo-oneday, на финале from=demo-oneday-end.
@@ -334,6 +334,24 @@
   }
   .finish .finish-repeat:hover, .finish .finish-repeat:active { color:rgba(255,220,150,0.85); box-shadow:none; }
 
+  /* ДЕМО: «← Все практики» ведёт на витрину app.irenabio.com (с 04.11.2026, было
+     «Что ещё есть» в фиолетовой подложке). Вид как у кнопки предложения: прозрачный
+     фон, тонкая золотая рамка, Raleway. Во время медитации скрыта, на входе и на
+     финале видна. «Повторить» снимает session-active и finished: снова как на входе. */
+  .demo-back {
+    display:inline-flex; align-items:center; gap:6px;
+    position:fixed; top:12px; left:12px; z-index:100;
+    padding:7px 13px; background:transparent;
+    border:1px solid rgba(255,208,96,0.45); border-radius:14px;
+    font-family:'Raleway',sans-serif; font-weight:400; font-size:12px;
+    letter-spacing:0.04em; color:rgb(255,208,96); text-decoration:none;
+    text-shadow:0 1px 4px rgba(0,0,0,0.9);
+    -webkit-tap-highlight-color:transparent;
+  }
+  /* Зона нажатия 44 px по высоте без изменения вида: рамка 30 px, невидимый край 8 px сверху и снизу (от внутренней стороны рамки). */
+  .demo-back::before { content:''; position:absolute; inset:-8px -5px; }
+  body.session-active:not(.finished) .demo-back { display:none; }
+
   /* ДЕМО: кнопка выхода висит поверх экрана в левом верхнем углу, поэтому
      содержимому нужен свой отступ сверху. Без него на узком экране (320px,
      iPhone SE и старые андроиды) заголовок практики лезет прямо под кнопку:
@@ -347,7 +365,7 @@
 </style>
 </head>
 <body>
-<a id="demoMoreBtn" href="/?from=demo-oneday" style="display:inline-flex;position:fixed;top:12px;left:12px;z-index:100;align-items:center;gap:6px;padding:8px 14px;background:rgba(160,120,255,0.15);border:1px solid rgba(160,120,255,0.35);border-radius:12px;color:#e0d8f0;font-size:13px;font-weight:600;text-decoration:none;">Что ещё есть</a>
+<a id="demoMoreBtn" class="demo-back" href="/?from=demo-oneday">← Все практики</a>
 <div class="app">
 
 <canvas id="c"></canvas>
@@ -383,8 +401,8 @@
 
   <div class="bottom">
     <div class="player-cta" id="playerCta">
-      <div class="demo-note-text">Это бесплатная практика из приложения Ирены Пол. Внутри ещё практики, дыхание, тренировки, трекеры и подкасты.</div>
-      <a class="demo-cta" href="/?from=demo-oneday&amp;buy=1">Открыть полный доступ</a>
+      <div class="demo-note-text">В приложении тебя ждут мои авторские медитации, тренировки, курсы, и я рядом каждый день 🫶</div>
+      <a class="demo-cta" href="/?from=demo-oneday&amp;buy=1">Начать прямо сейчас</a>
     </div>
     <button class="btn" id="mainBtn">Старт</button>
     <button class="details-line" id="detailsLine" type="button">Не для периода острого стресса и депрессии · <u id="detailsWord">подробнее</u></button>
@@ -442,8 +460,8 @@
   </div>
   <button class="btn finish-btn finish-repeat" id="repeatBtn">Повторить</button>
   <div class="finish-offer">
-    <p class="finish-offer-text">Это бесплатная практика из приложения Ирены Пол. Внутри ещё практики, дыхание, тренировки, трекеры и подкасты.</p>
-    <a class="demo-cta" href="/?from=demo-oneday-end&amp;buy=1">Открыть полный доступ</a>
+    <p class="finish-offer-text">В приложении тебя ждут мои авторские медитации, тренировки, курсы, и я рядом каждый день 🫶</p>
+    <a class="demo-cta" href="/?from=demo-oneday-end&amp;buy=1">Начать прямо сейчас</a>
   </div>
 </div>
 
@@ -572,7 +590,7 @@ let rafAudio = null;
 let elapsed = 0, lastTs = null;
 const SESSION = 1500;
 
-// Кнопка «Открыть полный доступ» в плеере. Ирена в 24:32 говорит «и если ты хочешь
+// Кнопка «Начать прямо сейчас» в плеере. Ирена в 24:32 говорит «и если ты хочешь
 // начать прямо сейчас, нажми на кнопку на экране». Смотрим на время самого звука
 // (currentTime), а не на таймер плеера: пауза, сворачивание и перемотка не сбивают.
 // Появившись, кнопка остаётся до конца прослушивания, «Повторить» её прячет.
