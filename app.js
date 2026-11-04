@@ -3000,14 +3000,19 @@ const EXERCISES_SPRINT_TITLE = "Справочник: упражнения";
 const SC_TOOLS = [
   { key: "trainings", icon: "trainings", name: "Тренировки", sub: "и упражнения", chip: "1 пробная", try: true,
     title: "Тренировки",
-    // 20.10.2026: пробная одна. Ягодицы и дыхание животом закрыты, видны названием.
-    // Ветка freeDay (бесплатный день, is_free) в openLockSheet осталась на будущее.
-    items: [
-      { name: "Женское тело: первая тренировка", demo: "workout" },
-      { name: "Биохакинг ягодиц: разбор техники", locked: true },
-      { name: "Упражнения: правильное дыхание животом", locked: true },
-      { name: "Остальные тренировки, упражнения и разборы", locked: true },
-    ] },
+    // 04.11.2026: вместо четырёх строк две карточки с картинкой (макет trenirovki-2).
+    // «Женское тело» ведёт в демо (событие demo / workout, как раньше), «Ягодицы» закрыты
+    // целиком и ведут на кассу (событие sheet_buy / trainings:glutes). Числа из каталогов
+    // мини-аппов: workout 01-06 и МТД, glutes 10 тренировок и 20 разборов техники.
+    // Строки «дыхание животом» и «Остальные...» убраны. Дом подписчицы рисуется не отсюда.
+    lead: "Программы Ирены с видео: занимаешься дома, без зала.",
+    cards: [
+      { name: "Женское тело", sub: "7 тренировок · плоский живот и тазовое дно", cover: "workout",
+        demo: "workout", chip: "первая бесплатно" },
+      { name: "Биохакинг ягодиц", sub: "10 тренировок и 20 разборов техники", cover: "glutes",
+        buyTag: "trainings:glutes", chip: "в подписке" },
+    ],
+    items: [] },
   // 29.10.2026: у гостьи плитка и шторка называются «Медитации» (было «Расслабление»). Ключ relax
   // и метки прежние. Дом подписчицы рисуется НЕ отсюда (index.html, data-app="relax") и остался
   // «Расслабление»: менять название здесь дом не задевает.
@@ -3486,6 +3491,20 @@ function openLockSheet(kind, payload) {
     panel.innerHTML =
       '<div class="lock-body" style="margin-top:0;padding-top:18px">' +
         '<div class="lock-title" style="font-size:22px">' + escapeHtml(t.title) + "</div>" +
+        (t.lead ? '<div class="lock-lead trc-lead">' + escapeHtml(t.lead) + "</div>" : "") +
+        // Карточки программ (04.11.2026, «Тренировки»): открытая ведёт в демо (data-demo),
+        // закрытая на кассу (data-lock-buy со своей меткой для счётчика, data-buy-tag).
+        (t.cards || []).map((c) => {
+          const art = coverUrl(c.cover, "wide");
+          const open = !!c.demo;
+          return '<button type="button" class="trc' + (open ? "" : " trc-locked") + '"' +
+            (open ? ' data-demo="' + escapeHtml(c.demo) + '"' : ' data-lock-buy data-buy-tag="' + escapeHtml(c.buyTag || "") + '"') +
+            (art ? ' style="background-image:url(\'' + art + '\')"' : "") + ">" +
+            '<span class="trc-body"><span class="trc-kick">Программа тренировок</span>' +
+            '<span class="trc-name">' + escapeHtml(c.name) + '</span><span class="trc-sub">' + escapeHtml(c.sub) + "</span></span>" +
+            (open ? "" : '<span class="trc-lock"><i class="ti ti-lock"></i></span>') +
+            '<span class="sc-chip ' + (open ? "sc-chip-try" : "sc-chip-lock") + '">' + escapeHtml(c.chip) + "</span></button>";
+        }).join("") +
         t.items.map((it) => it.locked
           ? '<div class="lock-day rest"><i class="ti ti-lock"></i><span>' + escapeHtml(it.name) +
             (it.desc ? '<small class="lock-day-desc">' + escapeHtml(it.desc) + "</small>" : "") + "</span></div>"
@@ -3650,7 +3669,9 @@ async function openFreeDay(dayId, forceHost, fromHistory) {
   if (sheet) {
     sheet.addEventListener("click", (e) => {
       if (e.target.closest("[data-sheet-close]")) { sheet.hidden = true; return; }
-      if (e.target.closest("[data-lock-buy]")) { track("sheet_buy", lockSheetTag); sheet.hidden = true; scGoCheckout(); return; }
+      // Своя метка у кнопки (data-buy-tag, карточка «Ягодиц») главнее метки шторки.
+      const buyEl = e.target.closest("[data-lock-buy]");
+      if (buyEl) { track("sheet_buy", buyEl.getAttribute("data-buy-tag") || lockSheetTag); sheet.hidden = true; scGoCheckout(); return; }
       if (e.target.closest("[data-lock-buy-urok]")) { track("sheet_buy", lockSheetTag); sheet.hidden = true; scGoCheckoutFromUrok(); return; }
       if (e.target.closest("[data-lock-free]")) {
         sheet.hidden = true;

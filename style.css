@@ -1365,3 +1365,24 @@ main.checkout:has(> #view-urok:not([hidden])) { padding: 0; max-width: none; }
 .a2hs-note { margin: 12px 0 0; font-size: 13.5px; line-height: 1.45; color: var(--kicker); }
 .pending-card .a2hs { margin: 18px 0 0; }
 .pending-card .a2hs-note { color: var(--kicker); font-size: 13.5px; margin: 12px 0 0; }
+
+/* ===== Шторка «Тренировки» у гостьи: две карточки программ с картинкой (04.11.2026) =====
+   Только витрина (openLockSheet, kind "tool"). Дом подписчицы этих классов не использует.
+   Картинки: covers/workout-wide.webp (шапка «Женское тело» из мини-аппа workout),
+   covers/glutes-wide.webp (обложка программы). */
+.trc-lead { margin-top: 4px; }
+.trc { position: relative; display: block; width: 100%; height: 144px; margin-top: 12px; padding: 0; border-radius: 20px; overflow: hidden;
+       border: 1px solid rgba(255,255,255,.09); background: #130F17 right center / cover no-repeat; cursor: pointer; text-align: left;
+       font-family: inherit; color: var(--text); }
+.trc::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+              background: linear-gradient(to right, rgba(14,8,20,.94) 0%, rgba(14,8,20,.80) 42%, rgba(14,8,20,.15) 75%, rgba(14,8,20,0) 100%); }
+.trc-body { position: relative; z-index: 1; display: block; padding: 16px 16px 0 18px; max-width: 68%; }
+.trc-kick { display: block; font-size: 9.5px; letter-spacing: .22em; text-transform: uppercase; color: rgba(230,215,235,.62); }
+.trc-name { display: block; margin-top: 6px; font-family: 'Playfair Display', Georgia, serif; font-size: 24px; line-height: 1.08; color: #F6EEF6; }
+.trc-sub { display: block; margin-top: 7px; font-size: 12px; line-height: 1.35; color: #D2C6CF; }
+.trc .sc-chip { position: absolute; z-index: 1; right: 12px; bottom: 12px; }
+.trc-lock { position: absolute; z-index: 1; top: 12px; right: 12px; width: 30px; height: 30px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(10,6,14,.55); border: 1px solid rgba(255,255,255,.18); color: #EDE3EA; font-size: 15px; }
+.trc:active { border-color: var(--accent); }
+.trc + .lock-cta { margin-top: 18px; }

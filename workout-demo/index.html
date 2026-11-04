@@ -348,17 +348,83 @@ html, body {
   border-radius: 14px; color: #e0d8f0; font-size: 0.9rem; font-weight: 600;
   text-decoration: none;
 }
+/* ===== НОВЫЙ ВИД (04.11.2026): шапка скопирована из мини-аппа workout (wv2, ТГ-вид платной версии).
+   Класс wv2 стоит на body статикой. Картинка с нашего домена: covers/workout-wide.webp (та же шапка). =====
+   Правила оставлены как в workout (с body.wv2), чтобы их можно было сверять один к одному. */
+.v2-hero { display: none; }
+body.wv2 .header-title, body.wv2 .header-sub { display: none; }
+/* Шапка заходит под верхний отступ .header (20px) и его поля (24px): картинка во всю ширину */
+body.wv2 .v2-hero { display: block; position: relative; height: 196px; margin: -20px -24px 0; }
+/* Картинка 1200x400 во всю ширину, прижата вправо (девушка справа), низ уходит в фон под кнопку
+   подкастов. Слева мягкое затемнение, чтобы заголовок не ложился на фигуру и дугу.
+   Заменить картинку: новый covers/workout-wide.webp (широкий, 3:1) и ?v= в url ниже; она же на карточке шторки. */
+body.wv2 .v2-hero-art {
+  position: absolute; left: 0; right: 0; top: 0; height: calc(100% + 34px); z-index: 0; pointer-events: none;
+  background: url(/covers/workout-wide.webp?v=1) right center / cover no-repeat;
+  -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+}
+body.wv2 .v2-hero-art::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(to right, rgba(16,8,26,0.92) 0%, rgba(16,8,26,0.78) 34%, rgba(16,8,26,0.25) 58%, rgba(16,8,26,0) 72%);
+}
+body.wv2 .v2-hero-text { position: relative; z-index: 1; padding: 37px 0 0 30px; }
+body.wv2 .v2-kicker { font-size: 8px; font-weight: 400; letter-spacing: 0.29em; text-transform: uppercase; color: rgba(196,178,226,0.62); }
+body.wv2 .v2-title {
+  margin-top: 7px; font-family: 'Cormorant Garamond', serif; font-weight: 400; font-style: normal;
+  font-size: 50.5px; line-height: 0.69; letter-spacing: -0.005em;
+}
+body.wv2 .v2-title span { display: block; }
+body.wv2 .v2-title span:first-child { color: #F6EEF6; }
+body.wv2 .v2-title span:last-child {
+  font-size: 1.1em; padding-bottom: 6px; color: #CDB0F2;
+  background: linear-gradient(180deg, #E9D6FB 0%, #BE9BEE 100%); -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+body.wv2 .v2-tags { margin-top: 4px; font-size: 11px; font-weight: 400; letter-spacing: 0.07em; color: rgba(238,230,246,0.9); white-space: nowrap; }
+body.wv2 .v2-tags i { font-style: normal; font-size: 10px; margin: 0 0.55em; vertical-align: 0; color: rgba(238,230,246,0.75); }
+/* Кнопка подкастов поверх растворяющегося низа картинки */
+body.wv2 .podcast-index-link { position: relative; z-index: 1; }
+/* Пока открыт плеер, шапки нет: над видео ровно то же, что в старом виде */
+body.wv2 .app:has(#playerScreen.active) .v2-hero { display: none; }
+body.wv2 .app:has(#playerScreen.active) .header-title { display: block; }
+body.wv2 .app:has(#playerScreen.active) .header-sub { display: flex; }
+
+/* ДЕМО (04.11.2026): «← Все практики» в тон шапке, зона нажатия 44 px; замки вместо 🔒; метка «бесплатно». */
+#demoMoreBtn {
+  position: relative; z-index: 2; align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 6px; margin: 14px 24px 0; padding: 7px 13px;
+  background: rgba(10,6,14,.35); border: 1px solid rgba(205,176,242,.45); border-radius: 14px;
+  color: #E9D6FB; font-family: 'Raleway', sans-serif; font-weight: 400; font-size: 12px; cursor: pointer;
+}
+#demoMoreBtn::before { content: ''; position: absolute; inset: -8px -5px; }
+/* Пока открыта тренировка, назад только «Назад» к списку (как шапка wv2, через :has). */
+.app:has(#playerScreen.active) #demoMoreBtn { display: none; }
+body.wv2 .v2-hero { margin-top: -6px; }
+body.wv2 .list-screen .section-label { display: none; }
+.workout-item.locked .workout-play { font-size: 0; }
+.workout-item.locked .workout-play::before { content: ''; width: 14px; height: 14px; display: block;
+  background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23CDB0F2' stroke-width='2' stroke-linecap='round'%3E%3Crect x='5' y='11' width='14' height='10' rx='2'/%3E%3Cpath d='M8 11V7a4 4 0 0 1 8 0v4'/%3E%3C/svg%3E"); }
+.free-chip { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px; font-size: 10px; letter-spacing: .04em;
+  background: rgba(143,211,168,.16); color: #9BE0B4; border: 1px solid rgba(143,211,168,.35); vertical-align: 2px; }
 </style>
 </head>
-<body>
+<body class="wv2">
 <div class="bg"></div>
 
 <div class="app">
-  <!-- ДЕМО: возврат на витрину app.irenabio.com (03.10, было «Что ещё есть»).
-       Видна всегда: демо живёт только в браузере. -->
-  <button id="demoMoreBtn" type="button" onclick="location.href='/?from=demo-workout'"
-    style="display:inline-flex;align-items:center;gap:6px;margin:14px 24px 0;padding:8px 14px;background:rgba(140,80,240,0.18);border:1px solid rgba(160,100,255,0.35);border-radius:12px;color:#e0d8f0;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">← Вернуться</button>
+  <!-- ДЕМО: возврат на витрину app.irenabio.com (03.10, было «Что ещё есть», 04.11 «← Все практики»).
+       Видна всегда: демо живёт только в браузере. Вид в стилях (#demoMoreBtn). -->
+  <button id="demoMoreBtn" type="button" onclick="location.href='/?from=demo-workout'">← Все практики</button>
   <div class="header">
+    <div class="v2-hero">
+      <div class="v2-hero-art"></div>
+      <div class="v2-hero-text">
+        <div class="v2-kicker">Программа тренировок</div>
+        <h1 class="v2-title"><span>Женское</span><span>тело</span></h1>
+        <div class="v2-tags">Плоский живот<i>•</i>Тазовое дно<i>•</i>Здоровье</div>
+      </div>
+    </div>
     <div class="header-title">Тренировки «Женское тело»</div>
     <div class="header-sub">
       <svg class="ig-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -471,7 +537,7 @@ async function init() {
     div.innerHTML = `
       <div class="workout-num">${String(idx + 1).padStart(2, '0')}</div>
       <div class="workout-info">
-        <div class="workout-name">${v.title}</div>
+        <div class="workout-name">${v.title}<span class="free-chip">бесплатно</span></div>
       </div>
       <div class="workout-play"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
     `;
@@ -487,7 +553,7 @@ async function init() {
       <div class="workout-num">${String(WORKOUTS.length + idx + 1).padStart(2, '0')}</div>
       <div class="workout-info">
         <div class="workout-name">${title}</div>
-        <div class="unlock-soon">${sub} · по подписке</div>
+        <div class="unlock-soon">${sub} · в подписке</div>
       </div>
       <div class="workout-play">🔒</div>
     `;
