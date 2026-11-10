@@ -753,5 +753,100 @@ function init() {
 // Демо: гейта нет, практика открыта сразу.
 init();
 </script>
+<script>
+// ===== Маяки воронки (10.11.2026) =====
+// Только СЛУШАЕМ плеер и кнопки, ничего в них не меняем. Маяк в ir-funnel тем же форматом, что
+// track() в app.js; ключи localStorage/sessionStorage общие с сайтом (тот же origin app.irenabio.com).
+// ⚠️ Это копия funnelSid / funnelSrc / funnelSrc0 / funnelDevice / funnelInternal из app.js: менять вместе.
+// События: od_play (первый старт звука), od_q d=25|50|75|100 (по позиции звука, перемотка считается;
+// 100 = звук доиграл), od_cta_show (кнопка в плеере на 24:31), od_cta_click d=player|end.
+(function () {
+  var URL_E = "https://ir-funnel.diastazzz.workers.dev/e";
+  function today() { return new Date().toISOString().slice(0, 10); }
+  function rnd() { return Array.from(crypto.getRandomValues(new Uint8Array(8)), function (b) { return b.toString(16).padStart(2, "0"); }).join(""); }
+  function sid() {
+    try {
+      var j = JSON.parse(localStorage.getItem("irenabio_sid") || "null");
+      if (j && j.day === today() && j.id) return j.id;
+      var id = rnd(); localStorage.setItem("irenabio_sid", JSON.stringify({ id: id, day: today() })); return id;
+    } catch (e) { return "nostore00"; }
+  }
+  function src() {
+    try {
+      var q = new URLSearchParams(location.search).get("src");
+      if (q) { sessionStorage.setItem("irenabio_src", q.slice(0, 40)); return q.slice(0, 40); }
+      var saved = sessionStorage.getItem("irenabio_src"); if (saved) return saved;
+    } catch (e) {}
+    var ua = navigator.userAgent || "";
+    if (/Instagram/.test(ua)) return "ig";
+    if (/Telegram/.test(ua)) return "tg";
+    try { if (document.referrer) { var h = new URL(document.referrer).hostname; if (h && h !== location.hostname) return "ref:" + h; } } catch (e) {}
+    return "direct";
+  }
+  function src0(s) {
+    var t = today();
+    try {
+      var j = JSON.parse(localStorage.getItem("irenabio_src0") || "null");
+      if (j && j.s) return j.s;
+      var first = "";
+      try { var d = JSON.parse(localStorage.getItem("irenabio_did") || "null"); first = (d && d.first) || ""; } catch (e) {}
+      var old = /^\d{4}-\d{2}-\d{2}$/.test(first) && first < t;
+      var v = old ? "unk" : String(s || "direct").slice(0, 40);
+      localStorage.setItem("irenabio_src0", JSON.stringify({ s: v, day: old ? first : t }));
+      return v;
+    } catch (e) { return ""; }
+  }
+  function device() {
+    var t = today();
+    try {
+      var j = JSON.parse(localStorage.getItem("irenabio_did") || "null");
+      if (!j || !j.id || !/^\d{4}-\d{2}-\d{2}$/.test(j.first || "")) { j = { id: rnd(), first: t }; localStorage.setItem("irenabio_did", JSON.stringify(j)); }
+      return { did: j.id, dn: Math.max(0, Math.round((Date.parse(t) - Date.parse(j.first)) / 86400000)) };
+    } catch (e) { return { did: "", dn: 0 }; }
+  }
+  function internal() { try { return localStorage.getItem("irenabio_internal") === "1"; } catch (e) { return false; } }
+  var sent = {};
+  function track(ev, d) {
+    var key = ev + "|" + (d || "");
+    if (sent[key]) return; sent[key] = 1;   // каждое событие один раз за загрузку страницы
+    try {
+      var s = src(), s0 = src0(s), dev = device();
+      var body = JSON.stringify({ sid: sid(), ev: ev, src: s, s0: s0, d: d || "", did: dev.did, dn: dev.dn,
+                                  i: internal() ? 1 : 0, w: navigator.webdriver ? 1 : 0 });
+      if (!(navigator.sendBeacon && navigator.sendBeacon(URL_E, body))) {
+        fetch(URL_E, { method: "POST", body: body, keepalive: true, mode: "no-cors" }).catch(function () {});
+      }
+    } catch (e) {}
+  }
+  var a = document.getElementById("audio");
+  if (a) {
+    a.addEventListener("play", function () { track("od_play"); });
+    a.addEventListener("timeupdate", function () {
+      var dur = a.duration;
+      if (!(dur > 0) || !isFinite(dur)) return;
+      var p = a.currentTime / dur;
+      if (p >= 0.25) track("od_q", "25");
+      if (p >= 0.5) track("od_q", "50");
+      if (p >= 0.75) track("od_q", "75");
+    });
+    a.addEventListener("ended", function () { track("od_q", "100"); });
+  }
+  // Кнопка в плеере показывается классом cta-on на body (checkCta, 24:31), финал - классом finished
+  // (endSession ставит pause() на последней секунде, и ended может не прийти): смотрим за классами.
+  function bodyCls() {
+    var c = document.body.classList;
+    if (c.contains("cta-on")) track("od_cta_show");
+    if (c.contains("finished")) track("od_q", "100");
+  }
+  bodyCls();
+  if (window.MutationObserver) new MutationObserver(bodyCls).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  // Клики по «Начать прямо сейчас»: перехват на фазе захвата, переход по ссылке идёт как раньше.
+  document.addEventListener("click", function (e) {
+    var t = e.target && e.target.closest ? e.target.closest(".demo-cta") : null;
+    if (!t) return;
+    track("od_cta_click", t.closest("#playerCta") ? "player" : (t.closest(".finish-offer") ? "end" : "other"));
+  }, true);
+})();
+</script>
 </body>
 </html>

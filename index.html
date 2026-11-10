@@ -35,10 +35,13 @@
        (yclid, utm) до ухода в кассу; адреса возврата касс их уже не несут. -->
   <script>
   window.YM_COUNTER = 113821443;
+  /* Метрика ВЫКЛЮЧЕНА 10.11.2026 до баннера согласия для ЕС (после отпуска). Номер счётчика
+     выше оставлен; цели ym(...) сами молчат без window.ym. Включить = снять этот комментарий.
   if (window.YM_COUNTER) {
     (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};m[i].l=1*new Date();for(var j=0;j<document.scripts.length;j++){if(document.scripts[j].src===r){return;}}k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})(window,document,'script','https://mc.yandex.ru/metrika/tag.js','ym');
     ym(window.YM_COUNTER, 'init', {clickmap:true, trackLinks:true, accurateTrackBounce:true, webvisor:false});
   }
+  */
   </script>
   <meta name="theme-color" content="#0B080C">
 
@@ -925,6 +928,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=197"></script>
+  <script src="app.js?v=198"></script>
 </body>
 </html>

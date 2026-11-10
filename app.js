@@ -281,6 +281,25 @@ function funnelDevice() {
     return { did: j.id, dn: Math.max(0, Math.round((Date.parse(today) - Date.parse(j.first)) / 86400000)) };
   } catch (e) { return { did: "", dn: 0 }; }
 }
+// Первый источник устройства (10.11.2026): src0 и день первого захода, пишутся ОДИН раз и не
+// перезаписываются. Едет в каждой точке полем s0 рядом с текущим src. Устройство, которое
+// заходило до 10.11 (irenabio_did старше сегодняшнего дня), получает s0 = "unk": его первый
+// источник мы не знаем, и выдавать за первый нынешний src было бы неправдой.
+// ⚠️ Копия чтения/записи этого ключа есть в oneday-demo/index.html (funnelSrc0): менять вместе.
+const FUNNEL_SRC0_KEY = "irenabio_src0";
+function funnelSrc0(src) {
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    const j = JSON.parse(localStorage.getItem(FUNNEL_SRC0_KEY) || "null");
+    if (j && j.s) return j.s;
+    let first = "";
+    try { const d = JSON.parse(localStorage.getItem("irenabio_did") || "null"); first = (d && d.first) || ""; } catch (e) {}
+    const old = /^\d{4}-\d{2}-\d{2}$/.test(first) && first < today;
+    const s = old ? "unk" : String(src || "direct").slice(0, 40);
+    localStorage.setItem(FUNNEL_SRC0_KEY, JSON.stringify({ s, day: old ? first : today }));
+    return s;
+  } catch (e) { return ""; }
+}
 // Наши устройства (27.10.2026): один раз открыть app.irenabio.com/?internal=1, и устройство
 // навсегда помечено как наше (i=1), сводка его не считает. ?internal=0 снимает отметку.
 // Метку убираем из адреса, чтобы она не уехала дальше при пересылке ссылки.
@@ -308,8 +327,10 @@ function track(ev, d, once) {
   const key = ev + "|" + (d || "");
   if (once) { if (trackOnce.has(key)) return; trackOnce.add(key); }
   try {
+    const src = funnelSrc();
+    const s0 = funnelSrc0(src);   // ДО funnelDevice: тот создаёт irenabio_did, и новое устройство сочлось бы старым
     const dev = funnelDevice();
-    const body = JSON.stringify({ sid: funnelSid(), ev, src: funnelSrc(), d: d || "", did: dev.did, dn: dev.dn,
+    const body = JSON.stringify({ sid: funnelSid(), ev, src, s0, d: d || "", did: dev.did, dn: dev.dn,
                                   i: funnelInternal() ? 1 : 0, w: navigator.webdriver ? 1 : 0 });
     if (!(navigator.sendBeacon && navigator.sendBeacon(FUNNEL_URL, body))) {
       fetch(FUNNEL_URL, { method: "POST", body, keepalive: true, mode: "no-cors" }).catch(() => {});
@@ -1989,6 +2010,10 @@ document.addEventListener("click", (e) => {
 // не платит второй раз, а входит. Назад со входа ведёт на витрину (login-back).
 document.getElementById("checkout-to-login")?.addEventListener("click", (e) => { e.preventDefault(); track("co_login"); showLogin(); });
 
+// Откуда открыта касса (10.11.2026), поле d события checkout: sheet:<метка шторки>, day:<спринт:день>,
+// demo-oneday | demo-oneday-end | demo-workout | demo-workout-end (из ?from= при ?buy=1), bar (нижняя
+// полоса витрины), sc_buy (карточка подписки на витрине), urok, buy_link (?buy=1 без from, лендинг).
+let checkoutFrom = "";
 function showCheckout() {
   hideEntryViews();
   hidePayFlowExtra();
@@ -2015,7 +2040,10 @@ function showCheckout() {
   writePlanToUrl();
   paintSelected();
   applyCountryPay();
-  track("checkout", "", true);
+  // d = откуда пришла (10.11.2026): метку ставит тот, кто открывает кассу (checkoutFrom), и она
+  // гасится здесь же. Внутренние возвраты на кассу (назад с выбора валюты и т.п.) идут с пустой d.
+  track("checkout", checkoutFrom, true);
+  checkoutFrom = "";
 }
 // Сторож каркаса дома. Условие проверяется В МОМЕНТ срабатывания, а не по флагам:
 // так его нельзя забыть снять из нового экрана. Ушли с каркаса - сторож промолчит.
@@ -3646,7 +3674,7 @@ async function openFreeDay(dayId, forceHost, fromHistory) {
     view.addEventListener("click", (e) => {
       if (e.target.closest("#sc-login")) { showLogin(); return; }
       if (e.target.closest("#sc-pod")) { openLockSheet("podruzhka"); return; }
-      if (e.target.closest("#sc-buy")) { scGoCheckout(); return; }
+      if (e.target.closest("#sc-buy")) { scGoCheckout("sc_buy"); return; }
       const tile = e.target.closest("[data-tool]");
       if (tile) {
         const t = SC_TOOLS.find((x) => x.key === tile.getAttribute("data-tool"));
@@ -3671,8 +3699,8 @@ async function openFreeDay(dayId, forceHost, fromHistory) {
       if (e.target.closest("[data-sheet-close]")) { sheet.hidden = true; return; }
       // Своя метка у кнопки (data-buy-tag, карточка «Ягодиц») главнее метки шторки.
       const buyEl = e.target.closest("[data-lock-buy]");
-      if (buyEl) { track("sheet_buy", buyEl.getAttribute("data-buy-tag") || lockSheetTag); sheet.hidden = true; scGoCheckout(); return; }
-      if (e.target.closest("[data-lock-buy-urok]")) { track("sheet_buy", lockSheetTag); sheet.hidden = true; scGoCheckoutFromUrok(); return; }
+      if (buyEl) { const tag = buyEl.getAttribute("data-buy-tag") || lockSheetTag; track("sheet_buy", tag); sheet.hidden = true; scGoCheckout("sheet:" + tag); return; }
+      if (e.target.closest("[data-lock-buy-urok]")) { track("sheet_buy", lockSheetTag); sheet.hidden = true; scGoCheckoutFromUrok("sheet:" + lockSheetTag); return; }
       if (e.target.closest("[data-lock-free]")) {
         sheet.hidden = true;
         const s = scSprints().find((x) => (x.free_days || []).length > 0);
@@ -3691,7 +3719,7 @@ async function openFreeDay(dayId, forceHost, fromHistory) {
     });
   }
   const bar = document.getElementById("sc-bottom-btn");
-  if (bar) bar.addEventListener("click", scGoCheckout);
+  if (bar) bar.addEventListener("click", () => scGoCheckout("bar"));
   const dayBuy = document.getElementById("day-buy");
   if (dayBuy) dayBuy.addEventListener("click", (e) => {
     const next = e.target.closest("[data-free-next]");
@@ -3703,7 +3731,7 @@ async function openFreeDay(dayId, forceHost, fromHistory) {
     }
     if (e.target.closest("[data-day-buy]")) {
       track("free_buy_day" + (dayBuy.getAttribute("data-free-n") || "x"), freeDayTag(currentDayId));
-      scGoCheckoutFromDay();
+      scGoCheckoutFromDay("day:" + freeDayTag(currentDayId));
     }
   });
   const sup = document.getElementById("sc-support-btn");
@@ -3796,7 +3824,8 @@ async function showDayBuy() {
 // Из бесплатного дня в кассу. Отличается от scGoCheckout одним: "назад" возвращает
 // в ТОТ ЖЕ день, а не на витрину. Женщина ушла покупать с середины материала, и
 // выбрасывать её на главную значит заставить искать это место заново.
-function scGoCheckoutFromDay() {
+function scGoCheckoutFromDay(from) {
+  checkoutFrom = from || "";
   const sheet = document.getElementById("lock-sheet"); if (sheet) sheet.hidden = true;
   scChrome(false);
   document.getElementById("view-day").hidden = true;
@@ -3805,7 +3834,8 @@ function scGoCheckoutFromDay() {
   showCheckout();
 }
 
-function scGoCheckout() {
+function scGoCheckout(from) {
+  checkoutFrom = typeof from === "string" ? from : "";
   const sheet = document.getElementById("lock-sheet"); if (sheet) sheet.hidden = true;
   scChrome(false);
   const v = document.getElementById("view-showcase"); if (v) v.hidden = true;
@@ -4006,7 +4036,8 @@ async function openUrok(fromHistory) {
 }
 
 // Из урока в кассу: «назад» вернёт на урок, а не на витрину.
-function scGoCheckoutFromUrok() {
+function scGoCheckoutFromUrok(from) {
+  checkoutFrom = from || "";
   scChrome(false);
   hideUrok();
   checkoutBackTo = "urok";
@@ -4017,7 +4048,7 @@ function scGoCheckoutFromUrok() {
 (function wireUrok() {
   const v = document.getElementById("view-urok");
   if (v) v.addEventListener("click", (e) => {
-    if (e.target.closest("[data-urok-buy]")) { scGoCheckoutFromUrok(); return; }
+    if (e.target.closest("[data-urok-buy]")) { scGoCheckoutFromUrok("urok"); return; }
     if (e.target.closest("[data-gk-lock]")) { openLockSheet("course"); return; }
     if (e.target.closest("#gk-retry")) { openUrok(true); return; }
     const tc = e.target.closest("[data-urok-t]");
@@ -4470,6 +4501,13 @@ function openReturnDay() {
 // ?buy=1 (кнопка «оформить доступ» с лендинга и демо). Читаем один раз при загрузке и
 // гасим после первого использования: адрес с ?buy=1 остаётся в истории, а routeHomeOrCheckout
 // зовётся повторно (Повторить, возврат), и касса не должна открываться каждый раз.
+// Метка кассы для ?buy=1 (10.11.2026): из демо ?from=demo-<апп>[-end], иначе buy_link (лендинг и
+// прочие ссылки). Адрес читается один раз при загрузке: дальше writePlanToUrl его переписывает.
+const BUY_FROM = (function () {
+  try { const f = new URLSearchParams(location.search).get("from") || ""; return /^demo-[a-z]+(-end)?$/.test(f) ? f : "buy_link"; }
+  catch (e) { return "buy_link"; }
+})();
+function buyFromTag() { return BUY_FROM; }
 let buyIntent = (function () {
   try { return new URLSearchParams(location.search).get("buy") === "1"; } catch (e) { return false; }
 })();
@@ -4478,7 +4516,7 @@ let buyIntent = (function () {
 // иначе hasStoredSession продолжит врать и «назад» с кассы (scRouteByHash) не вернёт на витрину.
 async function buyWithDeadSession() {
   try { await sb.auth.signOut({ scope: "local" }); } catch (e) {}
-  scGoCheckout();
+  scGoCheckout(buyFromTag());
 }
 
 async function routeHomeOrCheckout(opts) {
@@ -5843,7 +5881,7 @@ if (startParams.get("paid") === "1" && startParams.get("order")) {
   // поэтому кнопка покупки добавляет ?buy=1, а «Что ещё есть» остаётся без неё.
   // «Назад» с кассы и стрелкой, и браузером ведёт на витрину: scGoCheckout ставит
   // checkoutBackTo = "showcase" и кадр истории.
-  if (startParams.get("buy") === "1") scGoCheckout();
+  if (startParams.get("buy") === "1") scGoCheckout(buyFromTag());
   else if (loginBack) showLogin();
   // Ручной возврат после Lava без входа. С витриной (22.09) бут сюда не смотрел, и женщина
   // после оплаты попадала на витрину вместо ожидания. Найдено 06.10.2026, живых оплат не было.
