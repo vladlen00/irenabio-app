@@ -1945,6 +1945,14 @@ function fmtDateDots(iso) {
 // Порог .long поднят с 18 до 26: базовый кегль героя вырос до 40px, и на нём
 // заголовок в 20-25 знаков нормально ложится в две строки. Ронять до 30px имеет
 // смысл только на действительно длинных именах дней, которых в базе хватает.
+// Названия спринтов (23.11.2026): однобуквенный предлог или союз (в, и, с, к, о, у, а) не
+// остаётся в конце строки, «Мужские потребности в / отношениях». Неразрывный пробел после
+// него ставится только при выводе, в базе название прежнее. Цикл: подряд идущие («и в»).
+function glueShortWords(t) {
+  let s = String(t || ""), prev;
+  do { prev = s; s = s.replace(/(^|[\s\u00A0])([вискоуаВИСКОУА])[ \t]+/g, "$1$2\u00A0"); } while (s !== prev);
+  return s;
+}
 function setHeadline(el, text) {
   if (!el) return;
   el.textContent = text;
@@ -3174,7 +3182,18 @@ const SPRINT_ABOUT = {
   nutrition: "Никаких диет, таблиц калорий и списков запрещённых продуктов: женская физиология требует другого " +
     "подхода. Анализы и как их читать, здоровая тарелка, сколько раз в день есть, завтрак, обед и ужин " +
     "по-женски, средиземноморское питание и железо.",
+  // «Мужские потребности в отношениях» (старт 28.11.2026): темы спринта пришлёт Владлен.
+  // Пустая строка = в шторке только «Старт 28 ноября», название и кнопка.
+  "men-needs": "",
 };
+// Спринт объявлен, но дней ещё нет: старт из starts_at (23.11.2026). Плашка «старт 28 ноября»
+// на постере и та же строка в шторке. Уходит сама с первым опубликованным днём: тогда
+// days_total > 0, а «идёт сейчас» get-public переносит на свежайший спринт.
+function scStartLabel(s) {
+  if (!s || !s.starts_at || s.days_total > 0 || (s.free_days || []).length) return "";
+  const d = scDateRu(s.starts_at);
+  return d ? "старт " + d : "";
+}
 
 // 20.10.2026: демо «Ягодиц» снято, шторка ягодиц зовёт в бесплатный сон, как остальные.
 const SPRINT_DEMO = {};
@@ -3381,7 +3400,7 @@ function renderShowcase(d) {
     setHeadline(headline, dayShortTitle(freeDay.title || ""));
   } else {
     kick.textContent = (freeSprint.title || "").toUpperCase();
-    setHeadline(headline, freeSprint.title || "");
+    setHeadline(headline, glueShortWords(freeSprint.title || ""));
   }
   const play = document.getElementById("sc-play");
   play.hidden = !freeDay;
@@ -3496,9 +3515,11 @@ function scPosterHtml(s) {
   // Метка на постере - бесплатные дни (решение 30.09). «В подписке», «скоро» и дата
   // старта сняты: закрытость несёт замок. Исключение 03.10: у идущего сейчас спринта
   // (is_new от get-public) метка «сейчас», замок при этом остаётся.
+  const start = scStartLabel(s);
   const badge = free
     ? '<span class="poster-badge poster-badge-free">' + escapeHtml(plurDays(free)) + " бесплатно</span>"
-    : s.is_new ? '<span class="poster-badge poster-badge-new">идёт сейчас</span>' : "";
+    : s.is_new ? '<span class="poster-badge poster-badge-new">идёт сейчас</span>'
+    : start ? '<span class="poster-badge poster-badge-new">' + escapeHtml(start) + "</span>" : "";
   const lock = free ? "" : '<span class="poster-lock"><i class="ti ti-lock"></i></span>';
   // У программы, которой ещё нет, строки под названием нет вовсе: «скоро» сказано в
   // шторке, а двухстрочное название с подписью залезало на картинку (30.09).
@@ -3506,7 +3527,7 @@ function scPosterHtml(s) {
   return '<div class="poster' + (cover ? "" : " poster-blank") + '" data-sprint="' + escapeHtml(s.id) + '" role="button"' +
       (cover ? ' data-bg="' + cover + '"' : "") + ">" +
     badge + lock +
-    '<div class="poster-info"><b>' + escapeHtml(s.title || "") + "</b>" + (meta ? "<span>" + escapeHtml(meta) + "</span>" : "") + "</div></div>";
+    '<div class="poster-info"><b>' + escapeHtml(glueShortWords(s.title || "")) + "</b>" + (meta ? "<span>" + escapeHtml(meta) + "</span>" : "") + "</div></div>";
 }
 
 // ===================== ШТОРКА ЗАМКА =====================
@@ -3625,19 +3646,24 @@ function openLockSheet(kind, payload) {
     // Программа ещё не залита целиком: обложка, название и «скоро». Списка дней нет (он был бы
     // из одного дня), кнопки покупки ЭТОЙ программы нет. Кнопка открыть всё остальное остаётся.
     const s = payload;
-    const about = scIncomplete(s) ? SPRINT_ABOUT[s.cover_slug] || "" : "";
+    // Объявленный спринт без дней (23.11.2026): «старт 28 ноября», темы из SPRINT_ABOUT, если есть.
+    const start = scStartLabel(s);
+    const about = scIncomplete(s) || start ? SPRINT_ABOUT[s.cover_slug] || "" : "";
     const cover = coverUrl(s.cover_slug, "wide") || coverUrl(s.cover_slug, "poster");
     panel.innerHTML =
       '<div class="lock-cover' + (cover ? "" : " poster-blank") + '" data-cover="' + escapeHtml(s.cover_slug || "") + '"' +
         (cover ? ' style="background-image:url(\'' + cover + '\')"' : "") + '><span class="lock-grab"></span></div>' +
       '<div class="lock-body">' +
-        '<div class="lock-kick">' + escapeHtml(about
+        '<div class="lock-kick">' + escapeHtml(start ? start + " · в подписке" : about
           ? (scDaysTotal(s) > 0 ? plurDays(scDaysTotal(s)) + " · в подписке" : "в подписке")
           : (scDaysTotal(s) > 0 ? plurDays(scDaysTotal(s)) + " · скоро" : "скоро")) + "</div>" +
-        '<div class="lock-title">' + escapeHtml(s.title || "") + "</div>" +
+        '<div class="lock-title">' + escapeHtml(glueShortWords(s.title || "")) + "</div>" +
         // Недолитая программа с описанием (03.10): о чём она и честная строка про дни.
-        // Черновику без описания по-прежнему «Скоро откроется».
-        (about
+        // Черновику без описания по-прежнему «Скоро откроется». У объявленного спринта
+        // без описания строки нет: дата уже сказана сверху.
+        (start
+          ? (about ? '<div class="lock-lead">' + escapeHtml(about) + "</div>" : "")
+          : about
           ? '<div class="lock-lead">' + escapeHtml(about) + '</div><div class="lock-note lock-note-left">Дни добавляются в приложение постепенно</div>'
           : '<div class="lock-lead">Скоро откроется</div>') +
         '<button type="button" class="btn btn-primary lock-cta" data-lock-buy data-price-cta="all">' + escapeHtml(buyAll) + "</button>" +
@@ -3660,7 +3686,7 @@ function openLockSheet(kind, payload) {
         (cover ? ' style="background-image:url(\'' + cover + '\')"' : "") + '><span class="lock-grab"></span></div>' +
       '<div class="lock-body">' +
         '<div class="lock-kick">' + escapeHtml(kicker) + "</div>" +
-        '<div class="lock-title">' + escapeHtml(s.title || "") + "</div>" +
+        '<div class="lock-title">' + escapeHtml(glueShortWords(s.title || "")) + "</div>" +
         '<div class="lock-lead">Один выпуск Ирены в день и одно действие. Проходишь в своём темпе.</div>' +
         (prev.length ? '<div class="lock-days">' + prev.map((p) => {
           const isFree = free.some((f) => f.day_number === p.day_number);
@@ -5299,6 +5325,9 @@ function openSprint(sprintId) {
   if (!sprint) return;
   hideContentViews();
   document.getElementById("view-sprint").hidden = false;
+  // Объявленный спринт без дней (23.11.2026): обложка, «Старт 28 ноября», без счётчика,
+  // без «Ещё не начат» и без кнопки выбора: пустой спринт не должен встать в герой дома.
+  const start = homeStartLabel(sprint);
   const days = (sprint.days || []).slice().sort((a, b) => a.day_number - b.day_number);
   const completed = new Set((homeData.progress && homeData.progress.completed_day_ids) || []);
   const completedVisible = days.filter((d) => completed.has(d.id)).length;
@@ -5307,10 +5336,13 @@ function openSprint(sprintId) {
   paintCover(document.getElementById("sprint-hero"), sprint.cover_slug, "wide", COVER_SHADE_SPRINT);
   const ep = isEpisodes(sprint);
   document.getElementById("sprint-kicker").textContent = ep ? "ВЫПУСКИ" : sprint.status === "active" ? "СПРИНТ" : "АРХИВ";
-  setHeadline(document.getElementById("sprint-title"), sprint.title || "");
+  setHeadline(document.getElementById("sprint-title"), glueShortWords(sprint.title || ""));
   document.getElementById("sprint-sub").textContent = ep
     ? (sprint.description || "Подкасты Ирены между спринтами")
+    : start ? start.charAt(0).toUpperCase() + start.slice(1)
     : "Авторская методика · проходите в своём темпе";
+  const meta = document.getElementById("sprint-badge").parentElement;
+  if (meta) meta.hidden = !!start;
   const denom = sprint.estimated_days || days.length || 0;
   // Тильда - только при заявленном плане (estimated_days): «~25» значит «около 25». У идущего
   // спринта без плана знаменатель = вышедшие дни, и «из ~3» читалось как «всего около трёх».
@@ -5343,6 +5375,7 @@ function openSprint(sprintId) {
       (badge ? '<div class="sprint-day-badge">' + badge + '</div>' : "") +
       '</div>';
   });
+  if (start && SPRINT_ABOUT[sprint.cover_slug]) html = '<p class="home-loading">' + escapeHtml(SPRINT_ABOUT[sprint.cover_slug]) + "</p>";
   document.getElementById("sprint-days").innerHTML = html;
   // Выбор: у ТЕКУЩЕГО спринта плашка, у остальных кнопка. "Текущий" здесь -
   // действующий (явный выбор либо фолбэк), а не только сохранённый в базе: иначе
@@ -5353,7 +5386,7 @@ function openSprint(sprintId) {
   const isCurrent = currentSprintId === sprint.id;
   if (chooseErr) chooseErr.hidden = true;
   if (chooseBtn) {
-    chooseBtn.hidden = isCurrent || ep;   // выпуски текущим спринтом не становятся
+    chooseBtn.hidden = isCurrent || ep || !!start;   // выпуски и спринт без дней текущим не становятся
     chooseBtn.disabled = false;
     chooseBtn.textContent = "Проходить этот спринт";
     chooseBtn.setAttribute("data-sprint-id", sprint.id);
@@ -5408,6 +5441,7 @@ const HANDBOOK = [
     { t: "Глутатион vs NAC", day: ["handbook", 9] },
     { t: "Спирулина", day: ["handbook", 10] },
     { t: "Ашваганда", day: ["handbook", 11] },
+    { t: "5-HTP", day: ["handbook", 12] },
   ] },
   { title: "Анализы", items: [
     { t: "Какие анализы и когда сдавать", day: ["nutrition", 2] },
@@ -5598,21 +5632,30 @@ function plurDays(n) {
 // а женщина попадала бы в пустой спринт и думала, что сломалось.
 // .poster-empty черновику НЕ вешаем: там background-shorthand, который сбрасывает
 // background-size/position и разваливает кадрирование обложки.
+// Спринт объявлен, дней ещё нет (23.11.2026): «старт 28 ноября» из starts_at (get-home).
+// Уходит сам с первым опубликованным днём. Черновику не положено: у него своё «Скоро».
+function homeStartLabel(s) {
+  if (!s || s.status === "draft" || (s.days || []).length || !s.starts_at || isEpisodes(s)) return "";
+  const d = scDateRu(s.starts_at);
+  return d ? "старт " + d : "";
+}
 function posterHtml(s, isCurrent) {
   const days = s.days || [];
   const isSoon = s.status === "draft";
+  const start = homeStartLabel(s);
   const total = s.estimated_days || days.length || 0;
-  const meta = isSoon || total <= 0 ? "скоро" : isEpisodes(s) ? plurEpisodes(days.length) : plurDays(total);
+  const meta = start ? "" : isSoon || total <= 0 ? "скоро" : isEpisodes(s) ? plurEpisodes(days.length) : plurDays(total);
   const cover = coverUrl(s.cover_slug, "poster");
-  const cls = "poster" + (isSoon ? " poster-soon" : days.length ? "" : " poster-empty");
+  const cls = "poster" + (isSoon ? " poster-soon" : days.length || start ? "" : " poster-empty");
   return '<div class="' + cls + '"' +
       (isSoon ? ' aria-disabled="true"' : ' data-sprint-id="' + escapeHtml(s.id) + '" role="button"') +
       (cover ? ' data-bg="' + cover + '"' : "") + ">" +
     (isSoon ? '<span class="poster-badge poster-badge-soon">Скоро</span>'
-            : isCurrent ? '<span class="poster-badge">Ты здесь</span>' : "") +
+            : isCurrent ? '<span class="poster-badge">Ты здесь</span>'
+            : start ? '<span class="poster-badge poster-badge-new">' + escapeHtml(start) + "</span>" : "") +
     '<div class="poster-info">' +
-      "<b>" + escapeHtml(s.title || "") + "</b>" +
-      "<span>" + escapeHtml(meta) + "</span>" +
+      "<b>" + escapeHtml(glueShortWords(s.title || "")) + "</b>" +
+      (meta ? "<span>" + escapeHtml(meta) + "</span>" : "") +
     "</div></div>";
 }
 
