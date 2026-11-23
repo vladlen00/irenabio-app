@@ -3789,12 +3789,9 @@ function dayBuyHtml(p) {
   const s = p.s;
   const lastN = p.free[p.free.length - 1].day_number;
   const left = scDaysTotal(s) - lastN;
-  const names = (s.days_preview || []).filter((d) => d.day_number > lastN).slice(0, 2)
-    .map((d) => dayShortTitle(d.title || "")).filter(Boolean).map((t) => "«" + t + "»");
+  // Названия следующих выпусков в строке больше не перечисляем (23.11.2026): только число дней.
   const prog = s.cover_slug === "sleep" ? "программы сна" : "программы «" + (s.title || "") + "»";
-  const lead = left > 0
-    ? "Впереди ещё " + plurDays(left) + " " + prog + (names.length ? ": " + names.join(", ") + " и другие." : ".")
-    : "";
+  const lead = left > 0 ? "Впереди ещё " + plurDays(left) + " " + prog + "." : "";
   return '<div class="card day-buy-card">' +
       '<div class="day-buy-h">Это был последний бесплатный день</div>' +
       (lead ? '<p class="day-buy-lead">' + escapeHtml(lead) + "</p>" : "") +
