@@ -3383,7 +3383,57 @@ function lazyPosters(root) {
     }, { rootMargin: "250px 0px" });
   }
   list.forEach((el) => posterObserver.observe(el));
+  fitPosters(root);
 }
+
+// ПЛАШКА НЕ ЗАКРЫВАЕТ НАЗВАНИЕ (23.11.2026). Высота плитки задана пропорцией 4:3, а название
+// прижато к низу, поэтому длинное название на узком экране заезжало под плашку («идёт сейчас»
+// на «Главная» при 360 px), а длинная плашка упиралась в замок. Подгонка ПО ЗАМЕРУ, ступенями:
+// сначала плашка ужимается до зазора 6 px с замком (pb1-pb3), потом шрифт названия, пока оно
+// не начнётся на 4 px ниже строки с плашкой и замком и не влезет по ширине (pf1-pf4).
+// Где и так влезает (390 px и шире), классов нет и вид прежний. Скрытая полка (высота 0)
+// пропускается, её подгонит следующий показ, ресайз или догрузка шрифтов.
+const POSTER_BADGE_STEPS = ["pb1", "pb2", "pb3"];
+const POSTER_TITLE_STEPS = ["pf1", "pf2", "pf3", "pf4"];
+function fitPosters(root) {
+  (root || document).querySelectorAll(".poster").forEach((p) => {
+    p.classList.remove(...POSTER_BADGE_STEPS, ...POSTER_TITLE_STEPS);
+    const info = p.querySelector(".poster-info");
+    if (!info || !p.offsetHeight) return;
+    const badge = p.querySelector(".poster-badge");
+    const lock = p.querySelector(".poster-lock");
+    if (badge && lock) {
+      for (const c of POSTER_BADGE_STEPS) {
+        if (badge.getBoundingClientRect().right <= lock.getBoundingClientRect().left - 6) break;
+        p.classList.add(c);
+      }
+    }
+    const top = [badge, lock].filter(Boolean);
+    const title = info.querySelector("b");
+    const fits = () => (!top.length ||
+        info.getBoundingClientRect().top >= Math.max(...top.map((e) => e.getBoundingClientRect().bottom)) + 4) &&
+      (!title || title.scrollWidth <= info.clientWidth + 1);
+    for (const c of POSTER_TITLE_STEPS) {
+      if (fits()) break;
+      p.classList.add(c);
+    }
+  });
+  // Одна полка = один кегль названий: ступень самой тесной плитки получают все её соседи,
+  // иначе на 320 px рядом стояли бы 17 и 12 px. Плашка ужимается у каждой плитки своя.
+  const groups = new Map();
+  (root || document).querySelectorAll(".poster").forEach((p) => {
+    const lvl = POSTER_TITLE_STEPS.filter((c) => p.classList.contains(c)).length;
+    const g = groups.get(p.parentElement) || { lvl: 0, list: [] };
+    g.lvl = Math.max(g.lvl, lvl); g.list.push(p); groups.set(p.parentElement, g);
+  });
+  groups.forEach((g) => g.list.forEach((p) => p.classList.add(...POSTER_TITLE_STEPS.slice(0, g.lvl))));
+}
+let fitPostersTimer = 0;
+window.addEventListener("resize", () => {
+  clearTimeout(fitPostersTimer);
+  fitPostersTimer = setTimeout(() => fitPosters(document), 150);
+});
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitPosters(document));
 
 function renderShowcase(d) {
   scShown = d;

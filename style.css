@@ -789,6 +789,18 @@ a.hb-row { text-decoration: none; color: inherit; }
   padding: 4px 9px; border-radius: 999px;
 }
 .poster-empty { background: linear-gradient(160deg,#2A2140,#150E22); border: 1px dashed rgba(255,255,255,.14); }
+/* Подгонка плитки по замеру (fitPosters в app.js, 23.11.2026): ступени ставит скрипт только
+   там, где плашка задевала замок или название заезжало под строку с плашкой. Высоту не меняют. */
+.poster.pb1 .poster-badge { letter-spacing: .3px; padding: 4px 7px; }
+.poster.pb2 .poster-badge { font-size: 7.5px; }
+.poster.pb3 .poster-badge { white-space: normal; max-width: calc(100% - 64px); line-height: 1.2; }
+.poster.pf1 .poster-info b { font-size: 15px; }
+.poster.pf2 .poster-info b { font-size: 14px; line-height: 1.12; }
+.poster.pf3 .poster-info b { font-size: 13px; line-height: 1.1; }
+.poster.pf4 .poster-info b { font-size: 12px; }
+.poster.pf4 .poster-info span { font-size: 10px; }
+.poster.pf3 { padding: 12px 12px 10px; }
+.poster.pf4 .poster-info b { line-height: 1.06; }
 .poster-empty .poster-info span { color: rgba(255,255,255,.45); }
 
 /* НЕЗАЛИТЫЙ СПРИНТ (status === "draft"): виден, но не нажимается.
