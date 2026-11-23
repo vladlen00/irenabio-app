@@ -54,7 +54,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Пол">
 
-  <link rel="stylesheet" href="style.css?v=103">
+  <link rel="stylesheet" href="style.css?v=104">
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. Файлы Google Fonts у себя (с 01.10.2026),
        собирает biohack/tools/irenabio-app/build_fonts.py. Браузер качает только нужные
        подмножества по unicode-range, как и с Google. -->
@@ -648,12 +648,15 @@
              12.09.2026 по их документации. Текст ниже НАШ, собран по смыслу требований.
              Строка про автопродление показывается ТОЛЬКО у тарифов с renews:true в PLANS
              (updateRecurrentNote в app.js): у снятых 6m и 12m автопродление зависит от
-             платёжки - WayForPay разовый, Lava продляет, - и врать на экране оплаты нельзя. -->
-        <p class="pay-legal" id="pay-recurrent-note" hidden>
-          Подписка продлевается автоматически каждый месяц, списывается стоимость выбранного
-          тарифа. Отключить автопродление можно в приложении в любой момент - доступ
-          останется до конца оплаченного периода.
-        </p>
+             платёжки - WayForPay разовый, Lava продляет, - и врать на экране оплаты нельзя.
+             23.11.2026: три абзаца вместо одного. Цену в #pay-price подставляет updateRecurrentNote
+             из get-public (priceNow на сервере), руками её здесь не писать: при подорожании
+             сменится сама. Пока ответа нет, стоит «стоимость подписки». -->
+        <div class="pay-trust" id="pay-recurrent-note" hidden>
+          <p class="pay-legal">🔒 Оплата безопасна. Данные карты вводятся на защищённой странице платёжной системы, мы их не видим и не храним.</p>
+          <p class="pay-legal">Списывается только <span id="pay-price">стоимость подписки</span> раз в месяц, никаких скрытых платежей.</p>
+          <p class="pay-legal">Отключить автопродление можно в приложении в любой момент.</p>
+        </div>
         <p class="pay-legal">
           Оплачивая, вы принимаете
           <a href="https://irenabio.com/offer.html" target="_blank" rel="noopener">Публичную оферту</a>
@@ -928,6 +931,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=200"></script>
+  <script src="app.js?v=201"></script>
 </body>
 </html>

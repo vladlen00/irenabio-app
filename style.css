@@ -238,6 +238,8 @@ a:hover { text-decoration: underline; }
 /* Условия на экране оплаты: подвал тут скрыт, а ссылки обязаны быть под рукой. */
 .pay-legal { margin: 14px 0 0; text-align: center; font-size: 12.5px; line-height: 1.5; color: var(--muted); }
 .pay-legal a { color: var(--muted); border-bottom: 1px dashed var(--border); }
+/* Три абзаца под кнопками оплаты (23.11.2026): между собой ближе, чем до оферты. */
+.pay-trust .pay-legal + .pay-legal { margin-top: 6px; }
 .pay-legal a:hover { color: var(--accent-deep); text-decoration: none; }
 
 /* Беларусь (05.10.2026): строка над кнопкой оплаты в рублях. */

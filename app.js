@@ -709,6 +709,10 @@ function updateRecurrentNote() {
   if (!note) return;
   const plan = PLANS[state.plan];
   note.hidden = !(plan && plan.renews);
+  // Цена только с сервера (get-public, priceNow): нет ответа - остаётся «стоимость подписки».
+  const price = scPrice(publicData && publicData.price);
+  const priceEl = document.getElementById("pay-price");
+  if (priceEl && price) priceEl.textContent = price.replace(" ", "\u00A0");   // «11 €» не рвётся строкой
 }
 
 // --- email ---
@@ -2039,6 +2043,8 @@ function showCheckout() {
   readPlanFromUrl();
   writePlanToUrl();
   paintSelected();
+  // Прямой заход на кассу (?buy=1): витрины не было, цены ещё нет. Догружаем и дописываем.
+  if (!publicData) loadPublicLibrary().then(updateRecurrentNote).catch(() => {});
   applyCountryPay();
   // d = откуда пришла (10.11.2026): метку ставит тот, кто открывает кассу (checkoutFrom), и она
   // гасится здесь же. Внутренние возвраты на кассу (назад с выбора валюты и т.п.) идут с пустой d.
