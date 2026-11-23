@@ -54,7 +54,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Пол">
 
-  <link rel="stylesheet" href="style.css?v=104">
+  <link rel="stylesheet" href="style.css?v=105">
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. Файлы Google Fonts у себя (с 01.10.2026),
        собирает biohack/tools/irenabio-app/build_fonts.py. Браузер качает только нужные
        подмножества по unicode-range, как и с Google. -->
@@ -547,8 +547,9 @@
             <input type="radio" name="plan" value="1m" checked>
             <span class="plan-body">
               <span class="plan-period">1 месяц</span>
-              <span class="plan-price">11 <span>EUR</span></span>
-              <span class="plan-note">≈ 11 EUR в месяц</span>
+              <!-- Цена с сервера (get-public, priceNow), заполняет checkoutFillPrice в app.js (24.11.2026).
+                   Пока ответа нет, строка скрыта: старую цифру не рисуем. -->
+              <span class="plan-price" id="plan-price-1m" hidden></span>
             </span>
           </label>
 
@@ -931,6 +932,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=201"></script>
+  <script src="app.js?v=202"></script>
 </body>
 </html>

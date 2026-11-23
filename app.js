@@ -479,7 +479,61 @@ async function copyLoginUrl(btn) {
   btn.textContent = "Скопировано";
   setTimeout(() => { btn.textContent = "Скопировать адрес"; }, 1600);
 }
+// ===== ВИТРИНА ВНУТРИ ИНСТАГРАМА И ФЕЙСБУКА (24.11.2026) =====
+// Анонс бесплатной части в Инстаграме: ссылка приходит в директ и открывается во встроенном
+// браузере. «Поделиться» и «На экран Домой» там нет, поэтому сначала выход в обычный браузер.
+// iPhone: только ручные шаги (никаких x-safari-https и прочих схем). Android: главная кнопка
+// intent: (браузер по умолчанию), под ней те же шаги вручную. Адрес - текущий, со всеми метками
+// (?src= и т.д.): в браузере откроется эта же страница, и там уже обычная карточка.
+// Дом подписчицы (slot home) не трогаем: там свой вариант с входом (?login=1).
+// События (имена из белого списка ir-funnel, новых не заводим): a2hs_show «ig:sc» (как и раньше),
+// a2hs_click «ig:sc:copy» и «ig:sc:intent»; для Фейсбука fb вместо ig.
+const isIgFb = (v) => v === "ig" || v === "fb";
+function inAppHereUrl() { return location.pathname + location.search; }
+function inAppCard(v) {
+  const android = /Android/.test(navigator.userAgent || "");
+  const steps = android
+    ? ["Нажми " + a2hsGlyph("dotsV") + " вверху справа", "Выбери «Открыть в браузере» или «Открыть в Chrome»"]
+    : ["Нажми " + a2hsGlyph("dotsH") + " вверху справа", "Выбери «Открыть в стороннем браузере»"];
+  const intent = "intent:https://app.irenabio.com" + inAppHereUrl() + "#Intent;end";
+  return '<div class="a2hs a2hs-inapp">' +
+    '<button type="button" class="a2hs-x" aria-label="Закрыть"><i class="ti ti-x"></i></button>' +
+    '<div class="a2hs-head"><img class="a2hs-ic" src="icon-192.png?v=3" alt="" width="44" height="44">' +
+    '<div class="a2hs-txt"><b>Добавь на экран Домой</b><span>Сначала открой приложение в обычном браузере, внутри ' +
+    inAppName() + " так сделать нельзя</span></div></div>" +
+    (android ? '<a class="btn btn-primary a2hs-intent" href="' + escapeHtml(intent) + '">Открыть в браузере</a>' +
+               '<p class="a2hs-or">Если кнопка не сработала:</p>' : "") +
+    '<ol class="a2hs-steps">' + steps.map((t) => "<li>" + t + "</li>").join("") + "</ol>" +
+    '<p class="a2hs-note">Там откроется эта же страница, и я покажу, как добавить иконку на рабочий стол твоего телефона</p>' +
+    '<button type="button" class="btn btn-ghost a2hs-linkcopy">Скопировать ссылку</button>' +
+    '<p class="a2hs-url" hidden></p></div>';
+}
+// «Скопировать ссылку»: текущий адрес целиком. Не вышло - показываем адрес текстом для выделения.
+async function copyHereUrl(btn, box, d) {
+  track("a2hs_click", d);
+  const url = location.href;
+  let ok = false;
+  try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(url); ok = true; } } catch (e) {}
+  if (!ok) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = url; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, url.length);
+      ok = document.execCommand("copy");
+      ta.remove();
+    } catch (e) {}
+  }
+  if (ok) {
+    btn.textContent = "Ссылка скопирована";
+    clearTimeout(btn._t);
+    btn._t = setTimeout(() => { btn.textContent = "Скопировать ссылку"; }, 2000);
+    return;
+  }
+  const p = box.querySelector(".a2hs-url");
+  if (p) { p.textContent = url; p.hidden = false; }
+}
 function a2hsCard(v, slot) {
+  if (slot !== "home" && isIgFb(v)) return inAppCard(v);
   // Дом во встроенном браузере (18.10.2026): звать на экран Домой рано, сначала в обычный браузер.
   // iPhone: кнопки нет (не работает), шаги видны сразу. Android: кнопка intent://, шаги по нажатию.
   // «Скопировать адрес» - во всех встроенных браузерах.
@@ -534,6 +588,10 @@ function a2hsShow(slot) {
   });
   const copyBtn = box.querySelector(".a2hs-copy");
   if (copyBtn) copyBtn.addEventListener("click", () => copyLoginUrl(copyBtn));
+  const linkCopy = box.querySelector(".a2hs-linkcopy");   // витрина внутри Инстаграма и Фейсбука
+  if (linkCopy) linkCopy.addEventListener("click", () => copyHereUrl(linkCopy, box, v + ":" + slot + ":copy"));
+  const intentA = box.querySelector(".a2hs-intent");     // только Android, ссылка intent: сама уводит
+  if (intentA) intentA.addEventListener("click", () => track("a2hs_click", v + ":" + slot + ":intent"));
   const goBtn = box.querySelector(".a2hs-go");   // на iPhone во встроенном браузере кнопки нет
   if (goBtn) goBtn.addEventListener("click", async () => {
     track("a2hs_click", v + ":" + slot);
@@ -709,10 +767,22 @@ function updateRecurrentNote() {
   if (!note) return;
   const plan = PLANS[state.plan];
   note.hidden = !(plan && plan.renews);
-  // Цена только с сервера (get-public, priceNow): нет ответа - остаётся «стоимость подписки».
-  const price = scPrice(publicData && publicData.price);
+  checkoutFillPrice();
+}
+// Цена на кассе ТОЛЬКО с сервера (get-public, priceNow), руками не пишется (24.11.2026):
+//   карточка тарифа «11 € в месяц» - пока ответа нет, строка скрыта;
+//   абзац «Списывается только ...» - сумма, а при рублёвой кассе (payRegion "rub", кнопка
+//   «Оплатить картой или по СБП») без суммы: там платят в рублях. Беларусь с кнопкой в евро - с суммой.
+function checkoutFillPrice() {
+  const price = scPrice(publicData && publicData.price).replace(" ", "\u00A0");   // «11 €» не рвётся строкой
+  const card = document.getElementById("plan-price-1m");
+  if (card) {
+    card.textContent = price ? price + " " : "";
+    if (price) { const s = document.createElement("span"); s.textContent = "в месяц"; card.appendChild(s); }
+    card.hidden = !price;
+  }
   const priceEl = document.getElementById("pay-price");
-  if (priceEl && price) priceEl.textContent = price.replace(" ", "\u00A0");   // «11 €» не рвётся строкой
+  if (priceEl) priceEl.textContent = price && payRegion() !== "rub" ? price : "стоимость подписки";
 }
 
 // --- email ---
