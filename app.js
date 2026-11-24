@@ -3278,7 +3278,7 @@ function priceNoticeText(n) {
   if (!day) return "";
   // Обещание правдиво: WayForPay, Lava и Tribute держат сумму оформления при продлении.
   const cur = n.current && n.current.currency === "EUR" && n.current.amount ? n.current.amount + " €" : "";
-  return "С " + day + " подорожание" + (cur ? ". Оформи сейчас, и " + cur + " останутся за тобой" : "");
+  return "С " + day + " подорожание" + (cur ? ". Оформи сейчас, и\u00a0" + cur + " останутся за тобой" : "");
 }
 
 async function loadPublic(action, extra) {

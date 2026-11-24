@@ -767,7 +767,7 @@ init();
     var day = new Date(n.first_day).toLocaleDateString("ru-RU", { day: "numeric", month: "long", timeZone: "Europe/Kyiv" });
     if (!day) return "";
     var cur = n.current && n.current.currency === "EUR" && n.current.amount ? n.current.amount + " €" : "";
-    return "С " + day + " подорожание" + (cur ? ". Оформи сейчас, и " + cur + " останутся за тобой" : "");
+    return "С " + day + " подорожание" + (cur ? ". Оформи сейчас, и\u00a0" + cur + " останутся за тобой" : "");
   }
   var URLS = ["https://kjzxrpwqyyjcykwbqskn.supabase.co/functions/v1/get-public",
               "https://ir-sb-web.vercel.app/sb/functions/v1/get-public"];
