@@ -3182,10 +3182,31 @@ const SPRINT_ABOUT = {
   nutrition: "Никаких диет, таблиц калорий и списков запрещённых продуктов: женская физиология требует другого " +
     "подхода. Анализы и как их читать, здоровая тарелка, сколько раз в день есть, завтрак, обед и ужин " +
     "по-женски, средиземноморское питание и железо.",
-  // «Мужские потребности в отношениях» (старт 28.11.2026): темы спринта пришлёт Владлен.
-  // Пустая строка = в шторке только «Старт 28 ноября», название и кнопка.
-  "men-needs": "",
+  // «Мужские потребности в отношениях» (старт 28.11.2026), текст Владлена 24.11.
+  // Строки с «• » выводятся списком (aboutHtml), остальные абзацами.
+  "men-needs": "Что на самом деле нужно мужчине рядом с тобой и как закрывать его потребности легко и «вкусно».\n" +
+    "• Сытый, но всё равно голодный\n" +
+    "• За что мужчину хвалить нельзя\n" +
+    "• «Мужчины с Марса» это миф",
 };
+// Описание спринта в HTML (24.11.2026): строки через \n; «• » в начале строки = пункт списка,
+// подряд идущие пункты собираются в один <ul>, прочие строки - абзацы. Без \n выходит один
+// абзац, как было до 24.11 (gut-body, nutrition). Текст экранируется построчно; после в/и/с/к/о/у/а
+// неразрывный пробел (glueShortWords), чтобы предлог не висел в конце строки.
+function aboutHtml(text) {
+  let html = "", items = [];
+  const flush = () => { if (items.length) { html += '<ul class="about-list">' + items.join("") + "</ul>"; items = []; } };
+  String(text || "").split("\n").forEach((line) => {
+    const t = line.trim();
+    if (!t) return;
+    const m = /^•\s*(.+)$/.exec(t);
+    if (m) { items.push("<li>" + escapeHtml(glueShortWords(m[1])) + "</li>"); return; }
+    flush();
+    html += "<p>" + escapeHtml(glueShortWords(t)) + "</p>";
+  });
+  flush();
+  return html;
+}
 // Спринт объявлен, но дней ещё нет: старт из starts_at (23.11.2026). Плашка «старт 28 ноября»
 // на постере и та же строка в шторке. Уходит сама с первым опубликованным днём: тогда
 // days_total > 0, а «идёт сейчас» get-public переносит на свежайший спринт.
@@ -3712,9 +3733,9 @@ function openLockSheet(kind, payload) {
         // Черновику без описания по-прежнему «Скоро откроется». У объявленного спринта
         // без описания строки нет: дата уже сказана сверху.
         (start
-          ? (about ? '<div class="lock-lead">' + escapeHtml(about) + "</div>" : "")
+          ? (about ? '<div class="lock-lead">' + aboutHtml(about) + "</div>" : "")
           : about
-          ? '<div class="lock-lead">' + escapeHtml(about) + '</div><div class="lock-note lock-note-left">Дни добавляются в приложение постепенно</div>'
+          ? '<div class="lock-lead">' + aboutHtml(about) + '</div><div class="lock-note lock-note-left">Дни добавляются в приложение постепенно</div>'
           : '<div class="lock-lead">Скоро откроется</div>') +
         '<button type="button" class="btn btn-primary lock-cta" data-lock-buy data-price-cta="all">' + escapeHtml(buyAll) + "</button>" +
         hurry +
@@ -5425,7 +5446,7 @@ function openSprint(sprintId) {
       (badge ? '<div class="sprint-day-badge">' + badge + '</div>' : "") +
       '</div>';
   });
-  if (start && SPRINT_ABOUT[sprint.cover_slug]) html = '<p class="home-loading">' + escapeHtml(SPRINT_ABOUT[sprint.cover_slug]) + "</p>";
+  if (start && SPRINT_ABOUT[sprint.cover_slug]) html = '<div class="sprint-about">' + aboutHtml(SPRINT_ABOUT[sprint.cover_slug]) + "</div>";
   document.getElementById("sprint-days").innerHTML = html;
   // Выбор: у ТЕКУЩЕГО спринта плашка, у остальных кнопка. "Текущий" здесь -
   // действующий (явный выбор либо фолбэк), а не только сохранённый в базе: иначе
