@@ -1137,15 +1137,18 @@ body.has-mini { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
   font: inherit; font-size: 13px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px;
   cursor: pointer; -webkit-tap-highlight-color: transparent; }
 
-/* Плашка подорожания. Показывается ТОЛЬКО когда сервер прислал price_notice,
-   то есть когда обещание "цена закрепится" правда для ОБЕИХ касс. */
+/* Плашка подорожания «С 1 декабря подорожание» (24.11.2026), над «Твоими инструментами».
+   Показывается ТОЛЬКО когда сервер прислал price_notice (priceNoticeText в app.js). */
 .sc-notice {
   margin: 14px 0 0; padding: 12px 14px; border-radius: 16px;
   background: var(--accent-wash); border: 1px solid rgba(228,134,155,.3);
   font-size: 13px; line-height: 1.5; color: var(--text);
 }
-.sc-notice b { color: var(--accent-deep); }
-.sc-notice span { display: block; margin-top: 3px; font-size: 12px; color: var(--muted); }
+.sc-notice { margin: 0 0 14px; text-align: center; font-weight: 600; color: var(--accent-deep); }
+/* Та же плашка в шторке над кнопкой и на кассе под карточкой тарифа. */
+.price-notice { margin: 14px 0 -4px; text-align: center; font-size: 13px; line-height: 1.45; font-weight: 600; color: var(--accent-deep); }
+.price-notice[hidden] { display: none; }
+.price-notice-co { margin: 10px 2px 0; }
 
 /* ЗАКРЕПЛЁННАЯ ПОЛОСКА. Высоту компенсирует padding-bottom у body, иначе она
    накрывает последнюю карточку, до которой женщина доскроллила. */

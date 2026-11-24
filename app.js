@@ -783,6 +783,12 @@ function checkoutFillPrice() {
   }
   const priceEl = document.getElementById("pay-price");
   if (priceEl) priceEl.textContent = price && payRegion() !== "rub" ? price : "стоимость подписки";
+  const coNote = document.getElementById("co-price-notice");
+  if (coNote) {
+    const nt = priceNoticeText(publicData && publicData.price_notice);
+    coNote.textContent = nt;
+    coNote.hidden = !nt;
+  }
 }
 
 // --- email ---
@@ -3259,6 +3265,22 @@ function scDateRu(iso) {
   return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", timeZone: "Europe/Kyiv" });
 }
 
+// ПЛАШКА ПОДОРОЖАНИЯ (24.11.2026). Один текст на витрину, кассу и шторку. Дата ТОЛЬКО из
+// price_notice сервера (PRICE_CHANGE_AT в _shared/plans.ts), руками в код не пишется. Сервер перестаёт
+// присылать плашку в момент смены; страница, открытая до него, гасит её сама по change_at.
+// Текст один для всех поясов, без сумм и без обещания закрепить цену (решение Владлена 24.11.2026):
+// у Tribute не подтверждено, что сумма продления остаётся прежней.
+function priceNoticeText(n) {
+  if (!n || !n.first_day) return "";
+  const at = Date.parse(n.change_at);
+  if (Number.isFinite(at) && Date.now() >= at) return "";
+  const day = scDateRu(n.first_day);
+  if (!day) return "";
+  // Обещание правдиво: WayForPay, Lava и Tribute держат сумму оформления при продлении.
+  const cur = n.current && n.current.currency === "EUR" && n.current.amount ? n.current.amount + " €" : "";
+  return "С " + day + " подорожание" + (cur ? ". Оформи сейчас, и " + cur + " останутся за тобой" : "");
+}
+
 async function loadPublic(action, extra) {
   const body = Object.assign({ action }, extra || {});
   // Чтение, идемпотентно -> автоповтор разрешён. Авторизации у витрины нет вовсе.
@@ -3536,22 +3558,12 @@ function renderShowcase(d) {
     notice = document.createElement("p");
     notice.id = "sc-notice";
     notice.className = "sc-notice";
-    const buy = document.getElementById("sc-buy");
-    buy.parentNode.insertBefore(notice, buy.nextSibling);
+    const tools = document.querySelector("#view-showcase .home-tools-h") || document.getElementById("sc-shelf");
+    tools.parentNode.insertBefore(notice, tools);
   }
-  const n = d.price_notice;
-  if (n) {
-    notice.innerHTML =
-      "<b>Успей до " + escapeHtml(scDateRu(n.last_day)) + "</b>, и " + escapeHtml(scPrice(n.current)) +
-      " закрепятся за тобой навсегда." +
-      "<span>С " + escapeHtml(scDateRu(n.first_day)) + " для новых " + escapeHtml(scPrice(n.next)) +
-      ". Осталось " + escapeHtml(plurDaysLeft(n.days_left)) + "</span>";
-    notice.hidden = false;
-    document.getElementById("sc-bottom-sub").textContent = scPrice(n.current) + " навсегда, до " + scDateRu(n.last_day);
-  } else {
-    notice.hidden = true;
-    document.getElementById("sc-bottom-sub").textContent = "всё открыто, отмена в любой момент";
-  }
+  const nt = priceNoticeText(d.price_notice);
+  notice.textContent = nt;
+  notice.hidden = !nt;
 }
 
 function plurEntries(n) {
@@ -3642,8 +3654,8 @@ function openLockSheet(kind, payload) {
   const buyOne = price ? "Открыть за " + price + " в месяц" : "Оформить подписку";
   const podNote = price ? "в подписке за " + price + " в месяц · отмена в любой момент" : "в подписке · отмена в любой момент";
   const n = publicData && publicData.price_notice;
-  const hurry = n ? '<div class="lock-note"><b>' + escapeHtml(scPrice(n.current)) + " закрепятся за тобой, если успеть до " +
-                    escapeHtml(scDateRu(n.last_day)) + "</b></div>" : "";
+  const nt = priceNoticeText(n);
+  const hurry = nt ? '<div class="price-notice">' + escapeHtml(nt) + "</div>" : "";
 
   if (kind === "podruzhka") {
     panel.innerHTML =
@@ -3660,9 +3672,8 @@ function openLockSheet(kind, payload) {
           "<div><i>•</i><span>Присылаешь фото анализов, она разбирает по функциональным нормам</span></div>" +
           "<div><i>•</i><span>Помнит твои добавки, цикл и прошлые вопросы</span></div>" +
         "</div>" +
-        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>Открыть Подружку</button>' +
+        hurry + '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>Открыть Подружку</button>' +
         '<div class="lock-note">' + escapeHtml(podNote) + "</div>" +
-        hurry +
       "</div>";
   } else if (kind === "course") {
     // Закрытый урок или сезон курса «Игра в долгую» (экран #urok). Касса вернёт на курс.
@@ -3673,9 +3684,8 @@ function openLockSheet(kind, payload) {
         '<div class="lock-head"><img src="icons/dolgaya-card.png?v=1" alt="" width="52" height="52">' +
           "<div><b>Игра в долгую</b><span>курс об отношениях" + (D ? " · " + D.seasons.length + " сезонов" : "") + "</span></div></div>" +
         '<div class="lock-lead">Этот урок открыт по подписке' + (lessons ? ": весь курс, " + lessons + " уроков, методички и задания." : ".") + "</div>" +
-        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy-urok data-price-cta="all">' + escapeHtml(buyAll) + "</button>" +
+        hurry + '<button type="button" class="btn btn-primary lock-cta" data-lock-buy-urok data-price-cta="all">' + escapeHtml(buyAll) + "</button>" +
         '<div class="lock-note">отмена в любой момент</div>' +
-        hurry +
       "</div>";
   } else if (kind === "handbook") {
     // Справочники для гостьи (05.10): четыре раздела, у каждого число записей и три строки
@@ -3691,8 +3701,7 @@ function openLockSheet(kind, payload) {
           handbookGuestRows(sec).map((t) =>
             '<div class="lock-day rest"><i class="ti ti-lock"></i><span>' + escapeHtml(t) + "</span></div>").join("")
         ).join("") +
-        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy data-price-cta="all">' + escapeHtml(buyAll) + "</button>" +
-        hurry +
+        hurry + '<button type="button" class="btn btn-primary lock-cta" data-lock-buy data-price-cta="all">' + escapeHtml(buyAll) + "</button>" +
       "</div>";
   } else if (kind === "tool") {
     const t = payload;
@@ -3722,8 +3731,7 @@ function openLockSheet(kind, payload) {
           : '<div class="lock-day free" data-demo="' + escapeHtml(it.demo) + '"><i class="ti ti-player-play"></i>' +
             "<span>" + escapeHtml(it.name) + "</span><span class=\"sc-chip sc-chip-try\">попробовать</span></div>"
         ).join("") +
-        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy data-price-cta="all">' + escapeHtml(buyAll) + "</button>" +
-        hurry +
+        hurry + '<button type="button" class="btn btn-primary lock-cta" data-lock-buy data-price-cta="all">' + escapeHtml(buyAll) + "</button>" +
       "</div>";
   } else if (scIncomplete(payload) || scNotYet(payload)) {
     // Программа ещё не залита целиком: обложка, название и «скоро». Списка дней нет (он был бы
@@ -3749,8 +3757,7 @@ function openLockSheet(kind, payload) {
           '<div class="lock-days">' + parts.topics.map((t, i) =>
             '<div class="lock-day"><i class="n">' + String(i + 1).padStart(2, "0") + "</i>" +
             "<span>" + escapeHtml(glueShortWords(t)) + '</span><i class="ti ti-lock"></i></div>').join("") + "</div>" +
-          '<button type="button" class="btn btn-primary lock-cta" data-lock-buy data-price-cta="one">' + escapeHtml(buyOne) + "</button>" +
-          hurry +
+          hurry + '<button type="button" class="btn btn-primary lock-cta" data-lock-buy data-price-cta="one">' + escapeHtml(buyOne) + "</button>" +
         "</div>";
       document.getElementById("lock-sheet").hidden = false;
       return;
@@ -3771,8 +3778,7 @@ function openLockSheet(kind, payload) {
           : about
           ? '<div class="lock-lead">' + aboutHtml(about) + '</div><div class="lock-note lock-note-left">Дни добавляются в приложение постепенно</div>'
           : '<div class="lock-lead">Скоро откроется</div>') +
-        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy data-price-cta="all">' + escapeHtml(buyAll) + "</button>" +
-        hurry +
+        hurry + '<button type="button" class="btn btn-primary lock-cta" data-lock-buy data-price-cta="all">' + escapeHtml(buyAll) + "</button>" +
       "</div>";
   } else {
     const s = payload;
@@ -3802,9 +3808,8 @@ function openLockSheet(kind, payload) {
         }).join("") +
         (rest > 0 ? '<div class="lock-day rest"><i class="n">…</i><span>и ещё ' + escapeHtml(plurDays(rest)) + "</span></div>" : "") +
         "</div>" : "") +
-        '<button type="button" class="btn btn-primary lock-cta" data-lock-buy data-price-cta="one">' + escapeHtml(buyOne) + "</button>" +
+        hurry + '<button type="button" class="btn btn-primary lock-cta" data-lock-buy data-price-cta="one">' + escapeHtml(buyOne) + "</button>" +
         scAltHtml(s, free) +
-        hurry +
       "</div>";
   }
   document.getElementById("lock-sheet").hidden = false;

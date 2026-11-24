@@ -54,7 +54,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Пол">
 
-  <link rel="stylesheet" href="style.css?v=107">
+  <link rel="stylesheet" href="style.css?v=108">
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. Файлы Google Fonts у себя (с 01.10.2026),
        собирает biohack/tools/irenabio-app/build_fonts.py. Браузер качает только нужные
        подмножества по unicode-range, как и с Google. -->
@@ -552,6 +552,8 @@
               <span class="plan-price" id="plan-price-1m" hidden></span>
             </span>
           </label>
+          <!-- Плашка подорожания (24.11.2026), заполняет checkoutFillPrice из price_notice. -->
+          <p class="price-notice price-notice-co" id="co-price-notice" hidden></p>
 
           <!-- СНЯТО С ПРОДАЖИ 31.08.2026 до живого платежа на всех четырёх сочетаниях
                (WayForPay и Lava на 6m и 12m). Разметка НЕ удалена: возврат = снять
@@ -932,6 +934,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=206"></script>
+  <script src="app.js?v=207"></script>
 </body>
 </html>

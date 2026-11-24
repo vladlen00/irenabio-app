@@ -326,6 +326,9 @@
     line-height:1.55; color:rgba(255,235,200,0.78);
   }
   .finish .finish-offer .demo-cta { margin-top:18px; }
+  .demo-price-notice { margin:12px 0 0; font-family:'Raleway',sans-serif; font-weight:400; font-size:0.74rem;
+    line-height:1.45; color:rgba(255,208,96,0.85); }
+  .demo-price-notice[hidden] { display:none; }
   /* «Повторить» второстепенная: без рамки и подложки, мельче. */
   .finish .finish-repeat {
     background:none; border:none; box-shadow:none; backdrop-filter:none;
@@ -462,6 +465,7 @@
   <div class="finish-offer">
     <p class="finish-offer-text">В приложении тебя ждут мои авторские медитации, тренировки, курсы, и я рядом каждый день 🫶</p>
     <a class="demo-cta" href="/?from=demo-oneday-end&amp;buy=1">Начать прямо сейчас</a>
+    <p class="demo-price-notice" id="demoPriceNotice" hidden></p>
   </div>
 </div>
 
@@ -752,6 +756,34 @@ function init() {
 
 // Демо: гейта нет, практика открыта сразу.
 init();
+
+// Плашка подорожания (24.11.2026) под кнопкой финала. Тот же текст, что на сайте (priceNoticeText в
+// app.js, менять вместе); дата только из price_notice get-public. Нет ответа - нет строки.
+(function () {
+  function text(n) {
+    if (!n || !n.first_day) return "";
+    var at = Date.parse(n.change_at);
+    if (isFinite(at) && Date.now() >= at) return "";
+    var day = new Date(n.first_day).toLocaleDateString("ru-RU", { day: "numeric", month: "long", timeZone: "Europe/Kyiv" });
+    if (!day) return "";
+    var cur = n.current && n.current.currency === "EUR" && n.current.amount ? n.current.amount + " €" : "";
+    return "С " + day + " подорожание" + (cur ? ". Оформи сейчас, и " + cur + " останутся за тобой" : "");
+  }
+  var URLS = ["https://kjzxrpwqyyjcykwbqskn.supabase.co/functions/v1/get-public",
+              "https://ir-sb-web.vercel.app/sb/functions/v1/get-public"];
+  function load(i) {
+    if (i >= URLS.length) return;
+    var ctl = new AbortController(); var t = setTimeout(function () { ctl.abort(); }, 6000);
+    fetch(URLS[i], { method: "POST", headers: { "Content-Type": "application/json" }, body: '{"action":"library"}', signal: ctl.signal })
+      .then(function (r) { clearTimeout(t); return r.ok ? r.json() : Promise.reject(); })
+      .then(function (d) {
+        var s = text(d && d.price_notice), el = document.getElementById("demoPriceNotice");
+        if (el && s) { el.textContent = s; el.hidden = false; }
+      })
+      .catch(function () { clearTimeout(t); load(i + 1); });
+  }
+  load(0);
+})();
 </script>
 <script>
 // ===== Маяки воронки (10.11.2026) =====
