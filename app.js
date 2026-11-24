@@ -3207,6 +3207,18 @@ function aboutHtml(text) {
   flush();
   return html;
 }
+// То же описание по частям (24.11.2026): lead - строки без «• » одной строкой, topics - пункты.
+// Шторка объявленного спринта рисует их как обычный закрытый спринт: описание и строки 01, 02, 03.
+function aboutParts(text) {
+  const lead = [], topics = [];
+  String(text || "").split("\n").forEach((line) => {
+    const t = line.trim();
+    if (!t) return;
+    const m = /^•\s*(.+)$/.exec(t);
+    if (m) topics.push(m[1]); else lead.push(t);
+  });
+  return { lead: lead.join(" "), topics };
+}
 // Спринт объявлен, но дней ещё нет: старт из starts_at (23.11.2026). Плашка «старт 28 ноября»
 // на постере и та же строка в шторке. Уходит сама с первым опубликованным днём: тогда
 // days_total > 0, а «идёт сейчас» get-public переносит на свежайший спринт.
@@ -3721,6 +3733,28 @@ function openLockSheet(kind, payload) {
     const start = scStartLabel(s);
     const about = scIncomplete(s) || start ? SPRINT_ABOUT[s.cover_slug] || "" : "";
     const cover = coverUrl(s.cover_slug, "wide") || coverUrl(s.cover_slug, "poster");
+    const parts = aboutParts(about);
+    // Объявленный спринт с темами (24.11.2026): устройство обычной закрытой шторки (ветка else ниже) -
+    // описание, темы строками 01, 02, 03 с замком, «Открыть за ... в месяц». Без «и ещё N дней»
+    // (число дней неизвестно) и без «Сначала послушать бесплатно». С первым днём спринт сюда уже
+    // не попадёт: scStartLabel пуст при days_total > 0, и шторка станет обычной со списком дней.
+    if (start && parts.topics.length) {
+      panel.innerHTML =
+        '<div class="lock-cover' + (cover ? "" : " poster-blank") + '" data-cover="' + escapeHtml(s.cover_slug || "") + '"' +
+          (cover ? ' style="background-image:url(\'' + cover + '\')"' : "") + '><span class="lock-grab"></span></div>' +
+        '<div class="lock-body">' +
+          '<div class="lock-kick">' + escapeHtml(start + " · в подписке") + "</div>" +
+          '<div class="lock-title">' + escapeHtml(glueShortWords(s.title || "")) + "</div>" +
+          (parts.lead ? '<div class="lock-lead">' + escapeHtml(glueShortWords(parts.lead)) + "</div>" : "") +
+          '<div class="lock-days">' + parts.topics.map((t, i) =>
+            '<div class="lock-day"><i class="n">' + String(i + 1).padStart(2, "0") + "</i>" +
+            "<span>" + escapeHtml(glueShortWords(t)) + '</span><i class="ti ti-lock"></i></div>').join("") + "</div>" +
+          '<button type="button" class="btn btn-primary lock-cta" data-lock-buy data-price-cta="one">' + escapeHtml(buyOne) + "</button>" +
+          hurry +
+        "</div>";
+      document.getElementById("lock-sheet").hidden = false;
+      return;
+    }
     panel.innerHTML =
       '<div class="lock-cover' + (cover ? "" : " poster-blank") + '" data-cover="' + escapeHtml(s.cover_slug || "") + '"' +
         (cover ? ' style="background-image:url(\'' + cover + '\')"' : "") + '><span class="lock-grab"></span></div>' +
