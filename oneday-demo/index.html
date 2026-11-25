@@ -792,6 +792,7 @@ init();
 // ⚠️ Это копия funnelSid / funnelSrc / funnelSrc0 / funnelDevice / funnelInternal из app.js: менять вместе.
 // События: od_play (первый старт звука), od_q d=25|50|75|100 (по позиции звука, перемотка считается;
 // 100 = звук доиграл), od_cta_show (кнопка в плеере на 24:31), od_cta_click d=player|end.
+// od_open (25.11.2026): открыта страница, раз за загрузку. Против od_play видно, сколько открыли и не включили.
 (function () {
   var URL_E = "https://ir-funnel.diastazzz.workers.dev/e";
   function today() { return new Date().toISOString().slice(0, 10); }
@@ -851,6 +852,7 @@ init();
       }
     } catch (e) {}
   }
+  track("od_open");
   var a = document.getElementById("audio");
   if (a) {
     a.addEventListener("play", function () { track("od_play"); });
