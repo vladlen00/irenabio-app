@@ -776,7 +776,7 @@ function updateRecurrentNote() {
 //   абзац «Списывается только ...» - сумма, а при рублёвой кассе (payRegion "rub", кнопка
 //   «Оплатить картой или по СБП») без суммы: там платят в рублях. Беларусь с кнопкой в евро - с суммой.
 function checkoutFillPrice() {
-  const price = scPrice(publicData && publicData.price).replace(" ", "\u00A0");   // «11 €» не рвётся строкой
+  const price = priceLive().replace(" ", "\u00A0");   // «11 €» не рвётся строкой
   const card = document.getElementById("plan-price-1m");
   if (card) {
     card.textContent = price ? price + " " : "";
@@ -3291,15 +3291,47 @@ function priceNoticeText(n) {
   return "С " + day + " подорожание" + (cur ? ". Оформи сейчас, и\u00a0" + cur + " останутся за тобой" : "");
 }
 
-// Цена «сейчас» для финала бесплатного дня (25.11.2026). publicData.price приходит при загрузке, и в
-// странице, открытой до PRICE_CHANGE_AT, она осталась бы старой после смены: тогда берём next из той же
-// price_notice. Плашки нет (дата не задана или прошла до загрузки) - цена сервера как есть.
-function priceLive() {
+// СМЕНА ЦЕНЫ В ОТКРЫТОЙ СТРАНИЦЕ (25.11.2026). publicData.price приходит при загрузке, и в странице,
+// открытой до PRICE_CHANGE_AT, она осталась бы старой после смены. priceRoll() в момент change_at
+// делает с publicData ровно то, что сервер отдаст после смены: price = price_notice.next, плашки нет.
+// Все места с ценой читают её через priceLive(), а таймер priceRollTimer перерисовывает видимое:
+// витрину, кассу, открытую шторку, экран курса и финал бесплатного дня. Сумму к оплате всё равно
+// назначает сервер, здесь только тексты.
+function priceRoll() {
   const n = publicData && publicData.price_notice;
   const at = n ? Date.parse(n.change_at) : NaN;
-  if (Number.isFinite(at) && Date.now() >= at && n.next) return scPrice(n.next);
+  if (!Number.isFinite(at) || Date.now() < at || !n.next) return false;
+  publicData.price = n.next;
+  publicData.price_notice = null;
+  return true;
+}
+function priceLive() {
+  priceRoll();
   return scPrice(publicData && publicData.price);
 }
+let priceRollTimer = 0;
+function priceRollSchedule() {
+  clearTimeout(priceRollTimer);
+  const n = publicData && publicData.price_notice;
+  const at = n ? Date.parse(n.change_at) : NaN;
+  if (!Number.isFinite(at)) return;
+  const wait = at - Date.now();
+  if (wait > 864e5) return;   // дальше суток не ставим: столько страницу не держат, при новой загрузке поставится снова
+  priceRollTimer = setTimeout(priceRollRepaint, Math.max(0, wait) + 500);
+}
+function priceRollRepaint() {
+  if (!priceRoll()) return;
+  try { if (scShown === publicData) renderShowcase(publicData); } catch (e) {}
+  try { checkoutFillPrice(); } catch (e) {}
+  try { lockSheetFillPrice(); } catch (e) {}
+  try { if (document.querySelector("#view-urok .urok-buy-slot .urok-buy")) fillUrokBuy(); } catch (e) {}
+  try {
+    const box = document.getElementById("day-buy");
+    if (box && !box.hidden && box.innerHTML) box.innerHTML = dayBuyHtml(freeDayPlace(currentDayId));
+  } catch (e) {}
+}
+// Фоновая вкладка: таймеры там тормозят, поэтому проверяем ещё и при возврате на страницу.
+document.addEventListener("visibilitychange", () => { if (!document.hidden) priceRollRepaint(); });
 
 async function loadPublic(action, extra) {
   const body = Object.assign({ action }, extra || {});
@@ -3349,6 +3381,7 @@ function loadPublicLibrary() {
       const d = r.data || {};
       if (r.state === "ok" && scValid(d)) {
         publicData = d;
+        priceRollSchedule();
         lockSheetFillPrice();
         try { localStorage.setItem(SC_STORE_KEY, JSON.stringify({ at: Date.now(), data: scStripPrice(d) })); } catch (e) {}
       }
@@ -3362,11 +3395,16 @@ function loadPublicLibrary() {
 // цены), рисуется с «Оформить подписку». Цена приехала: дописываем её в кнопки открытой
 // шторки теми же словами, что в openLockSheet (26.10.2026).
 function lockSheetFillPrice() {
-  const price = scPrice(publicData && publicData.price);
+  const price = priceLive();
   if (!price) return;
   document.querySelectorAll("#lock-panel [data-price-cta]").forEach((b) => {
     b.textContent = (b.getAttribute("data-price-cta") === "one" ? "Открыть за " : "Открыть всё за ") + price + " в месяц";
   });
+  // Подпись Подружки с ценой и строка подорожания (после смены её нет): 25.11.2026.
+  document.querySelectorAll("#lock-panel [data-price-note]").forEach((el) => {
+    el.textContent = "в подписке за " + price + " в месяц · отмена в любой момент";
+  });
+  if (!priceNoticeText(publicData && publicData.price_notice)) document.querySelectorAll("#lock-panel .price-notice").forEach((el) => el.remove());
 }
 
 // Полоска с ценой живёт только вместе с витриной.
@@ -3519,7 +3557,7 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitP
 
 function renderShowcase(d) {
   scShown = d;
-  const price = scPrice(d.price);
+  const price = d === publicData ? priceLive() : scPrice(d.price);
 
   // ===== ГЕРОЙ: спринт, в котором есть бесплатные дни =====
   const freeSprint = d.sprints.find((s) => (s.free_days || []).length > 0) || d.sprints[0];
@@ -3674,7 +3712,7 @@ function openLockSheet(kind, payload) {
   lockSheetTag = sheetTag(kind, payload);
   track("sheet", lockSheetTag);
   const panel = document.getElementById("lock-panel");
-  const price = scPrice(publicData && publicData.price);
+  const price = priceLive();
   // Цены может ещё не быть: витрина рисуется из снимка без цены, и шторку можно открыть
   // раньше живого get-public. Тогда тексты без числа, а не «Открыть за в месяц» (01.10.2026).
   const buyAll = price ? "Открыть всё за " + price + " в месяц" : "Оформить подписку";
@@ -3700,7 +3738,7 @@ function openLockSheet(kind, payload) {
           "<div><i>•</i><span>Помнит твои добавки, цикл и прошлые вопросы</span></div>" +
         "</div>" +
         hurry + '<button type="button" class="btn btn-primary lock-cta" data-lock-buy>Открыть Подружку</button>' +
-        '<div class="lock-note">' + escapeHtml(podNote) + "</div>" +
+        '<div class="lock-note"' + (price ? " data-price-note" : "") + ">" + escapeHtml(podNote) + "</div>" +
       "</div>";
   } else if (kind === "course") {
     // Закрытый урок или сезон курса «Игра в долгую» (экран #urok). Касса вернёт на курс.
@@ -4208,7 +4246,7 @@ function gkLessonsCount(D) {
 
 // Блок продажи на экране курса (под вступлением и в конце). Цена только из get-public.
 function fillUrokBuy() {
-  const price = scPrice(publicData && publicData.price);
+  const price = priceLive();
   const D = window.DOLGAYA;
   const what = D ? "Все " + D.seasons.length + " сезонов, " + gkLessonsCount(D) + " уроков, методички и задания в подписке."
                  : "Весь курс, методички и задания в подписке.";
