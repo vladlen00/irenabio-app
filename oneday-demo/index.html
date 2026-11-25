@@ -836,6 +836,7 @@ init();
       return { did: j.id, dn: Math.max(0, Math.round((Date.parse(t) - Date.parse(j.first)) / 86400000)) };
     } catch (e) { return { did: "", dn: 0 }; }
   }
+  function tz() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) { return ""; } }
   function internal() { try { return localStorage.getItem("irenabio_internal") === "1"; } catch (e) { return false; } }
   var sent = {};
   function track(ev, d) {
@@ -844,7 +845,7 @@ init();
     try {
       var s = src(), s0 = src0(s), dev = device();
       var body = JSON.stringify({ sid: sid(), ev: ev, src: s, s0: s0, d: d || "", did: dev.did, dn: dev.dn,
-                                  i: internal() ? 1 : 0, w: navigator.webdriver ? 1 : 0 });
+                                  i: internal() ? 1 : 0, w: navigator.webdriver ? 1 : 0, tz: tz() });
       if (!(navigator.sendBeacon && navigator.sendBeacon(URL_E, body))) {
         fetch(URL_E, { method: "POST", body: body, keepalive: true, mode: "no-cors" }).catch(function () {});
       }

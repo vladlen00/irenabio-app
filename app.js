@@ -322,6 +322,8 @@ function funnelInternal() {
 // once=true: событие уходит один раз за загрузку страницы (витрина, касса перерисовываются часто).
 // Сервер (ir-funnel) сам делит события на гостей, наших (i), автоматику (w, браузер робота) и
 // тестовые прогоны (?src=test...). Наша автоматика ВСЕГДА открывает сайт с ?src=test.
+// Часовой пояс устройства (25.11.2026): рублёвый пояс по нему, а не по стране IP (VPN врёт).
+function funnelTz() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) { return ""; } }
 function track(ev, d, once) {
   if (!FUNNEL_URL) return;
   const key = ev + "|" + (d || "");
@@ -331,7 +333,7 @@ function track(ev, d, once) {
     const s0 = funnelSrc0(src);   // ДО funnelDevice: тот создаёт irenabio_did, и новое устройство сочлось бы старым
     const dev = funnelDevice();
     const body = JSON.stringify({ sid: funnelSid(), ev, src, s0, d: d || "", did: dev.did, dn: dev.dn,
-                                  i: funnelInternal() ? 1 : 0, w: navigator.webdriver ? 1 : 0 });
+                                  i: funnelInternal() ? 1 : 0, w: navigator.webdriver ? 1 : 0, tz: funnelTz() });
     if (!(navigator.sendBeacon && navigator.sendBeacon(FUNNEL_URL, body))) {
       fetch(FUNNEL_URL, { method: "POST", body, keepalive: true, mode: "no-cors" }).catch(() => {});
     }
@@ -3419,7 +3421,14 @@ let scShelfHtml = "";
 // программу ЗДЕСЬ, а не только в publicData: пока на экране снимок, publicData ещё null,
 // и постер молча не открывался (найдено 01.10.2026). Цена по-прежнему только из publicData.
 let scShown = null;
-function scSprints() { const d = publicData || scShown; return (d && d.sprints) || []; }
+// Снимок как последний запасной источник (25.11.2026): по прямой ссылке ?free= витрина не рисуется,
+// scShown пуст, а метке дня (freeDayTag) и призыву «Дальше день 2» состав нужен сразу.
+let scSnapCache;
+function scSprints() {
+  let d = publicData || scShown;
+  if (!d) { if (scSnapCache === undefined) scSnapCache = readShowcaseSnapshot(); d = scSnapCache; }
+  return (d && d.sprints) || [];
+}
 function showPosterBg(el) {
   const u = el.getAttribute("data-bg");
   el.removeAttribute("data-bg");
@@ -3837,6 +3846,7 @@ function scFreeSprintTitle() {
 async function openFreeDay(dayId, forceHost, fromHistory) {
   if (!forceHost) track("free_day", freeDayTag(dayId));
   currentDayId = dayId;
+  freeDayGuestId = dayId;
   // Кадр в историю: "назад" из дня вернёт на витрину, а не на посторонний адрес.
   // При возврате ПО истории кадр не плодим, иначе "назад" зациклится на дне.
   if (!fromHistory && !forceHost) scPushView("day", dayId);
@@ -3877,6 +3887,72 @@ async function openFreeDay(dayId, forceHost, fromHistory) {
     errEl.hidden = false; return;
   }
   renderDay(data, { guest: true });
+  if (freeLinkEntry) addListenButton();
+}
+
+// Прогресс звука бесплатного дня у гостьи (25.11.2026), по образцу od_q демо «Один день»:
+// day_q, d = <cover_slug>:<день>:<0|25|50|75|100>. 0 = первый старт («Слушать»), 100 = доиграл.
+// Перемотка считается. Каждая отметка раз за загрузку страницы (track once). У подписчицы
+// openFreeDay не зовётся, freeDayGuestId пуст, и ничего не пишется.
+let freeDayGuestId = null;
+function freeDayProgress(audio, started, ended) {
+  const cur = player.current();
+  if (!freeDayGuestId || !cur || cur.dayId !== freeDayGuestId) return;
+  const tag = freeDayTag(freeDayGuestId);
+  if (started) { track("day_q", tag + ":0", true); return; }
+  if (ended) { track("day_q", tag + ":100", true); return; }
+  const dur = audio.duration;
+  if (!(dur > 0) || !isFinite(dur)) return;
+  const p = audio.currentTime / dur;
+  [25, 50, 75].forEach((q) => { if (p >= q / 100) track("day_q", tag + ":" + q, true); });
+}
+
+// ===== ПРЯМАЯ ССЫЛКА В БЕСПЛАТНЫЙ ДЕНЬ (25.11.2026) =====
+// Стикер-ссылка в сторис: ?free=<cover_slug>-<номер дня>, например ?free=sleep-1. Гостья попадает
+// сразу в день, без витрины (на дне и так нет ни плашки «на экран Домой», ни полосы «Оформить»).
+// Открываются ТОЛЬКО бесплатные дни из состава get-public; чужое или платное = обычная витрина.
+// Под день кладётся витрина основанием истории, как у #urok: «назад» ведёт на неё, а не прочь.
+// src, s0 и did пишутся как обычно (track читает адрес, ?src= остаётся).
+const FREE_LINK = (function () {
+  try {
+    const m = /^([a-z0-9-]+)-(\d{1,2})$/.exec(new URLSearchParams(location.search).get("free") || "");
+    return m ? { slug: m[1], n: Number(m[2]) } : null;
+  } catch (e) { return null; }
+})();
+let freeLinkEntry = false;
+let freeLinkUsed = false;   // ссылка срабатывает один раз за загрузку: повторный маршрут ведёт как обычно
+function findFreeDayId(link) {
+  const s = scSprints().find((x) => x.cover_slug === link.slug);
+  const f = s && (s.free_days || []).find((x) => x.day_number === link.n);
+  return f ? f.id : null;
+}
+async function openFreeLink(link) {
+  freeLinkUsed = true;
+  let id = findFreeDayId(link);
+  if (!id) { await loadPublicLibrary(); id = findFreeDayId(link); }   // снимка нет или он старый
+  try { const u = new URL(location.href); u.searchParams.delete("free"); history.replaceState(history.state, "", u); } catch (e) {}
+  if (!id) { showShowcase(); return; }
+  freeLinkEntry = true;
+  if (siteHeader) siteHeader.hidden = true;   // как у витрины и урока: у дня своя шапка в герое
+  scMarkShowcase();
+  openFreeDay(id);
+}
+// Большая кнопка «Слушать» под плеером, как в /oneday-demo/. Только для пришедших по ?free=:
+// жмёт тот же круглый play карточки, после первого старта прячется (дальше обычные кнопки).
+function addListenButton() {
+  const card = document.querySelector("#day-blocks .blk-audio");
+  if (!card || card.parentNode.querySelector(".day-listen")) return;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "btn btn-primary day-listen";
+  btn.style.margin = "14px 0 26px";   // в style.css не выносим: одна кнопка, без бампа стилей
+  btn.innerHTML = '<i class="ti ti-player-play"></i> Слушать';
+  btn.addEventListener("click", () => {
+    const play = card.querySelector(".audio-play");
+    if (play) play.click();
+    btn.remove();
+  });
+  card.insertAdjacentElement("afterend", btn);
 }
 
 // ===================== СОБЫТИЯ ВИТРИНЫ =====================
@@ -4736,6 +4812,9 @@ async function routeHomeOrCheckout(opts) {
   // строки подписки нет, экрану подписки показывать нечего. paidFallback по-прежнему первый.
   const noAccess = (reason) => {
     if (paidFallback) return paidFallback();
+    // Вошла, но доступа нет, и пришла по стикеру ?free= (25.11.2026): бесплатный день публичный,
+    // открываем его, как гостье. Касса и «ЗАКОНЧИЛАСЬ» - на следующих заходах, как раньше.
+    if (FREE_LINK && !freeLinkUsed) { openFreeLink(FREE_LINK); return; }
     if (reason === "expired") { openSubscription({ standalone: true }); return; }
     checkoutBackTo = null; showCheckout();
   };
@@ -4745,6 +4824,9 @@ async function routeHomeOrCheckout(opts) {
     if (paidFallback) return paidFallback();
     if (readLavaReturn()) { showPayWait(); return; }
     if (buyIntent) { buyIntent = false; buyWithDeadSession(); return; }
+    // Протухший вход + ?free= (25.11.2026): ключ сессии в localStorage остался, сервер её не
+    // признал. Она такая же гостья, и стикер обязан открыть день, а не витрину.
+    if (FREE_LINK && !freeLinkUsed) { openFreeLink(FREE_LINK); return; }
     showShowcase();
   };
 
@@ -5007,6 +5089,9 @@ const player = (function () {
     audio.addEventListener("ended", renderAll);
     audio.addEventListener("loadedmetadata", renderAll);
     audio.addEventListener("timeupdate", renderDayBlock);
+    audio.addEventListener("play", () => freeDayProgress(audio, true));
+    audio.addEventListener("timeupdate", () => freeDayProgress(audio));
+    audio.addEventListener("ended", () => freeDayProgress(audio, false, true));
     // признаки жизни хранилища: любой из них снимает сторож
     ["progress", "loadedmetadata", "canplay", "playing", "timeupdate"].forEach((ev) => audio.addEventListener(ev, markAlive));
     // MEDIA_ERR_ABORTED (code 1) прилетает от НАШЕЙ же подмены src в swapCurrentUrl.
@@ -6119,6 +6204,7 @@ if (startParams.get("paid") === "1" && startParams.get("order")) {
     scMarkShowcase();
     openUrok();
   }
+  else if (FREE_LINK) openFreeLink(FREE_LINK);
   else scOpenGoal(scTakeGoal(), showShowcase());
 } else {
   routeHomeOrCheckout();                           // дом / чекаут / (stash -> экран ожидания)
