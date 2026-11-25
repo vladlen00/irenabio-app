@@ -1279,6 +1279,9 @@ async function onLavaPay(ui) {
   const label = (btn && btn.dataset.label) || "Оплатить";
   const sbp = state.lavaCurrency === "SBP";
   if (btn && btn.disabled) return;   // уже ждём счёт: второй клик дал бы второй инвойс
+  // co_method (25.11.2026): какой способ Lava выбран на последнем шаге перед счётом. У WFP и
+  // Tribute способ виден по pay_try/pay_click, у Lava там только «lava» до выбора валюты.
+  track("co_method", sbp ? "lava_sbp" : (state.lavaCurrency === "EUR" ? "lava_eur" : "lava_rub"));
   if (errEl) errEl.hidden = true;
   if (btn) { btn.disabled = true; btn.textContent = sbp ? "Готовим оплату через СБП..." : "Готовим оплату..."; }
   if (hint) { hint.textContent = sbp ? PAY_HINT_SBP : PAY_HINT_CARD; hint.hidden = false; }
@@ -1801,7 +1804,12 @@ els.form.addEventListener("submit", (e) => {
     if (e.target.name === "lavacur") { state.lavaCurrency = e.target.value === "EUR" ? "EUR" : (e.target.value === "SBP" ? "SBP" : "RUB"); paintCur(); }
   });
 }
-els.email.addEventListener("input", () => { showEmailError(""); updateEmailEcho(); });
+// co_email (25.11.2026): шаг кассы «почта введена» - поле впервые стало верным адресом. Раз за
+// загрузку страницы. Восстановленное браузером значение не считаем: его не вводили.
+els.email.addEventListener("input", () => {
+  showEmailError(""); updateEmailEcho();
+  if (emailValid(normalizeEmail(els.email.value))) track("co_email", "", true);
+});
 updateEmailEcho();   // браузер мог восстановить значение поля при перезагрузке
 
 // слушатели экрана пароля
@@ -5255,6 +5263,7 @@ function wireBlocks(root) {
     if (hint) hint.addEventListener("click", () => {
       if (hint.classList.contains("busy")) return;
       const used = hint.getAttribute("data-host");
+      track("audio_hint", used || "");   // 25.11.2026: d = хранилище, с которого уходим
       const other = used === "timeweb" ? "minio" : "timeweb";
       hint.classList.add("busy");
       hint.textContent = "Переключаем, попробуйте ещё раз…";
