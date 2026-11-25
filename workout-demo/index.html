@@ -342,6 +342,11 @@ html, body {
 .demo-upsell-text {
   font-size: 0.85rem; line-height: 1.5; color: rgba(220,200,255,0.75); margin-bottom: 12px;
 }
+/* 25.11.2026: строка цены и подорожания над кнопкой, текст из get-public (см. скрипт в конце). */
+.demo-upsell-price {
+  font-size: 0.85rem; line-height: 1.5; font-weight: 600; color: rgba(255,208,96,0.9); margin: -4px 0 12px;
+}
+.demo-upsell-price[hidden] { display: none; }
 .demo-upsell-cta {
   display: block; text-align: center; padding: 12px 16px;
   background: rgba(140,80,240,0.4); border: 1px solid rgba(160,100,255,0.5);
@@ -478,9 +483,10 @@ body.wv2 .list-screen .section-label { display: none; }
         </div>
       </details>
       <div class="demo-upsell">
-        <div class="demo-upsell-title">Почувствовала мышцы?</div>
-        <div class="demo-upsell-text">Это первая из семи тренировок. Остальные шесть и разборы техники ждут тебя внутри.</div>
-        <a class="demo-upsell-cta" href="/?from=demo-workout-end&amp;buy=1">Открыть все тренировки</a>
+        <div class="demo-upsell-title">Почувствовала мышцы? 🔥</div>
+        <div class="demo-upsell-text">Это первая из 7 тренировок «Женское&nbsp;тело». Дальше базовый этап, сила, укрепление корпуса, рельеф и бонусная с фитболом. Плюс программа сна, медитации и курсы.</div>
+        <div class="demo-upsell-price" id="demoUpsellPrice" hidden></div>
+        <a class="demo-upsell-cta" id="demoUpsellCta" href="/?from=demo-workout-end&amp;buy=1">Продолжить</a>
       </div>
     </div>
   </div>
@@ -715,6 +721,45 @@ init().catch(() => {
     else if (t.closest(".demo-buy")) track("wd_cta", "locked");
     else if (t.closest("#demoMoreBtn")) track("wd_cta", "more");
   }, true);
+})();
+</script>
+<script>
+// Цена финала (25.11.2026): строка «Всё за N € в месяц» с подорожанием и кнопка «Продолжить за N €».
+// Как плашка в oneday-demo (там копия priceNoticeText из app.js, менять вместе): цена и дата ТОЛЬКО из
+// get-public. До PRICE_CHANGE_AT цена current и строка про 1 декабря; после смены строки нет, цена next
+// (страница, открытая до полуночи, переключается сама таймером и при конце ролика). Нет ответа - кнопка
+// «Продолжить» без числа и без строки цены.
+(function () {
+  var data = null;
+  function eur(p) { return p && p.currency === "EUR" && p.amount != null ? p.amount + " €" : ""; }
+  function render() {
+    if (!data) return;
+    var n = data.price_notice, at = n ? Date.parse(n.change_at) : NaN;
+    var after = isFinite(at) && Date.now() >= at;
+    var price = after && n.next ? eur(n.next) : eur(data.price);
+    var hurry = "";
+    if (n && n.first_day && !after) {
+      var day = new Date(n.first_day).toLocaleDateString("ru-RU", { day: "numeric", month: "long", timeZone: "Europe/Kyiv" });
+      var cur = eur(n.current);
+      if (day) hurry = "С " + day + " подорожание" + (cur ? ". Оформи сейчас, и " + cur + " останутся за тобой" : "") + ".";
+    }
+    var el = document.getElementById("demoUpsellPrice"), cta = document.getElementById("demoUpsellCta");
+    if (el) { el.textContent = price ? "Всё за " + price + " в месяц." + (hurry ? " " + hurry : "") : ""; el.hidden = !price; }
+    if (cta) cta.textContent = price ? "Продолжить за " + price : "Продолжить";
+    if (!after && isFinite(at) && at - Date.now() < 864e5) setTimeout(render, at - Date.now() + 500);
+  }
+  window.addEventListener("message", function (e) { if (e.origin === "https://kinescope.io") render(); });
+  var URLS = ["https://kjzxrpwqyyjcykwbqskn.supabase.co/functions/v1/get-public",
+              "https://ir-sb-web.vercel.app/sb/functions/v1/get-public"];
+  function load(i) {
+    if (i >= URLS.length) return;
+    var ctl = new AbortController(); var t = setTimeout(function () { ctl.abort(); }, 6000);
+    fetch(URLS[i], { method: "POST", headers: { "Content-Type": "application/json" }, body: '{"action":"library"}', signal: ctl.signal })
+      .then(function (r) { clearTimeout(t); return r.ok ? r.json() : Promise.reject(); })
+      .then(function (d) { if (d && d.ok !== false) { data = d; render(); } })
+      .catch(function () { clearTimeout(t); load(i + 1); });
+  }
+  load(0);
 })();
 </script>
 </body>

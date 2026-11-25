@@ -3291,6 +3291,16 @@ function priceNoticeText(n) {
   return "С " + day + " подорожание" + (cur ? ". Оформи сейчас, и\u00a0" + cur + " останутся за тобой" : "");
 }
 
+// Цена «сейчас» для финала бесплатного дня (25.11.2026). publicData.price приходит при загрузке, и в
+// странице, открытой до PRICE_CHANGE_AT, она осталась бы старой после смены: тогда берём next из той же
+// price_notice. Плашки нет (дата не задана или прошла до загрузки) - цена сервера как есть.
+function priceLive() {
+  const n = publicData && publicData.price_notice;
+  const at = n ? Date.parse(n.change_at) : NaN;
+  if (Number.isFinite(at) && Date.now() >= at && n.next) return scPrice(n.next);
+  return scPrice(publicData && publicData.price);
+}
+
 async function loadPublic(action, extra) {
   const body = Object.assign({ action }, extra || {});
   // Чтение, идемпотентно -> автоповтор разрешён. Авторизации у витрины нет вовсе.
@@ -4061,7 +4071,7 @@ function freeDayPlace(dayId) {
 }
 
 function dayBuyHtml(p) {
-  const price = scPrice(publicData && publicData.price);
+  const price = priceLive();
   const next = p && p.free[p.i + 1];
   if (next) {
     const n = next.day_number;
@@ -4083,6 +4093,7 @@ function dayBuyHtml(p) {
       "</div>";
   }
   const s = p.s;
+  const hurry = priceNoticeText(publicData && publicData.price_notice);
   const lastN = p.free[p.free.length - 1].day_number;
   const left = scDaysTotal(s) - lastN;
   // Названия следующих выпусков в строке больше не перечисляем (23.11.2026): только число дней.
@@ -4093,6 +4104,8 @@ function dayBuyHtml(p) {
       (lead ? '<p class="day-buy-lead">' + escapeHtml(lead) + "</p>" : "") +
       '<button type="button" class="btn btn-primary day-buy-btn" data-day-buy>Продолжить программу</button>' +
       '<div class="day-buy-note">' + escapeHtml(note) + "</div>" +
+      // 25.11.2026: строка подорожания под ценой, тот же priceNoticeText; после смены её нет.
+      (hurry ? '<div class="price-notice" style="margin:8px 0 0">' + escapeHtml(hurry) + "</div>" : "") +
     "</div>";
 }
 
