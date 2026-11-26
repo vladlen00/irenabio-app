@@ -1659,6 +1659,8 @@ async function enterPaymentReturn(order) {
       els.pwSuccess.hidden = false;
       els.pwForm.hidden = false;
       els.pwResolveError.hidden = true;
+    } else if (await wfpUnpaidReturn(order)) {
+      return;   // её заказ WayForPay не оплачен: ушла на кассу (или поздняя оплата -> пароль)
     } else {
       // Битая/мусорная/устаревшая ссылка -> без галки и без "Оплата прошла", честная ошибка.
       els.pwSuccess.hidden = true;
@@ -1670,6 +1672,29 @@ async function enterPaymentReturn(order) {
       if (pwOut) pwOut.hidden = false;
     }
   }
+}
+
+// ВОЗВРАТ С ОТКАЗОМ WAYFORPAY (26.11.2026). WayForPay возвращает на ?paid=1&order= и при отказе
+// банка или истёкшей сессии. resolve-paid-order намеренно не отличает «не оплачен» от «нет заказа»
+// (защита от перебора номеров), поэтому свой заказ узнаём по метке ухода (markPayTry): номер,
+// с которым ЭТО устройство ушло на WayForPay. Совпал, а оплаты нет - касса в состоянии «Оплата
+// не прошла» с единственной кнопкой Tribute (applyCountryPay, coFailState). Не совпал (чужой, старый,
+// подделанный номер) - false, и остаётся прежний экран «Ссылка недействительна».
+// Одна повторная проверка через 3 с ловит вебхук, опоздавший к возврату.
+async function wfpUnpaidReturn(order) {
+  const t = readPayTry();
+  if (!t || t.method !== "wfp" || !t.order || t.order !== order) return false;
+  els.pwLoading.hidden = false;
+  await sleep(3000);
+  const late = await checkPaidOnce(order);
+  els.pwLoading.hidden = true;
+  if (late) { showPasswordForm(order, late.email); return true; }
+  markPayTry("wfp", "wfp_unpaid", { order, email: t.email || "" });
+  stripPaidParams();   // иначе перезагрузка снова откроет этот возврат
+  els.viewPassword.hidden = true;
+  if (t.email && els.email && !els.email.readOnly) { els.email.value = t.email; updateEmailEcho(); }
+  if (sb && hasStoredSession()) showCheckout(); else scGoCheckout("wfp_unpaid");
+  return true;
 }
 
 // Выход из ЗАЛИПШЕГО возврата с оплаты. Адрес с ?paid=1&order= читается на КАЖДОМ заходе
