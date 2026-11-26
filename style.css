@@ -651,6 +651,14 @@ a.hb-row { text-decoration: none; color: inherit; }
 .home-hero[data-cover="relationships"],
 .day-hero[data-cover="relationships"],
 #view-sprint .day-hero[data-cover="relationships"] { background-position: center top; }
+/* Обложка «Мужских потребностей» (26.11.2026): пара у правого края кадра, и в высокой шапке дома лицо
+   мужчины уходило под кикер и заголовок дня. Кадр сдвинут вправо, насколько позволяет край картинки, а
+   левую часть гасит внутренняя тень: она рисуется поверх фона, но под текстом (свой слой затемнения
+   CSS добавить не может, его ставит paintCover в инлайн-стиль). */
+.home-hero[data-cover="men-needs"] {
+  background-position: 62% center;
+  box-shadow: inset 250px 0 100px -30px rgba(24,6,18,.86);
+}
 .day-topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
 .day-back { width: 34px; height: 34px; border-radius: 10px; background: var(--glass); display: flex; align-items: center; justify-content: center; cursor: pointer; flex: 0 0 auto; }
 .day-back i { font-size: 18px; color: var(--ink-warm); }
