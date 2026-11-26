@@ -251,16 +251,20 @@ function readPayTry() {
   } catch { return null; }
 }
 function clearPayTry() { try { localStorage.removeItem(PAY_TRY_KEY); } catch {} }
-// СОСТОЯНИЕ «ОПЛАТА НЕ ПРОШЛА» (26.11.2026), только вне поясов "rub" и "by". null - обычная касса.
+// СОСТОЯНИЕ «ОПЛАТА НЕ ПРОШЛА» (26.11.2026), кроме поясов "rub". null - обычная касса.
 // next - единственная кнопка: после WayForPay - Tribute, после Tribute - WayForPay; после Lava
 // (резервный) - тот из двух, что ещё не пробовали. both - не прошли оба, тогда «Резервный способ оплаты».
+// Беларусь ("by", 26.11.2026): обычная касса - одна Lava EUR; после неудачи Lava - Tribute «Оплатить
+// другой картой», после неудачи Tribute - снова Lava «Оплатить в евро». Резервного способа нет (both false).
 // «Назад» в этом состоянии (coFailDismissed) возвращает обычную кассу до перезагрузки страницы.
 let coFailDismissed = false;
 let coEmailEdit = false;   // «изменить» у известной почты: показать поле
 function coFailState() {
-  if (coFailDismissed || payRegion() !== "") return null;
+  const region = payRegion();
+  if (coFailDismissed || region === "rub") return null;
   const t = readPayTry();
   if (!t) return null;
+  if (region === "by") return { t, next: t.method === "tribute" ? "lava" : "tribute", both: false, by: true };
   const failed = new Set(Array.isArray(t.failed) ? t.failed : [t.method]);
   const both = failed.has("wfp") && failed.has("tribute");
   const next = t.method === "wfp" ? "tribute" : t.method === "tribute" ? "wfp"
@@ -1308,7 +1312,8 @@ function applyCountryPay() {
   }
   const rubBtn = document.getElementById("btn-pay-rub");
   if (rubBtn && !rubBtn.disabled) {
-    rubBtn.dataset.label = region === "by" ? "Оплатить в евро" : "Оплатить картой или по СБП";
+    rubBtn.dataset.label = region !== "by" ? "Оплатить картой или по СБП"
+      : (fail && fail.next === "tribute" ? "Оплатить другой картой" : "Оплатить в евро");   // "by" после неудачи Lava - Tribute
     rubBtn.textContent = rubBtn.dataset.label;
   }
   const rub = document.querySelector(".pay-rub-link");   // вторая кнопка "" -> Tribute, на обычной кассе всегда
@@ -1328,7 +1333,7 @@ function applyCountryPay() {
   coFillCancelNote();
   // co_reserve (26.11.2026): касса после неудачи (d = причина метки) и переключение на Tribute.
   if (fail) track("co_reserve", fail.t.why || "left", true);
-  if (fail && fail.next === "tribute") track("co_reserve", "wfp_to_tribute", true);
+  if (fail && fail.next === "tribute") track("co_reserve", fail.by ? "lava_to_tribute" : "wfp_to_tribute", true);
 }
 // --- Tribute: карта (любая, включая российские) или СБП, обе с автопродлением ---
 // Заказ создаётся по клику и уходит на оплату в ЭТОЙ вкладке (как Lava). Номер заказа приходит
@@ -1953,7 +1958,11 @@ els.plans.addEventListener("change", (e) => {
 els.form.addEventListener("submit", (e) => {
   e.preventDefault();
   // Enter в поле почты у Беларуси не должен увести в WayForPay: кнопка спрятана, а submit живой.
-  if (payRegion() === "by") { goLavaEuro(); return; }
+  if (payRegion() === "by") {   // после неудачи Lava единственная кнопка - Tribute
+    const fb = coFailState();
+    if (fb && fb.next === "tribute") goTribute(document.getElementById("btn-pay-rub")); else goLavaEuro();
+    return;
+  }
   // "rub": WayForPay спрятан, Enter ведёт в первую кнопку (Tribute).
   if (payRegion() === "rub") { goTribute(document.getElementById("btn-pay-rub")); return; }
   // «Оплата не прошла» с кнопкой Tribute: Enter ведёт в неё, WayForPay на экране нет.
@@ -1965,7 +1974,12 @@ els.form.addEventListener("submit", (e) => {
   const bind = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("click", (e) => { e.preventDefault(); fn(e); }); };
   bind("to-lava-currency", () => goTribute(document.getElementById("to-lava-currency"))); // "": вторая кнопка -> Tribute
   bind("pay-other", () => { track("co_reserve_click", (readPayTry() || {}).why || ""); goLavaCurrency(); }); // «Резервный способ оплаты» -> экран 2 (Lava)
-  bind("btn-pay-rub", () => (payRegion() === "by" ? goLavaEuro() : goTribute(document.getElementById("btn-pay-rub")))); // BY - Lava EUR, "rub" - Tribute
+  bind("btn-pay-rub", () => {   // BY - Lava EUR (после неудачи Lava - Tribute), "rub" и прочие - Tribute
+    const rb = document.getElementById("btn-pay-rub");
+    if (payRegion() !== "by") { goTribute(rb); return; }
+    const fb = coFailState();
+    if (fb && fb.next === "tribute") goTribute(rb); else goLavaEuro();
+  });
   bind("checkout-back", () => {
     // В состоянии «Оплата не прошла» «Назад» ведёт на обычную кассу (26.11.2026).
     if (coFailState()) { track("co_back", "fail"); coFailDismissed = true; clearErrors(); applyCountryPay(); window.scrollTo(0, 0); return; }
@@ -6423,7 +6437,9 @@ if (startParams.get("paid") === "1" && startParams.get("order")) {
   const why = lavaBack === "fail" ? LAVA_FAIL_MSG : LAVA_CANCEL_MSG;
   markPayTry("lava", "lava_fail", { email: (readLavaReturn() || {}).email || "" });
   scGoCheckout();                       // showCheckout чистит stash: попытка закончилась
-  if (r && r.email) {
+  if (payRegion() === "by") {
+    // Беларусь платила Lava EUR прямо с кассы: касса уже в состоянии «Оплата не прошла» с Tribute, почта из метки.
+  } else if (r && r.email) {
     els.email.value = r.email; updateEmailEcho();
     state.email = r.email; state.method = "lava";
     showLavaCurrency();
