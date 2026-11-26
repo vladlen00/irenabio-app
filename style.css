@@ -188,6 +188,9 @@ a:hover { text-decoration: underline; }
 .plan-period { font-size: 17px; font-weight: 700; }
 .plan-price { font-size: 26px; font-weight: 800; }
 .plan-price span { font-size: 14px; font-weight: 600; color: var(--muted); }
+/* Цена ещё не приехала (26.11.2026): строка держит высоту цифры, карточка не прыгает. */
+.plan-price { min-height: 1.25em; line-height: 1.25; }
+.plan-price.is-empty { min-width: 6.5em; }
 .plan-note { width: 100%; font-size: 13px; color: var(--muted); margin-top: 2px; }
 .plan-tag {
   position: absolute; top: -10px; right: 16px;
@@ -213,6 +216,8 @@ a:hover { text-decoration: underline; }
 /* Почта залогиненной на чекауте: подставлена из сессии и не правится (lockCheckoutEmail). */
 .field input[readonly] { color: var(--muted); border-style: dashed; cursor: default; }
 .field-error { color: var(--accent-deep); font-size: 13px; margin: 6px 2px 0; }
+/* Строка под полем почты на кассе (26.11.2026). */
+.field-hint { color: var(--muted); font-size: 12.5px; line-height: 1.4; margin: 6px 2px 0; }
 .form-error { color: var(--accent-deep); font-size: 14px; margin: 14px 2px 0; text-align: center; }
 
 /* Эхо адреса над кнопкой оплаты. Заменило второе поле "Повторите почту". */
@@ -233,6 +238,11 @@ a:hover { text-decoration: underline; }
 .btn-primary:disabled { opacity: .6; cursor: default; filter: none; }
 .btn-ghost { margin-top: 20px; background: transparent; color: var(--accent-deep); border: 1.5px solid var(--border); }
 .btn-ghost:hover { border-color: var(--accent); text-decoration: none; }
+/* Строка сразу под главной кнопкой кассы (26.11.2026). */
+/* Оферта и возврат в самом низу кассы (26.11.2026). */
+.pay-docs { margin: 18px 0 0; text-align: center; font-size: 12px; color: var(--muted); }
+.pay-docs a, .pay-docs a:hover { color: var(--muted); text-decoration: none; border: 0; }
+.pay-cancel-note { margin: 8px 0 0; text-align: center; font-size: 13px; line-height: 1.4; color: var(--muted); }
 
 /* Ссылка "Нет аккаунта? Оформить подписку" на экране логина (исходный вид). */
 /* Условия на экране оплаты: подвал тут скрыт, а ссылки обязаны быть под рукой. */
@@ -244,6 +254,27 @@ a:hover { text-decoration: underline; }
 
 /* Беларусь (05.10.2026): строка над кнопкой оплаты в рублях. */
 .pay-by-note { text-align: center; font-size: 14.5px; line-height: 1.45; margin: 20px 0 0; color: var(--text); }
+/* Состояние кассы «Оплата не прошла» (26.11.2026): одно действие на экране. Класс co-fail ставит
+   applyCountryPay. Прячем всё, кроме «Назад», заголовка, строки «Попробуй другим способом», почты,
+   одной кнопки, строки с ценой под ней и нижней строки «Оферта · Возврат». */
+#view-checkout .co-fail-only { display: none; }
+#view-checkout.co-fail .co-fail-only:not([hidden]) { display: block; }
+#view-checkout.co-fail .lead:not(.co-fail-only),
+#view-checkout.co-fail #plans,
+#view-checkout.co-fail #checkout-session,
+#view-checkout.co-fail #checkout-guest-login,
+#view-checkout.co-fail #pay-recurrent-note,
+#view-checkout.co-fail .pay-by-note,
+#view-checkout.co-fail .pay-rub-link,
+#view-checkout.co-fail.co-email-known .field,
+#view-checkout.co-fail.co-email-known #email-hint,
+#view-checkout.co-fail.co-email-known #email-echo { display: none !important; }
+#view-checkout.co-fail h1 { margin-bottom: 6px; }
+.co-fail-email { margin: 0; text-align: center; font-size: 15px; line-height: 1.5; color: var(--muted); word-break: break-word; }
+.co-fail-email strong { color: var(--text); font-weight: 600; }
+.co-fail-email .nowrap { white-space: nowrap; }
+.co-fail-email a { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+#view-checkout.co-fail #pay-cancel-note { font-size: 12.5px; }
 .alt-pay { text-align: center; margin: 14px 0 0; }
 .alt-pay a { font-size: 14px; color: var(--muted); border-bottom: 1px dashed var(--border); }
 .alt-pay a:hover { color: var(--accent-deep); text-decoration: none; }

@@ -225,15 +225,57 @@ function readLavaReturn() {
   } catch { return null; }
 }
 function clearLavaReturn() { try { localStorage.removeItem(LAVA_RETURN_KEY); } catch {} }
+
+// НЕУДАЧНАЯ ПОПЫТКА ОПЛАТЫ (26.11.2026). Метка на устройстве: способ (wfp | tribute | lava),
+// причина и время, у ухода на платёжку ещё номер заказа и почта. Ставится при уходе на оплату
+// (why "left"), при ошибке открытия оплаты ("pay_error"), при возврате с отказом ("tribute_fail",
+// "lava_fail", "wfp_unpaid"). Снимается подтверждённой оплатой (экран пароля, дом) и сама через 7 дней.
+// По ней applyCountryPay в поясах вне "rub" и "by" меняет кассу: после WayForPay первой кнопкой
+// идёт Tribute, и показывается «Резервный способ оплаты» (Lava). Stash Lava тут ни при чём: его
+// showCheckout чистит, а эта метка должна пережить возврат на кассу.
+const PAY_TRY_KEY = "irenabio_pay_try";
+const PAY_TRY_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+// failed - какие способы уже не прошли за время жизни метки: после WayForPay и Tribute вместе
+// касса добавляет «Резервный способ оплаты».
+function markPayTry(method, why, extra) {
+  const prev = readPayTry();
+  const failed = new Set(prev ? (Array.isArray(prev.failed) ? prev.failed : [prev.method]) : []);
+  failed.add(method);
+  try { localStorage.setItem(PAY_TRY_KEY, JSON.stringify(Object.assign({ method, why, ts: Date.now(), failed: [...failed] }, extra || {}))); } catch {}
+}
+function readPayTry() {
+  try {
+    const j = JSON.parse(localStorage.getItem(PAY_TRY_KEY) || "null");
+    if (!j || !j.method || (Date.now() - (j.ts || 0)) > PAY_TRY_TTL_MS) return null;
+    return j;
+  } catch { return null; }
+}
+function clearPayTry() { try { localStorage.removeItem(PAY_TRY_KEY); } catch {} }
+// СОСТОЯНИЕ «ОПЛАТА НЕ ПРОШЛА» (26.11.2026), только вне поясов "rub" и "by". null - обычная касса.
+// next - единственная кнопка: после WayForPay - Tribute, после Tribute - WayForPay; после Lava
+// (резервный) - тот из двух, что ещё не пробовали. both - не прошли оба, тогда «Резервный способ оплаты».
+// «Назад» в этом состоянии (coFailDismissed) возвращает обычную кассу до перезагрузки страницы.
+let coFailDismissed = false;
+let coEmailEdit = false;   // «изменить» у известной почты: показать поле
+function coFailState() {
+  if (coFailDismissed || payRegion() !== "") return null;
+  const t = readPayTry();
+  if (!t) return null;
+  const failed = new Set(Array.isArray(t.failed) ? t.failed : [t.method]);
+  const both = failed.has("wfp") && failed.has("tribute");
+  const next = t.method === "wfp" ? "tribute" : t.method === "tribute" ? "wfp"
+    : (failed.has("wfp") && !failed.has("tribute") ? "tribute" : "wfp");
+  return { t, next, both };
+}
 // Ручной возврат без входа ведём на ожидание, только пока счёт Lava ещё жив (~24 ч),
 // иначе брошенная неделю назад попытка подменяла бы витрину экраном ожидания.
 function freshLavaReturn() {
   const r = readLavaReturn();
   return r && (Date.now() - (r.ts || 0)) < 24 * 60 * 60 * 1000 ? r : null;
 }
-const LAVA_FAIL_MSG = "Оплата не прошла: банк её не подтвердил. Попробуйте ещё раз или другой картой.";
+const LAVA_FAIL_MSG = "Оплата не прошла: банк её не подтвердил. Попробуй ещё раз или другой картой.";
 const LAVA_CANCEL_MSG = "Оплата отменена. Можно попробовать ещё раз.";
-const TRIBUTE_FAIL_MSG = "Оплата не прошла. Попробуйте ещё раз, другой картой или по СБП.";
+const TRIBUTE_FAIL_MSG = "Оплата не прошла. Попробуй ещё раз, другой картой или по СБП.";
 
 // ===== СЧЁТЧИК ВОРОНКИ (05.10.2026) =====
 // Маяк в Cloudflare Worker ir-funnel (biohack/tools/funnel-worker), НЕ в нашу базу: он не
@@ -769,20 +811,49 @@ function updateRecurrentNote() {
   if (!note) return;
   const plan = PLANS[state.plan];
   note.hidden = !(plan && plan.renews);
+  const cancel = document.getElementById("pay-cancel-note");   // строка под главной кнопкой, то же условие
+  if (cancel) cancel.hidden = note.hidden;
   checkoutFillPrice();
+  checkoutFillPrograms();
+}
+// «Полный доступ: 10 программ, ...» (26.11.2026): число из тех же данных, что витрина (scSprints:
+// живой ответ, нарисованное или снимок). Цифрой в разметке не пишется. Пусто - «все программы».
+function checkoutFillPrograms() {
+  const el = document.getElementById("co-programs");
+  if (!el) return;
+  const n = scSprints().length;
+  el.textContent = n > 0 ? plurPrograms(n) : "все программы";
+}
+// Главная кнопка «Оплатить 11 €» (26.11.2026). Сумма через priceLive(): после PRICE_CHANGE_AT
+// станет новой сама. Пока цены нет - просто «Оплатить». Сумму к оплате назначает сервер.
+function payBtnLabel() {
+  const f = coFailState();
+  if (f && f.next === "wfp") return "Оплатить картой";   // единственная кнопка после неудачи Tribute
+  const price = priceLive().replace(" ", "\u00A0");
+  return price ? "Оплатить " + price : "Оплатить";
 }
 // Цена на кассе ТОЛЬКО с сервера (get-public, priceNow), руками не пишется (24.11.2026):
-//   карточка тарифа «11 € в месяц» - пока ответа нет, строка скрыта;
+//   карточка тарифа «11 € в месяц» - пока ответа нет, место под цену пустое (is-empty, 26.11.2026):
+//     строка держит свою высоту, и карточка не прыгает, когда цена приезжает. В снимке витрины
+//     цены нет намеренно (readShowcaseSnapshot), поэтому первый кадр без живого ответа пустой;
+//   главная кнопка «Оплатить 11 €» - payBtnLabel, пока кнопка ждёт оплату, меняется только label;
 //   абзац «Списывается только ...» - сумма, а при рублёвой кассе (payRegion "rub", кнопка
 //   «Оплатить картой или по СБП») без суммы: там платят в рублях. Беларусь с кнопкой в евро - с суммой.
 function checkoutFillPrice() {
   const price = priceLive().replace(" ", "\u00A0");   // «11 €» не рвётся строкой
   const card = document.getElementById("plan-price-1m");
   if (card) {
-    card.textContent = price ? price + " " : "";
+    card.textContent = price ? price + " " : "\u00A0";
     if (price) { const s = document.createElement("span"); s.textContent = "в месяц"; card.appendChild(s); }
-    card.hidden = !price;
+    card.classList.toggle("is-empty", !price);
+    card.hidden = false;
   }
+  const btn = els.btnPay;
+  if (btn) {
+    btn.dataset.label = payBtnLabel();
+    if (!btn.disabled) btn.textContent = btn.dataset.label;
+  }
+  coFillCancelNote();
   const priceEl = document.getElementById("pay-price");
   if (priceEl) priceEl.textContent = price && payRegion() !== "rub" ? price : "стоимость подписки";
   const coNote = document.getElementById("co-price-notice");
@@ -791,6 +862,33 @@ function checkoutFillPrice() {
     coNote.textContent = nt;
     coNote.hidden = !nt;
   }
+}
+
+// Строка под первой кнопкой. В состоянии «Оплата не прошла» короче и с ценой (priceLive):
+// «11 € в месяц · отключить можно в любой момент».
+const CANCEL_NOTE = "Отключить автопродление можно в любой момент, в один клик";
+function coFillCancelNote() {
+  const el = document.getElementById("pay-cancel-note");
+  if (!el) return;
+  if (!coFailState()) { el.textContent = CANCEL_NOTE; return; }
+  const price = priceLive().replace(" ", "\u00A0");
+  el.textContent = price ? price + " в месяц \u00B7 отключить можно в любой момент" : "Отключить можно в любой момент";
+}
+// Почта в состоянии «Оплата не прошла»: известна - строка «Доступ придёт на ... · изменить», поле спрятано.
+// Известна = в поле верный адрес или он есть в метке попытки. Ошибка почты открывает поле (showEmailError).
+function coFillFailEmail(fail) {
+  const view = els.viewCheckout;
+  const line = document.getElementById("co-fail-email");
+  if (!view || !line) return;
+  if (fail && !emailValid(normalizeEmail(els.email.value)) && fail.t.email && emailValid(normalizeEmail(fail.t.email))) {
+    els.email.value = fail.t.email; updateEmailEcho();
+  }
+  const email = normalizeEmail(els.email.value);
+  const known = !!fail && !coEmailEdit && emailValid(email);
+  view.classList.toggle("co-email-known", known);
+  line.hidden = !known;
+  const v = document.getElementById("co-fail-email-val"); if (v) v.textContent = known ? email : "";
+  const edit = document.getElementById("co-fail-email-edit-wrap"); if (edit) edit.hidden = !!els.email.readOnly;   // почта сессии не правится
 }
 
 // --- email ---
@@ -818,7 +916,7 @@ function emailValid(email) {
 function readCheckoutEmail(method) {
   const email = normalizeEmail(els.email.value);
   if (method) track("pay_try", method);
-  if (!emailValid(email)) { if (method) track("email_bad", method); showEmailError(EMAIL_HINT); els.email.focus(); return null; }
+  if (!emailValid(email)) { if (method) track("email_bad", method); showEmailError(CO_EMAIL_HINT); els.email.focus(); return null; }
   return email;
 }
 
@@ -836,6 +934,11 @@ function updateEmailEcho() {
 function showEmailError(msg) {
   els.emailError.textContent = msg || "";
   els.emailError.hidden = !msg;
+  // Ошибка почты при спрятанном поле: открываем поле, иначе ошибку не к чему приложить.
+  if (msg && !coEmailEdit && els.viewCheckout && els.viewCheckout.classList.contains("co-email-known")) {
+    coEmailEdit = true;
+    coFillFailEmail(coFailState());
+  }
 }
 function showFormError(msg) {
   els.formError.textContent = msg || "";
@@ -847,6 +950,14 @@ function clearErrors() {
 }
 const EMAIL_HINT = "Проверьте адрес почты. Пример: ваша@почта.com";
 const RATE_MSG = "Слишком много попыток. Подождите минуту и попробуйте снова.";
+// Касса на «ты» (26.11.2026). Экраны входа, сброса и остальное пока на «вы», их строки выше не трогаем.
+const CO_EMAIL_HINT = "Проверь адрес почты. Пример: твоя@почта.com";
+const CO_EMAIL_PAY_HINT = "Проверь адрес почты - платёжная система его не приняла. Пример: твоя@почта.com";
+const CO_RATE_MSG = "Слишком много попыток. Подожди минуту и попробуй снова.";
+const CO_FAIL_MSG = "Не удалось открыть оплату. Попробуй ещё раз.";
+const CO_NET_MSG = "Не удалось связаться с сервером. Проверь интернет и попробуй ещё раз.";
+const CO_SRV_MSG = "Что-то сломалось на нашей стороне. Попробуй через минуту, а если повторится - напиши нам.";
+function coNetMsg(r) { return netMsg(r) === SRV_MSG ? CO_SRV_MSG : CO_NET_MSG; }
 const NET_MSG = "Не удалось связаться с сервером. Проверьте интернет и попробуйте ещё раз.";
 // 5xx - это НЕ обрыв связи: сервер ответил, просто сломался на нашей стороне. Совет "проверьте
 // интернет" в этом случае отправляет женщину чинить исправный вайфай, а на экране оплаты ещё и
@@ -1116,18 +1227,25 @@ async function goCheckoutSubmit() {
     body: JSON.stringify({ email, plan: state.plan, method: "wayforpay" }),
   });
   const data = r.data || {};
-  if (r.state === "ok" && data.ok && data.invoiceUrl) { track("pay_redirect", "wfp"); window.location.href = data.invoiceUrl; return; }
+  if (r.state === "ok" && data.ok && data.invoiceUrl) {
+    markPayTry("wfp", "left", { order: data.orderReference || "", email });
+    track("pay_redirect", "wfp"); window.location.href = data.invoiceUrl; return;
+  }
   track("pay_error", r.state === "unreachable" ? "net" : String(data.error || r.status || "x"));
-  if (r.state === "unreachable") showFormError(netMsg(r));
-  else if (r.status === 429) showFormError(RATE_MSG);
+  // Ошибка почты - не неудача способа оплаты: её исправляют в поле, кнопки не меняем.
+  const emailIssue = data.error === "invalid_email_domain" || (r.status === 400 && data.error !== "payment_init_failed") || data.error === "invalid_email";
+  if (!emailIssue && r.status !== 429) markPayTry("wfp", "pay_error", { email });
+  if (r.state === "unreachable") showFormError(coNetMsg(r));
+  else if (r.status === 429) showFormError(CO_RATE_MSG);
   // Домен не принимает почту (проверка MX на сервере) - это почти всегда опечатка в домене.
-  else if (data.error === "invalid_email_domain") showEmailError("Проверьте адрес: домен не принимает почту. Опечатка?");
+  else if (data.error === "invalid_email_domain") showEmailError("Проверь адрес: домен не принимает почту. Опечатка?");
   // payment_init_failed разбираем ДО общего 400: отказ платёжки приезжает как 400 (был 502),
   // и без этой строки женщина увидела бы "проверьте почту" на проблему с подписью мерчанта.
-  else if (data.error === "payment_init_failed") showFormError("Не удалось открыть оплату. Попробуйте ещё раз.");
-  else if (r.status === 400 || data.error === "invalid_email") showEmailError(EMAIL_HINT);
-  else showFormError("Не удалось открыть оплату. Попробуйте ещё раз.");
-  if (btn) { btn.disabled = false; btn.textContent = btn.dataset.label || "Оплатить"; }
+  else if (data.error === "payment_init_failed") showFormError(CO_FAIL_MSG);
+  else if (r.status === 400 || data.error === "invalid_email") showEmailError(CO_EMAIL_HINT);
+  else showFormError(CO_FAIL_MSG);
+  if (btn) btn.disabled = false;
+  applyCountryPay();   // после pay_error первой кнопкой может стать Tribute, подписи обновит она же
 }
 // Беларусь (05.10.2026): у WayForPay карты Беларуси заблокированы (отказ 1135).
 // Страну берём по часовому поясу устройства: до edge-функций заголовок страны не доходит
@@ -1162,11 +1280,27 @@ function payRegion() {
 //   "":    первой WayForPay, второй «Оплатить в рублях или по СБП» (Tribute), Lava тихой ссылкой.
 //   "by":  как было: одна кнопка «Оплатить в евро» сразу в Lava EUR (перевод на Tribute после
 //          живой оплаты белорусской картой).
+// 26.11.2026, остальные пояса после неудачной попытки - отдельное состояние «Оплата не прошла»
+// (coFailState): «Назад», заголовок, «Попробуй другим способом», почта, ОДНА кнопка (после WayForPay -
+// Tribute «Оплатить картой или по СБП», после Tribute - WayForPay «Оплатить картой»), под ней
+// цена и «отключить можно в любой момент», внизу «Оферта · Возврат», а когда не прошли оба
+// способа, ещё «Резервный способ оплаты» в той же строке. "rub" и "by" метка не меняет.
 function applyCountryPay() {
   const region = payRegion();
   const rubFirst = region !== "";
+  const fail = coFailState();
+  const view = els.viewCheckout;
+  const wasFail = !!view && view.classList.contains("co-fail");
+  if (view) view.classList.toggle("co-fail", !!fail);
+  if (fail && !wasFail) { showFormError(""); coEmailEdit = false; }   // заголовок уже говорит «не прошла»
+  const tributeFirst = rubFirst || !!(fail && fail.next === "tribute");
+  const title = document.getElementById("co-title");
+  if (title) title.textContent = fail ? "Оплата не прошла" : "Открой всё приложение";
+  const back = document.getElementById("checkout-back");
+  if (back) back.hidden = fail ? false : !checkoutBackTo;   // в состоянии неудачи «Назад» ведёт на обычную кассу
+  coFillFailEmail(fail);
   const box = document.getElementById("pay-by");
-  if (box) box.hidden = !rubFirst;
+  if (box) box.hidden = !tributeFirst;
   const note = document.querySelector(".pay-by-note");
   if (note) {
     note.textContent = region === "by" ? "Карты Беларуси: оплата в евро" : "Любые российские карты и СБП, с автопродлением";
@@ -1177,16 +1311,24 @@ function applyCountryPay() {
     rubBtn.dataset.label = region === "by" ? "Оплатить в евро" : "Оплатить картой или по СБП";
     rubBtn.textContent = rubBtn.dataset.label;
   }
-  const rub = document.querySelector(".pay-rub-link");   // вторая кнопка "" -> Tribute
-  if (rub) rub.hidden = rubFirst;
-  const other = document.getElementById("pay-other");   // Lava, тихая ссылка
-  if (other) other.hidden = region !== "";   // "by" - Lava EUR и так первой кнопкой, "rub" - только Tribute
+  const rub = document.querySelector(".pay-rub-link");   // вторая кнопка "" -> Tribute, на обычной кассе всегда
+  if (rub) rub.hidden = rubFirst || !!fail;
+  const other = document.getElementById("pay-other-wrap");   // Lava, «Резервный способ оплаты · »
+  if (other) other.hidden = !(fail && fail.both);   // "by" - Lava EUR и так первой кнопкой, "rub" - только Tribute
   const btn = els.btnPay;
-  if (btn) btn.hidden = rubFirst;   // "rub": WayForPay не показываем; "by": блокирует (1135)
-  if (btn && !btn.disabled) {
-    btn.dataset.label = "Оплатить";
-    btn.textContent = btn.dataset.label;
+  if (btn) {
+    btn.hidden = rubFirst || !!(fail && fail.next === "tribute");   // "rub": WayForPay не показываем; "by": блокирует (1135)
+    btn.dataset.label = payBtnLabel();
+    if (!btn.disabled) btn.textContent = btn.dataset.label;
   }
+  // Строка про автопродление всегда сразу под первой кнопкой.
+  const cancel = document.getElementById("pay-cancel-note");
+  const first = tributeFirst ? rubBtn : btn;
+  if (cancel && first && first.nextElementSibling !== cancel) first.after(cancel);
+  coFillCancelNote();
+  // co_reserve (26.11.2026): касса после неудачи (d = причина метки) и переключение на Tribute.
+  if (fail) track("co_reserve", fail.t.why || "left", true);
+  if (fail && fail.next === "tribute") track("co_reserve", "wfp_to_tribute", true);
 }
 // --- Tribute: карта (любая, включая российские) или СБП, обе с автопродлением ---
 // Заказ создаётся по клику и уходит на оплату в ЭТОЙ вкладке (как Lava). Номер заказа приходит
@@ -1210,14 +1352,16 @@ async function goTribute(btn) {
   const data = r.data || {};
   if (r.state === "ok" && data.ok && data.paymentUrl && data.order_reference) {
     stashLavaReturn(data.order_reference, email, "tribute");
+    markPayTry("tribute", "left", { order: data.order_reference, email });
     track("pay_redirect", "tribute");
     window.location.href = data.paymentUrl;
     return;
   }
   if (btn) { btn.disabled = false; btn.textContent = label; }
-  if (data.error === "invalid_email") { showEmailError("Проверьте адрес почты - платёжная система его не приняла. Пример: ваша@почта.com"); return; }
-  showFormError(r.state === "unreachable" ? netMsg(r)
-    : (r.status === 429 ? RATE_MSG : "Не удалось открыть оплату. Попробуйте ещё раз."));
+  if (data.error === "invalid_email") { showEmailError(CO_EMAIL_PAY_HINT); return; }
+  if (r.status !== 429) { markPayTry("tribute", "pay_error", { email }); applyCountryPay(); }
+  showFormError(r.state === "unreachable" ? coNetMsg(r)
+    : (r.status === 429 ? CO_RATE_MSG : CO_FAIL_MSG));
 }
 // --- экран 1 -> ссылка "Оплатить в рублях": та же валидация, дальше экран 2 (выбор валюты) ---
 function goLavaCurrency() {
@@ -1264,7 +1408,7 @@ function showLavaCurrency() {
 // Счёт Lava создаётся прямо с экрана выбора способа (06.10.2026). Экрана «Сейчас откроется
 // оплата» больше нет: Lava возвращает сама по адресам возврата, stash остаётся страховкой.
 const LAVA_INVOICE_TIMEOUT_MS = 30000;
-const PAY_HINT_CARD = "Банк попросит подтвердить оплату кодом из СМС или в приложении банка, не закрывайте страницу.";
+const PAY_HINT_CARD = "Банк попросит подтвердить оплату кодом из СМС или в приложении банка, не закрывай страницу.";
 const PAY_HINT_SBP = "Откроется выбор банка или QR-код, подтвердите оплату в приложении банка.";
 
 // Клик "Оплатить" на экране выбора способа: создаём инвойс и уходим на Lava в ЭТОЙ ЖЕ вкладке
@@ -1300,6 +1444,7 @@ async function onLavaPay(ui) {
   const data = r.data || {};
   if (r.state === "ok" && data.ok && data.paymentUrl && data.order_reference) {
     stashLavaReturn(data.order_reference, state.email, "lava");
+    markPayTry("lava", "left", { order: data.order_reference, email: state.email });
     track("pay_redirect", state.lavaCurrency === "SBP" ? "lava_sbp" : "lava");
     window.location.href = data.paymentUrl;   // та же вкладка -> Lava; назад по адресу возврата
     return;
@@ -1307,12 +1452,13 @@ async function onLavaPay(ui) {
   // Lava строже нас по email (напр. отбивает несуществующий домен) -> возвращаем на экран 1 к полю почты.
   if (data.error === "invalid_email") {
     showCheckout();
-    showEmailError("Проверьте адрес почты - платёжная система его не приняла. Пример: ваша@почта.com");
+    showEmailError(CO_EMAIL_PAY_HINT);
     return;
   }
+  if (r.status !== 429) markPayTry("lava", "pay_error", { email: state.email });
   if (errEl) {
-    errEl.textContent = r.state === "unreachable" ? netMsg(r)
-      : (r.status === 429 ? RATE_MSG : "Не удалось открыть оплату. Попробуйте ещё раз.");
+    errEl.textContent = r.state === "unreachable" ? coNetMsg(r)
+      : (r.status === 429 ? CO_RATE_MSG : CO_FAIL_MSG);
     errEl.hidden = false;
   }
   if (hint) hint.hidden = true;
@@ -1376,8 +1522,17 @@ async function onPaidCheck() {
 document.addEventListener("visibilitychange", () => { if (!document.hidden && payWaitVisible()) startPayPoll(); });
 // pageshow: (а) уже на ожидании -> перезапуск опроса; (б) вернулись Назад из Lava (bfcache) на экран
 // выбора способа, а оплата уже начата (stash есть) -> сразу показываем ожидание+опрос.
-window.addEventListener("pageshow", () => {
+window.addEventListener("pageshow", (e) => {
   if (payWaitVisible()) { startPayPoll(); return; }
+  // (в) 26.11.2026: вернулась Назад с WayForPay или Tribute на кассу. Страница из кэша браузера,
+  // код не перезапускался: кнопка висит в «Открываем оплату...», а метка ухода уже стоит.
+  // Отпускаем кнопки и перерисовываем порядок по метке.
+  if (e && e.persisted && els.viewCheckout && !els.viewCheckout.hidden) {
+    ["btn-pay", "btn-pay-rub", "to-lava-currency"].forEach((id) => { const b = document.getElementById(id); if (b) b.disabled = false; });
+    const tb = document.getElementById("to-lava-currency"); if (tb) tb.textContent = tb.dataset.label || "Оплатить в рублях или по СБП";
+    const rb = document.getElementById("btn-pay-rub"); if (rb && rb.dataset.label) rb.textContent = rb.dataset.label;
+    applyCountryPay();
+  }
   if (readLavaReturn() && els.viewLavaCurrency && !els.viewLavaCurrency.hidden) showPayWait();
 });
 
@@ -1500,6 +1655,7 @@ async function enterPaymentReturn(order) {
       els.pwEmail.textContent = data.email;
       const pwUser = document.getElementById("pw-username"); if (pwUser) pwUser.value = data.email;
       fillPwOrder(order);
+      clearPayTry();   // оплата подтверждена: резервный способ больше не нужен
       els.pwSuccess.hidden = false;
       els.pwForm.hidden = false;
       els.pwResolveError.hidden = true;
@@ -1541,6 +1697,7 @@ function leavePaymentReturn() {
 
 // Экран пароля с уже известным email (resolve уже прошёл в опросе экрана 4 / onPaidCheck).
 function showPasswordForm(order, email, isLava) {
+  clearPayTry();   // сюда приходят только с подтверждённой оплатой
   formBack(els.pwForm);
   state.order = order;
   state.email = email;
@@ -1774,14 +1931,22 @@ els.form.addEventListener("submit", (e) => {
   if (payRegion() === "by") { goLavaEuro(); return; }
   // "rub": WayForPay спрятан, Enter ведёт в первую кнопку (Tribute).
   if (payRegion() === "rub") { goTribute(document.getElementById("btn-pay-rub")); return; }
+  // «Оплата не прошла» с кнопкой Tribute: Enter ведёт в неё, WayForPay на экране нет.
+  const f = coFailState();
+  if (f && f.next === "tribute") { goTribute(document.getElementById("btn-pay-rub")); return; }
   goCheckoutSubmit(); // экран 1 -> WFP -> экран 3
 });
 {
   const bind = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("click", (e) => { e.preventDefault(); fn(e); }); };
   bind("to-lava-currency", () => goTribute(document.getElementById("to-lava-currency"))); // "": вторая кнопка -> Tribute
-  bind("pay-other", goLavaCurrency);                   // тихая ссылка -> экран 2 (Lava)
+  bind("pay-other", () => { track("co_reserve_click", (readPayTry() || {}).why || ""); goLavaCurrency(); }); // «Резервный способ оплаты» -> экран 2 (Lava)
   bind("btn-pay-rub", () => (payRegion() === "by" ? goLavaEuro() : goTribute(document.getElementById("btn-pay-rub")))); // BY - Lava EUR, "rub" - Tribute
-  bind("checkout-back", () => { track("co_back"); checkoutBack(); });         // чекаут -> туда, откуда пришли
+  bind("checkout-back", () => {
+    // В состоянии «Оплата не прошла» «Назад» ведёт на обычную кассу (26.11.2026).
+    if (coFailState()) { track("co_back", "fail"); coFailDismissed = true; clearErrors(); applyCountryPay(); window.scrollTo(0, 0); return; }
+    track("co_back"); checkoutBack();
+  });         // чекаут -> туда, откуда пришли
+  bind("co-fail-email-edit", () => { coEmailEdit = true; coFillFailEmail(coFailState()); els.email.focus(); });
   bind("lavacur-back", () => showCheckout());          // экран 2 -> назад к тарифам
   // Единственный выход с экрана пароля: чистит адрес (иначе перезагрузка вернёт сюда же) и ведёт
   // на старт. Покрывает оба случая - битую ссылку и чужой/старый заказ в адресе.
@@ -2321,6 +2486,7 @@ function renderLive(data, completed) {
 
 // Рендер дома из ответа get-home (реальные данные)
 function renderHome(data) {
+  clearPayTry();   // дом = доступ есть, неудачная попытка оплаты больше не актуальна
   homeData = data;   // сохраняем для экранов спринт/день и обновления прогресса
   navStack = [];     // дом - основание стека: пришли сюда, история пройдена
   const completed = new Set((data.progress && data.progress.completed_day_ids) || []);
@@ -6223,12 +6389,14 @@ if (startParams.get("paid") === "1" && startParams.get("order")) {
   if (sb && hasStoredSession()) routeHomeOrCheckout({ paidFallback: () => showPayWait() });
   else showPayWait();
 } else if (tributeBack === "fail") {
+  markPayTry("tribute", "tribute_fail", { order: tributeOrder, email: (readPayTry() || {}).email || "" });
   scGoCheckout();
-  showFormError(TRIBUTE_FAIL_MSG);
+  if (!coFailState()) showFormError(TRIBUTE_FAIL_MSG);   // вне "rub"/"by" об этом говорит заголовок «Оплата не прошла»
 } else if ((lavaBack === "fail" || lavaBack === "cancel") && !(sb && hasStoredSession())) {
   // Отказ или отмена: туда, откуда уходила (выбор валюты), с её почтой и причиной.
   const r = readLavaReturn();
   const why = lavaBack === "fail" ? LAVA_FAIL_MSG : LAVA_CANCEL_MSG;
+  markPayTry("lava", "lava_fail", { email: (readLavaReturn() || {}).email || "" });
   scGoCheckout();                       // showCheckout чистит stash: попытка закончилась
   if (r && r.email) {
     els.email.value = r.email; updateEmailEcho();

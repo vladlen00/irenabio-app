@@ -54,7 +54,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Пол">
 
-  <link rel="stylesheet" href="style.css?v=108">
+  <link rel="stylesheet" href="style.css?v=109">
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. Файлы Google Fonts у себя (с 01.10.2026),
        собирает biohack/tools/irenabio-app/build_fonts.py. Браузер качает только нужные
        подмножества по unicode-range, как и с Google. -->
@@ -536,20 +536,24 @@
       <!-- Кнопка видна ТОЛЬКО когда есть куда вернуться (пришли изнутри приложения).
            При заходе по прямой ссылке снаружи showCheckout её прячет. -->
       <div class="pay-back" id="checkout-back" role="button" aria-label="Назад" hidden><i class="ti ti-arrow-left"></i><span>Назад</span></div>
-      <h1>Оформление подписки</h1>
-      <p class="lead">Доступ к приложению и материалам: тренировки, трекеры, дневник, медитации, дыхательные практики, обучающие материалы и подкасты.</p>
+      <h1 id="co-title">Открой всё приложение</h1>
+      <!-- Состояние «Оплата не прошла» (26.11.2026): класс co-fail на #view-checkout ставит applyCountryPay.
+           Элементы .co-fail-only видны только в нём, лишнее прячет style.css. -->
+      <p class="lead co-fail-only" id="co-fail-sub">Попробуй другим способом</p>
+      <!-- Число программ из тех же данных, что витрина (scSprints), заполняет checkoutFillPrograms в app.js (26.11.2026). -->
+      <p class="lead">Полный доступ: <span id="co-programs">все программы</span>, тренировки, медитации и подкасты.</p>
 
       <form id="checkout-form" novalidate>
         <fieldset class="plans" id="plans">
-          <legend class="sr-only">Выберите тариф</legend>
+          <legend class="sr-only">Выбери тариф</legend>
 
           <label class="plan" data-plan="1m">
             <input type="radio" name="plan" value="1m" checked>
             <span class="plan-body">
               <span class="plan-period">1 месяц</span>
               <!-- Цена с сервера (get-public, priceNow), заполняет checkoutFillPrice в app.js (24.11.2026).
-                   Пока ответа нет, строка скрыта: старую цифру не рисуем. -->
-              <span class="plan-price" id="plan-price-1m" hidden></span>
+                   Пока ответа нет, место под цену пустое (класс is-empty), карточка не прыгает (26.11.2026). -->
+              <span class="plan-price is-empty" id="plan-price-1m">&nbsp;</span>
             </span>
           </label>
           <!-- Плашка подорожания (24.11.2026), заполняет checkoutFillPrice из price_notice. -->
@@ -581,11 +585,16 @@
           </label>
         </fieldset>
 
+        <!-- Почта уже известна (вводила перед попыткой): строка вместо поля, «изменить» открывает поле. -->
+        <p class="co-fail-only co-fail-email" id="co-fail-email" hidden>
+          Доступ придёт на <strong id="co-fail-email-val"></strong><span class="nowrap" id="co-fail-email-edit-wrap">&nbsp;&middot; <a href="#" id="co-fail-email-edit">изменить</a></span>
+        </p>
         <label class="field" for="email">
-          <span class="field-label">Ваша почта</span>
+          <span class="field-label">Твоя почта</span>
           <input id="email" type="email" inputmode="email" autocomplete="email"
-                 placeholder="ваша@почта.com" autocapitalize="off" spellcheck="false">
+                 placeholder="твоя@почта.com" autocapitalize="off" spellcheck="false">
         </label>
+        <p class="field-hint" id="email-hint">На неё придёт доступ</p>
         <p class="field-error" id="email-error" hidden></p>
 
         <!-- ВЫХОД С ЧЕКАУТА ДЛЯ ЗАЛОГИНЕННОЙ (2026-09-10). Женщина без доступа
@@ -595,15 +604,10 @@
              Ссылки ловит один делегированный обработчик по data-session-exit (app.js).
              Показывается только при живой сессии - fillCheckoutSession. -->
         <p class="reassure" id="checkout-session" hidden>
-          Вы вошли как <strong id="checkout-session-email"></strong>.
+          Ты вошла как <strong id="checkout-session-email"></strong>.
           <a href="#" data-session-exit="login" style="color:inherit;text-decoration:underline">Войти другой почтой</a>
           &middot;
           <a href="#" data-session-exit="start" style="color:inherit;text-decoration:underline">Выйти</a>
-        </p>
-        <!-- ВХОД С КАССЫ ДЛЯ ГОСТЬИ (24.10.2026): подписчица с протухшим входом приходит сюда
-             по ?buy=1 и не должна платить второй раз. Скрывается, когда показан блок выше. -->
-        <p class="reassure" id="checkout-guest-login">
-          Уже есть подписка? <a href="#" id="checkout-to-login" style="color:inherit;text-decoration:underline">Войти</a>
         </p>
 
         <!-- ЭХО АДРЕСА вместо второго поля "Повторите почту" (2026-08-28).
@@ -636,13 +640,20 @@
         <button id="btn-pay" class="btn btn-primary" type="submit" data-method="wayforpay">
           Оплатить
         </button>
+        <!-- Сразу под главной кнопкой (26.11.2026). Видна там же, где абзац про автопродление ниже:
+             только у тарифов с renews:true (updateRecurrentNote). В регионах "rub" и "by" кнопка
+             btn-pay спрятана, и строка встаёт под их первую кнопку из блока pay-by. -->
+        <p class="pay-cancel-note" id="pay-cancel-note" hidden>Отключить автопродление можно в любой момент, в один клик</p>
 
         <!-- Вторая кнопка с обводкой (06.10.2026), была ссылкой и терялась. Класс pay-rub-link
-             нужен applyCountryPay: на устройствах Europe/Minsk и поясов с рублёвыми картами её прячут, там свой блок pay-by. -->
+             нужен applyCountryPay: на устройствах Europe/Minsk и поясов с рублёвыми картами её прячут, там свой блок pay-by.
+             26.11.2026: в остальных поясах видна всегда. После неудачи WayForPay Tribute становится
+             первой кнопкой в блоке pay-by, а эта прячется, чтобы Tribute не стоял дважды. -->
         <button type="button" class="btn btn-ghost pay-rub-link" id="to-lava-currency">Оплатить в рублях или по СБП</button>
         <!-- 11.10.2026: обе кнопки рублей и СБП ведут в Tribute (карта любая, СБП, автопродление).
-             Lava осталась тихой ссылкой: евро, PayPal, Apple Pay, карты Мир в рублях. -->
-        <button type="button" class="linkquiet" id="pay-other">Другой способ оплаты</button>
+             Lava осталась тихой ссылкой: евро, PayPal, Apple Pay, карты Мир в рублях.
+             26.11.2026: «Резервный способ оплаты» (#pay-other) живёт в нижней строке .pay-docs и виден
+             только в состоянии «Оплата не прошла», когда не прошли и WayForPay, и Tribute. -->
 
         <!-- УСЛОВИЯ НА САМОМ ЭКРАНЕ ОПЛАТЫ (12.09.2026). Подвал с этими ссылками на чекауте
              скрыт (showCheckout прячет .site-footer), а WayForPay требует, чтобы условия
@@ -655,25 +666,33 @@
              23.11.2026: три абзаца вместо одного. Цену в #pay-price подставляет updateRecurrentNote
              из get-public (priceNow на сервере), руками её здесь не писать: при подорожании
              сменится сама. Пока ответа нет, стоит «стоимость подписки». -->
+        <!-- ВХОД С КАССЫ ДЛЯ ГОСТЬИ (24.10.2026): подписчица с протухшим входом приходит сюда
+             по ?buy=1 и не должна платить второй раз. Скрывается, когда показан блок «Ты вошла как».
+             С 26.11.2026 стоит внизу, над «Оплата безопасна»: первый экран разгружен. -->
+        <p class="reassure" id="checkout-guest-login">
+          Уже есть подписка? <a href="#" id="checkout-to-login" style="color:inherit;text-decoration:underline">Войти</a>
+        </p>
         <div class="pay-trust" id="pay-recurrent-note" hidden>
           <p class="pay-legal">🔒 Оплата безопасна. Данные карты вводятся на защищённой странице платёжной системы, мы их не видим и не храним.</p>
           <p class="pay-legal">Списывается только <span id="pay-price">стоимость подписки</span> раз в месяц, никаких скрытых платежей.</p>
-          <p class="pay-legal">Отключить автопродление можно в приложении в любой момент.</p>
         </div>
-        <p class="pay-legal">
-          Оплачивая, вы принимаете
-          <a href="https://irenabio.com/offer.html" target="_blank" rel="noopener">Публичную оферту</a>
-          и <a href="https://irenabio.com/refund.html" target="_blank" rel="noopener">Условия возврата</a>.
-        </p>
-
         <p class="form-error" id="form-error" hidden></p>
+
+        <!-- Оферта и возврат (26.11.2026): вместо предложения «Оплачивая, ты принимаешь...».
+             Совсем без ссылок нельзя: подвал на кассе скрыт, а WayForPay требует условия под рукой. -->
+        <p class="pay-docs">
+          <span id="pay-other-wrap" hidden><a href="#" id="pay-other">Резервный способ оплаты</a> &middot; </span>
+          <a href="https://irenabio.com/offer.html" target="_blank" rel="noopener">Оферта</a>
+          &middot;
+          <a href="https://irenabio.com/refund.html" target="_blank" rel="noopener">Возврат</a>
+        </p>
       </form>
     </section>
 
     <!-- ЭКРАН 2: другой способ оплаты (Lava) - выбор валюты. Почта/тариф перенесены с экрана 1. -->
     <section id="view-lava-currency" hidden>
       <button type="button" class="linkback" id="lavacur-back"><i class="ti ti-arrow-left"></i> Назад</button>
-      <h1>Другой способ оплаты</h1>
+      <h1>Резервный способ оплаты</h1>
       <p class="lead">Тариф: <strong id="lavacur-plan"></strong></p>
       <fieldset class="cur-opts" id="cur-opts">
         <legend class="sr-only">Валюта оплаты</legend>
@@ -934,6 +953,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=212"></script>
+  <script src="app.js?v=213"></script>
 </body>
 </html>
