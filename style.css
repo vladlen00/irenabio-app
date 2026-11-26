@@ -275,6 +275,12 @@ a:hover { text-decoration: underline; }
 .co-fail-email .nowrap { white-space: nowrap; }
 .co-fail-email a { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
 #view-checkout.co-fail #pay-cancel-note { font-size: 12.5px; }
+/* Мелкие центрированные подписи кассы (26.11.2026): ровные переносы, без хвоста в одно-два слова.
+   Старые браузеры свойство игнорируют. Строка про СБП (только "rub") стоит отдельно от строки
+   про автопродление, отступ 16 px. */
+#view-checkout .price-notice-co, #view-checkout .pay-by-note, #view-checkout .pay-cancel-note,
+#view-checkout .lead.co-fail-only, #view-checkout .co-fail-email { text-wrap: balance; }
+#view-checkout #pay-sbp-note { margin-top: 16px; }
 .alt-pay { text-align: center; margin: 14px 0 0; }
 .alt-pay a { font-size: 14px; color: var(--muted); border-bottom: 1px dashed var(--border); }
 .alt-pay a:hover { color: var(--accent-deep); text-decoration: none; }

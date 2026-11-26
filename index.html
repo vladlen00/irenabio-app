@@ -54,7 +54,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Пол">
 
-  <link rel="stylesheet" href="style.css?v=109">
+  <link rel="stylesheet" href="style.css?v=110">
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. Файлы Google Fonts у себя (с 01.10.2026),
        собирает biohack/tools/irenabio-app/build_fonts.py. Браузер качает только нужные
        подмножества по unicode-range, как и с Google. -->
@@ -643,11 +643,11 @@
         <!-- Сразу под главной кнопкой (26.11.2026). Видна там же, где абзац про автопродление ниже:
              только у тарифов с renews:true (updateRecurrentNote). В регионах "rub" и "by" кнопка
              btn-pay спрятана, и строка встаёт под их первую кнопку из блока pay-by. -->
-        <p class="pay-cancel-note" id="pay-cancel-note" hidden>Отключить автопродление можно в любой момент, в один клик</p>
+        <p class="pay-cancel-note" id="pay-cancel-note" hidden>Отключить автопродление можно в один клик</p>
         <!-- 26.11.2026, только пояса "rub": страницы СБП (sub.nspk.ru, qr.nspk.ru) на сертификатах Минцифры,
              Chrome, Safari и браузер Инстаграма пишут «Подключение не защищено». Ставит applyCountryPay
              под строку про автопродление. -->
-        <p class="pay-cancel-note" id="pay-sbp-note" hidden>💡 Если при оплате по СБП браузер пишет «Подключение не защищено», оплати картой или открой ссылку в Яндекс Браузере</p>
+        <p class="pay-cancel-note" id="pay-sbp-note" hidden>💡 Браузер пишет «Подключение не защищено»? Открой ссылку в Яндекс Браузере или оплати картой</p>
 
         <!-- Вторая кнопка с обводкой (06.10.2026), была ссылкой и терялась. Класс pay-rub-link
              нужен applyCountryPay: на устройствах Europe/Minsk и поясов с рублёвыми картами её прячут, там свой блок pay-by.
@@ -957,6 +957,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=216"></script>
+  <script src="app.js?v=217"></script>
 </body>
 </html>

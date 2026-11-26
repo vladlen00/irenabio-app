@@ -870,7 +870,7 @@ function checkoutFillPrice() {
 
 // Строка под первой кнопкой. В состоянии «Оплата не прошла» короче и с ценой (priceLive):
 // «11 € в месяц · отключить можно в любой момент».
-const CANCEL_NOTE = "Отключить автопродление можно в любой момент, в один клик";
+const CANCEL_NOTE = "Отключить автопродление можно в один клик";
 function coFillCancelNote() {
   const el = document.getElementById("pay-cancel-note");
   if (!el) return;
@@ -1307,7 +1307,7 @@ function applyCountryPay() {
   if (box) box.hidden = !tributeFirst;
   const note = document.querySelector(".pay-by-note");
   if (note) {
-    note.textContent = region === "by" ? "Карты Беларуси: оплата в евро" : "Любые российские карты и СБП, с автопродлением";
+    note.textContent = region === "by" ? "Карты Беларуси: оплата в евро" : "Любые российские карты и СБП";
     note.hidden = !rubFirst;
   }
   const rubBtn = document.getElementById("btn-pay-rub");
