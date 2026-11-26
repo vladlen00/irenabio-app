@@ -54,7 +54,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Ирена Пол">
 
-  <link rel="stylesheet" href="style.css?v=110">
+  <link rel="stylesheet" href="style.css?v=111">
   <!-- Заголовки Playfair Display Medium, интерфейс Onest. Файлы Google Fonts у себя (с 01.10.2026),
        собирает biohack/tools/irenabio-app/build_fonts.py. Браузер качает только нужные
        подмножества по unicode-range, как и с Google. -->
@@ -587,7 +587,7 @@
 
         <!-- Почта уже известна (вводила перед попыткой): строка вместо поля, «изменить» открывает поле. -->
         <p class="co-fail-only co-fail-email" id="co-fail-email" hidden>
-          Доступ придёт на <strong id="co-fail-email-val"></strong><span class="nowrap" id="co-fail-email-edit-wrap">&nbsp;&middot; <a href="#" id="co-fail-email-edit">изменить</a></span>
+          Доступ придёт на <span class="co-mail-chunk"><strong id="co-fail-email-val"></strong><span class="nowrap" id="co-fail-email-edit-wrap"> &middot;&nbsp;<a href="#" id="co-fail-email-edit">изменить</a></span></span>
         </p>
         <label class="field" for="email">
           <span class="field-label">Твоя почта</span>

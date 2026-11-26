@@ -273,14 +273,21 @@ a:hover { text-decoration: underline; }
 .co-fail-email { margin: 0; text-align: center; font-size: 15px; line-height: 1.5; color: var(--muted); word-break: break-word; }
 .co-fail-email strong { color: var(--text); font-weight: 600; }
 .co-fail-email .nowrap { white-space: nowrap; }
+/* Почта с «· изменить» одним куском (26.11.2026): «на» остаётся на первой строке, кусок целиком
+   уходит на вторую. Не влезает в ширину (длинная почта на 360) - перенос только перед «·»,
+   сам адрес рвётся лишь если он один шире строки. Без text-wrap: balance, иначе «на» уезжает вниз. */
+.co-fail-email .co-mail-chunk { display: inline-block; max-width: 100%; }
 .co-fail-email a { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
 #view-checkout.co-fail #pay-cancel-note { font-size: 12.5px; }
 /* Мелкие центрированные подписи кассы (26.11.2026): ровные переносы, без хвоста в одно-два слова.
    Старые браузеры свойство игнорируют. Строка про СБП (только "rub") стоит отдельно от строки
    про автопродление, отступ 16 px. */
 #view-checkout .price-notice-co, #view-checkout .pay-by-note, #view-checkout .pay-cancel-note,
-#view-checkout .lead.co-fail-only, #view-checkout .co-fail-email { text-wrap: balance; }
+#view-checkout .lead.co-fail-only { text-wrap: balance; }
 #view-checkout #pay-sbp-note { margin-top: 16px; }
+/* Кнопки и поля кассы шрифтом кассы (26.11.2026): браузер не отдаёт им шрифт родителя, и они шли
+   системным (Arial) во всех поясах и в «Оплата не прошла». Витрину и вход не трогает. */
+#view-checkout button, #view-checkout input { font-family: inherit; }
 .alt-pay { text-align: center; margin: 14px 0 0; }
 .alt-pay a { font-size: 14px; color: var(--muted); border-bottom: 1px dashed var(--border); }
 .alt-pay a:hover { color: var(--accent-deep); text-decoration: none; }
