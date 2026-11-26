@@ -1331,6 +1331,13 @@ function applyCountryPay() {
   const first = tributeFirst ? rubBtn : btn;
   if (cancel && first && first.nextElementSibling !== cancel) first.after(cancel);
   coFillCancelNote();
+  // "rub" (26.11.2026): страницы СБП на сертификатах Минцифры, браузеры пишут «Подключение не защищено».
+  const sbp = document.getElementById("pay-sbp-note");
+  if (sbp) {
+    sbp.hidden = region !== "rub";
+    const anchor = cancel || first;
+    if (anchor && anchor.nextElementSibling !== sbp) anchor.after(sbp);
+  }
   // co_reserve (26.11.2026): касса после неудачи (d = причина метки) и переключение на Tribute.
   if (fail) track("co_reserve", fail.t.why || "left", true);
   if (fail && fail.next === "tribute") track("co_reserve", fail.by ? "lava_to_tribute" : "wfp_to_tribute", true);
