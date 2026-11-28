@@ -572,6 +572,17 @@ function inAppCard(v) {
     '<button type="button" class="btn btn-ghost a2hs-linkcopy">Скопировать ссылку</button>' +
     '<p class="a2hs-url" hidden></p></div>';
 }
+// Ссылка на кассу для другого браузера (28.11.2026): чистый https://app.irenabio.com/?buy=1 и из текущего адреса
+// только src и utm_*. Служебные метки (tribute, order, paid, lava, login, plan, internal...) и #хвост не переносим.
+function coCleanBuyUrl() {
+  const u = new URL("https://app.irenabio.com/?buy=1");
+  try {
+    new URLSearchParams(location.search).forEach((val, key) => {
+      if ((key === "src" || /^utm_[a-z0-9_]+$/i.test(key)) && val) u.searchParams.set(key, val);
+    });
+  } catch (e) {}
+  return u.href;
+}
 // «Скопировать ссылку»: текущий адрес целиком. Не вышло - показываем адрес текстом для выделения.
 async function copyHereUrl(btn, box, d, urlOverride) {
   track("a2hs_click", d);
@@ -1368,12 +1379,7 @@ function applyCountryPay() {
         '<button type="button" class="btn btn-ghost a2hs-linkcopy">Скопировать ссылку</button>' +
         '<p class="a2hs-url" hidden></p>';
       const lc = ia.querySelector(".a2hs-linkcopy");
-      // Ссылка на кассу (?buy=1), а не на текущий адрес: в другом браузере сразу касса.
-      if (lc) lc.addEventListener("click", () => {
-        let u = location.href;
-        try { const x = new URL(location.href); x.searchParams.set("buy", "1"); u = x.href; } catch (e) {}
-        copyHereUrl(lc, ia, inAppKind() + ":co:copy", u);
-      });
+      if (lc) lc.addEventListener("click", () => copyHereUrl(lc, ia, inAppKind() + ":co:copy", coCleanBuyUrl()));
     }
     ia.hidden = !inApp;
     const anchor = (sbp && !sbp.hidden ? sbp : null) || cancel || first;
