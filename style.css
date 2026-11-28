@@ -285,6 +285,11 @@ a:hover { text-decoration: underline; }
 #view-checkout .price-notice-co, #view-checkout .pay-by-note, #view-checkout .pay-cancel-note,
 #view-checkout .lead.co-fail-only { text-wrap: balance; }
 #view-checkout #pay-sbp-note { margin-top: 16px; }
+/* "rub" внутри Инстаграма и Фейсбука (28.11.2026): строка, шаги и «Скопировать ссылку» вместо #pay-sbp-note. */
+#view-checkout .co-inapp { margin: 16px 0 0; }
+#view-checkout .co-inapp .pay-cancel-note { margin: 0; }
+#view-checkout .co-inapp .a2hs-steps { margin: 12px auto 0; max-width: 320px; text-align: left; }
+#view-checkout .co-inapp .a2hs-linkcopy { display: block; width: auto; margin: 12px auto 0; padding: 9px 16px; font-size: 13px; border-radius: 10px; }
 /* Кнопки и поля кассы шрифтом кассы (26.11.2026): браузер не отдаёт им шрифт родителя, и они шли
    системным (Arial) во всех поясах и в «Оплата не прошла». Витрину и вход не трогает. */
 #view-checkout button, #view-checkout input { font-family: inherit; }

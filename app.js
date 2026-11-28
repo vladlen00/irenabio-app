@@ -550,11 +550,15 @@ async function copyLoginUrl(btn) {
 // a2hs_click «ig:sc:copy» и «ig:sc:intent»; для Фейсбука fb вместо ig.
 const isIgFb = (v) => v === "ig" || v === "fb";
 function inAppHereUrl() { return location.pathname + location.search; }
-function inAppCard(v) {
-  const android = /Android/.test(navigator.userAgent || "");
-  const steps = android
+// Шаги «открыть в обычном браузере» для Инстаграма и Фейсбука: карточка витрины и касса "rub" (28.11.2026).
+function igFbSteps() {
+  return /Android/.test(navigator.userAgent || "")
     ? ["Нажми " + a2hsGlyph("dotsV") + " вверху справа", "Выбери «Открыть в браузере» или «Открыть в Chrome»"]
     : ["Нажми " + a2hsGlyph("dotsH") + " вверху справа", "Выбери «Открыть в стороннем браузере»"];
+}
+function inAppCard(v) {
+  const android = /Android/.test(navigator.userAgent || "");
+  const steps = igFbSteps();
   const intent = "intent:https://app.irenabio.com" + inAppHereUrl() + "#Intent;end";
   return '<div class="a2hs a2hs-inapp">' +
     '<button type="button" class="a2hs-x" aria-label="Закрыть"><i class="ti ti-x"></i></button>' +
@@ -569,9 +573,9 @@ function inAppCard(v) {
     '<p class="a2hs-url" hidden></p></div>';
 }
 // «Скопировать ссылку»: текущий адрес целиком. Не вышло - показываем адрес текстом для выделения.
-async function copyHereUrl(btn, box, d) {
+async function copyHereUrl(btn, box, d, urlOverride) {
   track("a2hs_click", d);
-  const url = location.href;
+  const url = urlOverride || location.href;
   let ok = false;
   try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(url); ok = true; } } catch (e) {}
   if (!ok) {
@@ -1346,10 +1350,33 @@ function applyCountryPay() {
   coFillCancelNote();
   // "rub" (26.11.2026): страницы СБП на сертификатах Минцифры, браузеры пишут «Подключение не защищено».
   const sbp = document.getElementById("pay-sbp-note");
+  // 28.11.2026: "rub" внутри Инстаграма или Фейсбука - вместо этой строки блок #co-inapp-note
+  // (своя строка, шаги «открыть в обычном браузере» и «Скопировать ссылку»).
+  const inApp = region === "rub" && isIgFb(inAppKind());
   if (sbp) {
-    sbp.hidden = region !== "rub";
+    sbp.hidden = region !== "rub" || inApp;
     const anchor = cancel || first;
     if (anchor && anchor.nextElementSibling !== sbp) anchor.after(sbp);
+  }
+  const ia = document.getElementById("co-inapp-note");
+  if (ia) {
+    if (inApp && !ia.innerHTML) {
+      ia.innerHTML = '<p class="pay-cancel-note">💡 Внутри ' + inAppName() + " оплата по СБП часто не открывается. " +
+        "Оплати картой или открой страницу в обычном браузере</p>" +
+        '<ol class="a2hs-steps">' + igFbSteps().map((t) => "<li>" + t + "</li>").join("") + "</ol>" +
+        '<button type="button" class="btn btn-ghost a2hs-linkcopy">Скопировать ссылку</button>' +
+        '<p class="a2hs-url" hidden></p>';
+      const lc = ia.querySelector(".a2hs-linkcopy");
+      // Ссылка на кассу (?buy=1), а не на текущий адрес: в другом браузере сразу касса.
+      if (lc) lc.addEventListener("click", () => {
+        let u = location.href;
+        try { const x = new URL(location.href); x.searchParams.set("buy", "1"); u = x.href; } catch (e) {}
+        copyHereUrl(lc, ia, inAppKind() + ":co:copy", u);
+      });
+    }
+    ia.hidden = !inApp;
+    const anchor = (sbp && !sbp.hidden ? sbp : null) || cancel || first;
+    if (inApp && anchor && anchor.nextElementSibling !== ia) anchor.after(ia);
   }
   // "by" после неудачи (28.11.2026): белорусские карты часто не проходят ни в Lava, ни в Tribute -
   // зовём в поддержку. Остальным поясам строка не показывается.
