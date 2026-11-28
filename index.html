@@ -205,7 +205,7 @@
         <button class="btn btn-primary" id="btn-login" type="submit">Войти</button>
         </form>
         <p class="alt-pay"><a href="#" id="login-to-signup" role="button">Нет аккаунта? Оформить подписку</a></p>
-        <p class="alt-pay"><a href="#" id="login-to-reset" role="button">Забыли пароль?</a></p>
+        <p class="alt-pay"><a href="#" id="login-to-reset" role="button">Нет пароля или забыли его?</a></p>
         <button class="btn btn-ghost" id="login-back" type="button">Назад</button>
       </div>
     </section>
@@ -213,8 +213,8 @@
     <!-- ЭКРАН: ВОССТАНОВЛЕНИЕ ПАРОЛЯ по номеру заказа (без писем). Единая форма: email + заказ + новый пароль. -->
     <section id="view-reset" hidden>
       <div class="login-card">
-        <h1>Восстановление доступа</h1>
-        <p class="lead">Введите почту, номер заказа и новый пароль.</p>
+        <h1>Пароль по номеру заказа</h1>
+        <p class="lead" id="reset-lead">Введите почту и номер заказа и придумайте пароль.</p>
         <!-- Настоящая <form> (18.10.2026), как вход: иначе браузер не сохранит новый пароль. -->
         <form id="reset-form" action="#" method="post" novalidate>
         <label class="field" for="reset-email">
@@ -242,7 +242,7 @@
                  placeholder="Повторите пароль" autocapitalize="off" spellcheck="false">
         </label>
         <p class="field-error" id="reset-error" hidden></p>
-        <button class="btn btn-primary" id="btn-reset" type="submit">Сбросить пароль</button>
+        <button class="btn btn-primary" id="btn-reset" type="submit">Сохранить пароль и войти</button>
         </form>
         <button class="btn btn-ghost" id="reset-back" type="button">Назад ко входу</button>
       </div>
@@ -263,7 +263,7 @@
           <input id="claim-order" type="text" autocomplete="off"
                  placeholder="код из чека об оплате" autocapitalize="off" spellcheck="false">
         </label>
-        <p class="reassure claim-hint" id="claim-hint">Номер заказа - в чеке об оплате: он показан на экране сразу после оплаты и в письме от платёжной системы. Это длинный код с дефисами, вида a1b2c3d4-e5f6-… . Не находите - напишите в поддержку, откроем вручную.</p>
+        <p class="reassure claim-hint" id="claim-hint">Номер заказа есть в письме «Добро пожаловать» от Ирены и на экране сразу после оплаты. Он начинается с wfp_ или trb_, например wfp_1795…_3f9a…, а при оплате через Lava это длинный код с дефисами. Не находите - напишите в поддержку, откроем вручную.</p>
         <label class="field" for="claim-password">
           <span class="field-label">Придумайте пароль</span>
           <div class="pw-field">
@@ -957,6 +957,6 @@
   <!-- supabase-js у себя, версия закреплена (была плавающая @2 с jsdelivr). Обновлять осознанно:
        скачать новую umd в vendor/ и поменять имя файла здесь. -->
   <script src="vendor/supabase-2.117.2.js"></script>
-  <script src="app.js?v=218"></script>
+  <script src="app.js?v=219"></script>
 </body>
 </html>

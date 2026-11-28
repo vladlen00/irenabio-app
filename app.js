@@ -2009,7 +2009,7 @@ els.form.addEventListener("submit", (e) => {
   bind("btn-lava-pay", () => onLavaPay());            // экран 2 -> счёт и оплата в той же вкладке (Lava)
   bind("btn-paid-check", () => onPaidCheck());         // экран 4 -> ручная проверка
   bind("btn-pay-back", () => { clearLavaReturn(); showCheckout(); }); // экран 4 -> выход к тарифам (чистит stash)
-  bind("start-paid-help", () => showClaim());          // старт: "оплатили, но ещё не заходили?" -> первый пароль по номеру заказа
+  bind("start-paid-help", () => openOrderPassword());  // старт: "оплатили, но ещё не заходили?" -> общая форма "Пароль по номеру заказа" (28.11.2026)
   const curOpts = document.getElementById("cur-opts");
   if (curOpts) curOpts.addEventListener("change", (e) => {
     if (e.target.name === "lavacur") { state.lavaCurrency = e.target.value === "EUR" ? "EUR" : (e.target.value === "SBP" ? "SBP" : "RUB"); paintCur(); }
@@ -4786,6 +4786,12 @@ async function doLogin() {
   const email = normalizeEmail(document.getElementById("login-email").value);
   const password = document.getElementById("login-password").value || "";
   showLoginError("");
+  // Номер заказа в поле «Пароль» (28.11.2026, две покупательницы 27.11): в GoTrue не ходим,
+  // ведём в общую форму с подставленными почтой и номером. Форматы: WayForPay, Tribute, Lava.
+  if (looksLikeOrderRef(password)) {
+    openOrderPassword(email, password.trim(), "Похоже, это номер заказа. Придумайте пароль здесь.");
+    return;
+  }
   if (!emailValid(email)) { showLoginError(EMAIL_HINT); document.getElementById("login-email").focus(); return; }
   if (password.length < 1) { showLoginError("Введите пароль."); document.getElementById("login-password").focus(); return; }
   if (!sb) { showLoginError("Не удалось загрузить вход. Обновите страницу."); return; }
@@ -4803,7 +4809,7 @@ async function doLogin() {
       // иначе оформить. Оба пути явные, чтобы уже оплативший не ушёл во вторую оплату.
       showLoginError(null, "Неверная почта или пароль. Первый раз после оплаты? <a href=\"#\" id=\"login-err-claim\" style=\"color:inherit;text-decoration:underline\">Создайте пароль</a>. Ещё нет подписки? <a href=\"#\" id=\"login-err-signup\" style=\"color:inherit;text-decoration:underline\">Оформить</a>.");
       const lc = document.getElementById("login-err-claim");
-      if (lc) lc.addEventListener("click", (e) => { e.preventDefault(); showClaim(); });
+      if (lc) lc.addEventListener("click", (e) => { e.preventDefault(); openOrderPassword(email); });
       const l = document.getElementById("login-err-signup");
       if (l) l.addEventListener("click", (e) => { e.preventDefault(); checkoutBackTo = "login"; showCheckout(); });
       btn.disabled = false; btn.textContent = "Войти";
@@ -4831,11 +4837,39 @@ function showReset() {
   els.viewCheckout.hidden = true;
   const vc0 = document.getElementById("view-claim"); if (vc0) vc0.hidden = true;
   const vr = document.getElementById("view-reset"); if (vr) vr.hidden = false;
+  const lead = document.getElementById("reset-lead"); if (lead) lead.textContent = RESET_LEAD;
   const hint = document.getElementById("reset-hint");
-  if (hint) hint.innerHTML = "Номер заказа вы сохранили при оплате. Не сохранили? Напишите в поддержку " + supportTgHtml() + " - поможем.";
+  if (hint) hint.innerHTML = orderHintHtml();
+  const btn = document.getElementById("btn-reset"); if (btn) { btn.disabled = false; btn.textContent = RESET_BTN; }
   showResetError("");
   const em = document.getElementById("reset-email"); if (em) em.focus();
   window.scrollTo(0, 0);
+}
+// Форма «Пароль по номеру заказа» (28.11.2026) одна на два случая: пароля ещё нет (оплатила,
+// не заходила) и пароль забыт. reset-password отвечает no_account, если аккаунта нет, и
+// doReset тогда сам зовёт claim-account. Отдельный экран claim остался в коде, но со входа
+// и старта сюда больше не ведут.
+const RESET_LEAD = "Введите почту и номер заказа и придумайте пароль.";
+const RESET_BTN = "Сохранить пароль и войти";
+// Подсказка про номер заказа: одна на форму сброса и экран claim. Пример обезличенный.
+function orderHintHtml() {
+  return "Номер заказа есть в письме «Добро пожаловать» от Ирены и на экране сразу после оплаты. Он начинается с wfp_ или trb_, например wfp_1795…_3f9a…, а при оплате через Lava это длинный код с дефисами. Не находите - напишите " + supportTgHtml() + ", откроем вручную.";
+}
+// Номер заказа вместо пароля: wfp_<цифры>_<hex> (WayForPay), trb_<hex> (Tribute), UUID (Lava).
+function looksLikeOrderRef(v) {
+  const s = String(v || "").trim();
+  return /^wfp_\d+_[0-9a-f]+$/i.test(s) || /^trb_[0-9a-f]+$/i.test(s)
+    || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+}
+// Вход в общую форму: что известно, подставляем; фокус в первое пустое поле.
+// notice заменяет вводную строку формы (сверху, не красным).
+function openOrderPassword(email, order, notice) {
+  showReset();
+  const em = document.getElementById("reset-email"); if (em && email) em.value = email;
+  const or = document.getElementById("reset-order"); if (or && order) or.value = order;
+  const lead = document.getElementById("reset-lead"); if (lead && notice) lead.textContent = notice;
+  const next = !(em && em.value) ? em : !(or && or.value) ? or : document.getElementById("reset-password");
+  if (next) next.focus();
 }
 // Восстановление с уже подставленными почтой и номером заказа: оба значения есть на экране
 // пароля, заставлять вводить их заново незачем. Фокус сразу в поле нового пароля.
@@ -4873,7 +4907,7 @@ async function doReset() {
     });
     if (r.state === "unreachable") {
       showResetError(netMsg(r));
-      btn.disabled = false; btn.textContent = "Сбросить пароль";
+      btn.disabled = false; btn.textContent = RESET_BTN;
       return;
     }
     const res = { ok: r.state === "ok", status: r.status };
@@ -4888,22 +4922,62 @@ async function doReset() {
       setTimeout(showLogin, 1400);
       return;
     }
+    // Аккаунта нет (28.11.2026): пара почта+номер сервером уже проверена, заказ не погашен.
+    // Без ошибки создаём аккаунт через claim-account с теми же данными и входим, как после claim.
+    if (data.reason === "no_account") { await resetViaClaim(btn, email, order, password); return; }
     // Заказ уже потрачен на смену пароля: одноразовость, второго сброса этим номером не будет.
     // Совета "войдите старым паролем" тут нет намеренно: женщина пришла именно потому, что его
     // не помнит. Единственный рабочий выход - поддержка.
     if (data.reason === "order_used") {
       showResetError(null, "Этим номером пароль уже меняли, второй раз он не работает. Напишите нам, откроем доступ: " + supportTgHtml());
-      btn.disabled = false; btn.textContent = "Сбросить пароль";
+      btn.disabled = false; btn.textContent = RESET_BTN;
       return;
     }
     if (res.status === 429) {
       showResetError("Слишком много попыток. Подождите минуту и попробуйте снова.");
     } else {
-      // анти-энумерация: единый текст на ЛЮБОЙ промах (неверный email/заказ/не оплачен/нет логина)
+      // анти-энумерация: единый текст на ЛЮБОЙ промах (неверный email/заказ/не оплачен; нет логина - no_account выше)
       showResetError(null, "Почта и номер заказа не совпали. Не сходится - напишите в поддержку " + supportTgHtml() + ".");
     }
-    btn.disabled = false; btn.textContent = "Сбросить пароль";
+    btn.disabled = false; btn.textContent = RESET_BTN;
   }
+}
+
+// Вторая половина общей формы: reset-password сказал no_account -> claim-account тем же телом.
+// Без автоповтора, как doClaim: создаёт аккаунт, лимит 5/мин.
+async function resetViaClaim(btn, email, order, password) {
+  const done = () => { btn.disabled = false; btn.textContent = RESET_BTN; };
+  const r = await sbFetch(CLAIM_ACCOUNT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, orderReference: order, password }),
+  });
+  if (r.state === "unreachable") { showResetError(netMsg(r)); done(); return; }
+  const data = r.data || {};
+  if (r.state === "ok" && data.ok) {
+    btn.textContent = "Входим...";
+    const inn = await sb.auth.signInWithPassword({ email, password });
+    if (inn.data && inn.data.session) { formDone(resetFormEl); a2hsAfterPw = true; showPaidDone(email, order); return; }
+    showResetError(null, "Пароль сохранён. Войдите с ним.");
+    setTimeout(showLogin, 1400);
+    return;
+  }
+  if (data.reason === "already_registered") {
+    // Аккаунт с этой почтой есть, но с заказом не связан: на вход с подставленной почтой.
+    showLogin();
+    const em = document.getElementById("login-email"); if (em) em.value = email;
+    showLoginError("Аккаунт уже есть, войдите с паролем.");
+    const pw = document.getElementById("login-password"); if (pw) pw.focus();
+    return;
+  }
+  if (data.reason === "no_active_subscription") {
+    showResetError(null, "По этому заказу нет активной подписки. Если срок вышел - оформите заново, или напишите " + supportTgHtml() + ".");
+  } else if (r.status === 429) {
+    showResetError("Слишком много попыток. Подождите минуту и попробуйте снова.");
+  } else {
+    showResetError(null, "Почта и номер заказа не совпали. Не сходится - напишите в поддержку " + supportTgHtml() + ".");
+  }
+  done();
 }
 
 // ============ ПЕРВЫЙ ВХОД ПОСЛЕ ОПЛАТЫ: создать пароль по номеру заказа (auth-аккаунта ещё нет) ============
@@ -4917,7 +4991,7 @@ function showClaim() {
   els.viewCheckout.hidden = true;
   const vc = document.getElementById("view-claim"); if (vc) vc.hidden = false;
   const hint = document.getElementById("claim-hint");
-  if (hint) hint.innerHTML = "Номер заказа - в чеке об оплате: он показан на экране сразу после оплаты и в письме от платёжной системы. Длинный код с дефисами, вида a1b2c3d4-e5f6-… . Не находите - напишите " + supportTgHtml() + ", откроем вручную.";
+  if (hint) hint.innerHTML = orderHintHtml();
   showClaimError("");
   const em = document.getElementById("claim-email"); if (em) em.focus();
   window.scrollTo(0, 0);
@@ -4998,7 +5072,8 @@ async function doClaim() {
   // передумавшая входить, попадала не туда, откуда пришла.
   bind("login-back", (e) => { e.preventDefault(); showShowcase(); });
   bind("login-to-signup", (e) => { e.preventDefault(); checkoutBackTo = "login"; showCheckout(); });
-  bind("login-to-reset", (e) => { e.preventDefault(); showReset(); });
+  // «Нет пароля или забыли его?» (28.11.2026): общая форма, почта из поля входа.
+  bind("login-to-reset", (e) => { e.preventDefault(); openOrderPassword(normalizeEmail(document.getElementById("login-email").value)); });
   resetFormEl = document.getElementById("reset-form");   // <form>: кнопка отправляет, doReset тот же
   if (resetFormEl) resetFormEl.addEventListener("submit", (e) => { e.preventDefault(); doReset(); });
   bind("reset-back", (e) => { e.preventDefault(); showLogin(); });
