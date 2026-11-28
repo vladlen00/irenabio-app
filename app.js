@@ -280,6 +280,18 @@ function freshLavaReturn() {
 const LAVA_FAIL_MSG = "Оплата не прошла: банк её не подтвердил. Попробуй ещё раз или другой картой.";
 const LAVA_CANCEL_MSG = "Оплата отменена. Можно попробовать ещё раз.";
 const TRIBUTE_FAIL_MSG = "Оплата не прошла. Попробуй ещё раз, другой картой или по СБП.";
+// Пояс "rub" после неудачи Tribute (28.11.2026). Экрана «Оплата не прошла» у "rub" нет, поэтому строка
+// над кнопкой Tribute (.pay-by-note) меняет текст. Причину (qr_expired и т.п.) касса не знает: Tribute
+// возвращает только ?tribute=fail, а ушедшая со страницы не возвращается вовсе. Поэтому признак -
+// свежая метка Tribute "left" или "tribute_fail" (за 24-28.11 у "rub" это почти всегда qr_expired / без ответа).
+const RUB_SBP_FAIL_HINT = "Похоже, не открылась страница СБП. Она сейчас сбоит у многих, попробуй оплатить картой.";
+const RUB_SBP_FAIL_FRESH_MS = 12 * 60 * 60 * 1000;
+function rubSbpFailHint() {
+  if (payRegion() !== "rub") return false;
+  const t = readPayTry();
+  return !!t && t.method === "tribute" && (t.why === "left" || t.why === "tribute_fail")
+    && (Date.now() - (t.ts || 0)) < RUB_SBP_FAIL_FRESH_MS;
+}
 
 // ===== СЧЁТЧИК ВОРОНКИ (05.10.2026) =====
 // Маяк в Cloudflare Worker ir-funnel (biohack/tools/funnel-worker), НЕ в нашу базу: он не
@@ -1307,7 +1319,8 @@ function applyCountryPay() {
   if (box) box.hidden = !tributeFirst;
   const note = document.querySelector(".pay-by-note");
   if (note) {
-    note.textContent = region === "by" ? "Карты Беларуси: оплата в евро" : "Любые российские карты и СБП";
+    note.textContent = region === "by" ? "Карты Беларуси: оплата в евро"
+      : (rubSbpFailHint() ? RUB_SBP_FAIL_HINT : "Любые российские карты и СБП");
     note.hidden = !rubFirst;
   }
   const rubBtn = document.getElementById("btn-pay-rub");
@@ -1337,6 +1350,17 @@ function applyCountryPay() {
     sbp.hidden = region !== "rub";
     const anchor = cancel || first;
     if (anchor && anchor.nextElementSibling !== sbp) anchor.after(sbp);
+  }
+  // "by" после неудачи (28.11.2026): белорусские карты часто не проходят ни в Lava, ни в Tribute -
+  // зовём в поддержку. Остальным поясам строка не показывается.
+  const byNote = document.getElementById("co-by-note");
+  if (byNote) {
+    const on = !!fail && region === "by";
+    if (on && !byNote.innerHTML) byNote.innerHTML = "Карты многих белорусских банков сейчас не проходят онлайн-оплату. Напиши нам "
+      + supportTgHtml() + ", поможем оплатить другим способом.";
+    byNote.hidden = !on;
+    const anchor = cancel || first;
+    if (on && anchor && anchor.nextElementSibling !== byNote) anchor.after(byNote);
   }
   // co_reserve (26.11.2026): касса после неудачи (d = причина метки) и переключение на Tribute.
   if (fail) track("co_reserve", fail.t.why || "left", true);
@@ -6537,7 +6561,8 @@ if (startParams.get("paid") === "1" && startParams.get("order")) {
 } else if (tributeBack === "fail") {
   markPayTry("tribute", "tribute_fail", { order: tributeOrder, email: (readPayTry() || {}).email || "" });
   scGoCheckout();
-  if (!coFailState()) showFormError(TRIBUTE_FAIL_MSG);   // вне "rub"/"by" об этом говорит заголовок «Оплата не прошла»
+  // вне "rub"/"by" об этом говорит заголовок «Оплата не прошла», у "rub" - строка RUB_SBP_FAIL_HINT над кнопкой
+  if (!coFailState() && payRegion() !== "rub") showFormError(TRIBUTE_FAIL_MSG);
 } else if ((lavaBack === "fail" || lavaBack === "cancel") && !(sb && hasStoredSession())) {
   // Отказ или отмена: туда, откуда уходила (выбор валюты), с её почтой и причиной.
   const r = readLavaReturn();
