@@ -1361,7 +1361,8 @@ function applyCountryPay() {
   const ia = document.getElementById("co-inapp-note");
   if (ia) {
     if (inApp && !ia.innerHTML) {
-      ia.innerHTML = '<p class="pay-cancel-note">💡 Внутри ' + inAppName() + " оплата по СБП часто не открывается. " +
+      // Текст один и для ig, и для fb (решение Владлена 28.11: из Фейсбука заходов 0), inAppName здесь не нужен.
+      ia.innerHTML = '<p class="pay-cancel-note">💡 Внутри Инстаграма оплата по СБП часто не открывается. ' +
         "Оплати картой или открой страницу в обычном браузере</p>" +
         '<ol class="a2hs-steps">' + igFbSteps().map((t) => "<li>" + t + "</li>").join("") + "</ol>" +
         '<button type="button" class="btn btn-ghost a2hs-linkcopy">Скопировать ссылку</button>' +
