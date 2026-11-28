@@ -3410,12 +3410,18 @@ const SPRINT_ABOUT = {
   nutrition: "Никаких диет, таблиц калорий и списков запрещённых продуктов: женская физиология требует другого " +
     "подхода. Анализы и как их читать, здоровая тарелка, сколько раз в день есть, завтрак, обед и ужин " +
     "по-женски, средиземноморское питание и железо.",
-  // «Мужские потребности в отношениях» (старт 28.11.2026), текст Владлена 24.11.
-  // Строки с «• » выводятся списком (aboutHtml), остальные абзацами.
+  // «Мужские потребности в отношениях» (старт 28.11.2026), текст Владлена 24.11, темы 28.11.
+  // Строки с «• » выводятся списком (aboutHtml), остальные абзацами. Пункты «• » - темы по дням:
+  // номер пункта = номер дня (scPlan), шторка гостьи рисует их строками 01-08, пока спринт не залит.
   "men-needs": "Что на самом деле нужно мужчине рядом с тобой и как закрывать его потребности легко и «вкусно».\n" +
     "• Сытый, но всё равно голодный\n" +
     "• За что мужчину хвалить нельзя\n" +
-    "• «Мужчины с Марса» это миф",
+    "• Мужчины не с Марса! Мифы, которые вредят отношениям\n" +
+    "• Одна фраза, которая убивает его желание зарабатывать\n" +
+    "• Что для него самое высшее удовольствие\n" +
+    "• Как поддержать, когда у него кризис, и не утащить всё на себе\n" +
+    "• Тайный код вашего мужчины: чего хочет именно он\n" +
+    "• Как сделать, чтобы он сам хотел вас баловать к праздникам - без намеков и обид",
 };
 // Описание спринта в HTML (24.11.2026): строки через \n; «• » в начале строки = пункт списка,
 // подряд идущие пункты собираются в один <ul>, прочие строки - абзацы. Без \n выходит один
@@ -3446,6 +3452,15 @@ function aboutParts(text) {
     if (m) topics.push(m[1]); else lead.push(t);
   });
   return { lead: lead.join(" "), topics };
+}
+// План тем идущего спринта (28.11.2026): пункты «• » в SPRINT_ABOUT, номер пункта = номер дня.
+// Пока опубликовано меньше дней, чем тем, шторка гостьи рисует строки по плану: опубликованный
+// день со своим названием из базы, будущий - темой из списка, все с замком. Залит целиком
+// (дней не меньше, чем тем) -> null, обычная шторка с «и ещё N дней». Без пунктов (gut-body,
+// nutrition) и без записи в SPRINT_ABOUT -> null, шторка прежняя.
+function scPlan(s) {
+  const topics = aboutParts((s && SPRINT_ABOUT[s.cover_slug]) || "").topics;
+  return topics.length > ((s && s.days_total) || 0) ? topics : null;
 }
 // Спринт объявлен, но дней ещё нет: старт из starts_at (23.11.2026). Плашка «старт 28 ноября»
 // на постере и та же строка в шторке. Уходит сама с первым опубликованным днём: тогда
@@ -4010,7 +4025,8 @@ function openLockSheet(kind, payload) {
         ).join("") +
         hurry + '<button type="button" class="btn btn-primary lock-cta" data-lock-buy data-price-cta="all">' + escapeHtml(buyAll) + "</button>" +
       "</div>";
-  } else if (scIncomplete(payload) || scNotYet(payload)) {
+  } else if ((scIncomplete(payload) || scNotYet(payload)) && !(payload.days_total > 0 && scPlan(payload))) {
+    // Идущий спринт с планом тем и хотя бы одним днём уходит в обычную ветку ниже (28.11.2026).
     // Программа ещё не залита целиком: обложка, название и «скоро». Списка дней нет (он был бы
     // из одного дня), кнопки покупки ЭТОЙ программы нет. Кнопка открыть всё остальное остаётся.
     const s = payload;
@@ -4060,10 +4076,19 @@ function openLockSheet(kind, payload) {
   } else {
     const s = payload;
     const free = s.free_days || [];
-    const prev = free.length > 0 ? free : (s.days_preview || []);
-    const rest = Math.max(0, scDaysTotal(s) - prev.length);
+    // План тем (28.11.2026, men-needs): строки 01..N по плану. Опубликованный день берёт название
+    // из базы (days_preview, get-public отдаёт первые три), остальные - тему из списка. «и ещё N
+    // дней» при плане нет: все дни уже в строках.
+    const plan = scPlan(s);
+    const known = (s.days_preview || []).concat(free);
+    const prev = plan
+      ? plan.map((t, i) => known.find((d) => d.day_number === i + 1) || { day_number: i + 1, title: t })
+      : free.length > 0 ? free : (s.days_preview || []);
+    const rest = plan ? 0 : Math.max(0, scDaysTotal(s) - prev.length);
+    const planLead = plan ? aboutParts(SPRINT_ABOUT[s.cover_slug]).lead : "";
     const startsMs = s.starts_at ? Date.parse(s.starts_at) : NaN;
-    const kicker = scDaysTotal(s) > 0
+    const kicker = plan ? "идёт сейчас · в подписке"   // спринт может быть длиннее плана (28.11.2026)
+      : scDaysTotal(s) > 0
       ? plurDays(scDaysTotal(s)) + " · " + (free.length ? plurDays(free.length) + " бесплатно" : "в подписке")
       : Number.isFinite(startsMs) ? "старт " + scDateRu(s.starts_at)
       : s.days_total > 0 ? "идёт сейчас · в подписке"
@@ -4075,18 +4100,18 @@ function openLockSheet(kind, payload) {
       '<div class="lock-body">' +
         '<div class="lock-kick">' + escapeHtml(kicker) + "</div>" +
         '<div class="lock-title">' + escapeHtml(glueShortWords(s.title || "")) + "</div>" +
-        '<div class="lock-lead">Один выпуск Ирены в день и одно действие. Проходишь в своём темпе.</div>' +
+        '<div class="lock-lead">' + escapeHtml(planLead ? glueShortWords(planLead) : "Один выпуск Ирены в день и одно действие. Проходишь в своём темпе.") + "</div>" +
         (prev.length ? '<div class="lock-days">' + prev.map((p) => {
           const isFree = free.some((f) => f.day_number === p.day_number);
           return '<div class="lock-day' + (isFree ? " free" : "") + '"' + (isFree ? ' data-free-day="' + escapeHtml(p.id) + '"' : "") + ">" +
             '<i class="n">' + String(p.day_number).padStart(2, "0") + "</i>" +
-            "<span>" + escapeHtml(dayShortTitle(p.title || "")) + "</span>" +
+            "<span>" + escapeHtml(plan ? glueShortWords(dayShortTitle(p.title || "")) : dayShortTitle(p.title || "")) + "</span>" +
             (isFree ? '<i class="ti ti-player-play"></i>' : '<i class="ti ti-lock"></i>') + "</div>";
         }).join("") +
         (rest > 0 ? '<div class="lock-day rest"><i class="n">…</i><span>и ещё ' + escapeHtml(plurDays(rest)) + "</span></div>" : "") +
         "</div>" : "") +
         hurry + '<button type="button" class="btn btn-primary lock-cta" data-lock-buy data-price-cta="one">' + escapeHtml(buyOne) + "</button>" +
-        scAltHtml(s, free) +
+        (plan ? "" : scAltHtml(s, free)) +   // при плане тем без «Сначала послушать бесплатно», как до дня 1
       "</div>";
   }
   document.getElementById("lock-sheet").hidden = false;
